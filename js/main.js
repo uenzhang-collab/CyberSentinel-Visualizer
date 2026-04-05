@@ -40,7 +40,9 @@ const translations = {
         "convert_title": "進階：需要轉檔為 MP4 嗎？",
         "convert_desc": "由於瀏覽器技術限制，錄影原生輸出為 WebM 格式。若您需要傳送至 iPhone、LINE 或 Instagram 等平台，建議使用以下安全免費的線上轉檔工具：",
         "convert_free": "🌐 前往 FreeConvert 轉檔",
-        "convert_cloud": "☁️ 前往 CloudConvert 轉檔"
+        "convert_cloud": "☁️ 前往 CloudConvert 轉檔",
+        "privacy_notice": "🛡️ 隱私主權承諾：本系統採 100% 本地端邊緣運算，您的音訊絕不上傳雲端，完美保障資料安全。",
+        "esg_eco_mode": "🌱 ESG 節能模式啟動 (低電量)"
     },
     "en-US": {
         "nav_brand": "CyberSentinel Core",
@@ -75,7 +77,9 @@ const translations = {
         "convert_title": "Need MP4 Format?",
         "convert_desc": "Native output is WebM. If you need to share to iPhone, LINE, or Instagram, use these free tools:",
         "convert_free": "🌐 Convert via FreeConvert",
-        "convert_cloud": "☁️ Convert via CloudConvert"
+        "convert_cloud": "☁️ Convert via CloudConvert",
+        "privacy_notice": "🛡️ Privacy Pledge: 100% local edge computing. Your audio never leaves your device.",
+        "esg_eco_mode": "🌱 ESG Eco Mode (Low Battery)"
     }
 };
 
@@ -137,6 +141,41 @@ function getScale() {
 }
 
 // ==========================================
+// ESG 節能引擎與電池偵測 (對標 SDG 7, 13)
+// ==========================================
+window.ESG_ECO_MODE = false;
+
+async function initESGMode() {
+    if ('getBattery' in navigator) {
+        try {
+            const battery = await navigator.getBattery();
+            const handleBatteryChange = () => {
+                // 如果未充電且電量低於 20%，強制啟動 ESG 節能模式
+                if (battery.level <= 0.20 && !battery.charging) {
+                    window.ESG_ECO_MODE = true;
+                    const notice = document.getElementById('energyNotice');
+                    if(notice) {
+                        notice.innerHTML = '<span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> <span data-i18n="esg_eco_mode">🌱 ESG 節能模式啟動</span>';
+                        notice.style.display = 'flex';
+                        updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
+                    }
+                    console.log("[CyberSentinel] ESG Eco Mode Activated: Power saving engaged.");
+                } else {
+                    window.ESG_ECO_MODE = false;
+                    const notice = document.getElementById('energyNotice');
+                    if(notice && !document.hidden) notice.style.display = 'none';
+                }
+            };
+            battery.addEventListener('levelchange', handleBatteryChange);
+            battery.addEventListener('chargingchange', handleBatteryChange);
+            handleBatteryChange();
+        } catch(e) {
+            console.log('Battery Status API not fully supported on this browser.');
+        }
+    }
+}
+
+// ==========================================
 // 總渲染迴圈 (Master Render Loop)
 // ==========================================
 function drawMasterLoop() {
@@ -189,6 +228,14 @@ function drawMasterLoop() {
         }
     };
 
+    // 💡 攔截器：若處於 ESG 節能模式，強制覆蓋設定以降低 GPU/CPU 負載
+    if (window.ESG_ECO_MODE) {
+        config.particle.amountMult = Math.min(config.particle.amountMult, 0.25); // 粒子狂砍 75%
+        config.waveform.glowMult = Math.min(config.waveform.glowMult, 0.3); // 波形殘影層數大幅減少
+        config.circular.count = Math.min(config.circular.count, 90); // 環形柱子上限壓在 90 根
+        config.eq.count = Math.min(config.eq.count, 64); // EQ 柱子上限壓在 64 根
+    }
+
     // 依照選擇的特效，呼叫對應的渲染引擎
     switch (activeVfx) {
         case 'aurora':
@@ -213,8 +260,37 @@ function drawMasterLoop() {
 }
 
 // ==========================================
-// 排版與 LRC 工具
+// 隱私權與排版 UI 系統
 // ==========================================
+function showPrivacyToast() {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-6 right-6 bg-gray-900/95 backdrop-blur-md border border-blue-500/50 text-blue-300 px-5 py-4 rounded-xl text-sm shadow-2xl z-[100] flex items-center gap-4 transform transition-all duration-700 translate-y-24 opacity-0 max-w-sm';
+    toast.innerHTML = `
+        <span class="text-2xl drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]">🛡️</span> 
+        <p data-i18n="privacy_notice" class="leading-relaxed">隱私主權承諾：本系統採 100% 本地端邊緣運算，您的音訊絕不上傳雲端，完美保障資料安全。</p> 
+        <button class="text-gray-500 hover:text-white text-xl leading-none transition-colors" onclick="this.parentElement.remove()">&times;</button>
+    `;
+    document.body.appendChild(toast);
+    
+    // 套用語系
+    updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
+    
+    // 滑入動畫
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            toast.classList.remove('translate-y-24', 'opacity-0');
+        }, 100);
+    });
+
+    // 8秒後自動消失
+    setTimeout(() => {
+        if(document.body.contains(toast)) {
+            toast.classList.add('translate-y-24', 'opacity-0');
+            setTimeout(() => { if(document.body.contains(toast)) toast.remove(); }, 700);
+        }
+    }, 8000);
+}
+
 function drawLayout() {
     const cName = document.getElementById('channelName').value.trim();
     const topic = document.getElementById('topicTitle').value.trim();
@@ -373,7 +449,6 @@ document.getElementById('btnStartSync').addEventListener('click', () => {
     if(currentMode !== 'file') return alert('請先上傳音樂！');
     if (isSyncing) { audioPlayer.pause(); stopSyncing(); return; }
     
-    // 【修復】統一變數名稱為 lyricsInput
     const text = lyricsInput.value.trim();
     if (!text) return alert('請貼上純文字歌詞！');
 
@@ -552,13 +627,24 @@ function updateLanguage(lang) {
 
 document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
 
-// 啟動初始化
+// ==========================================
+// 啟動初始化程序
+// ==========================================
 setup3D();
 setTimeout(() => applyResolution(1920, 1080), 500);
 updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
 
-// 節能模式偵測
+// 顯示隱私保護提示 (SDG 16)
+setTimeout(() => { showPrivacyToast(); }, 1000);
+
+// 啟動電池偵測節能模式 (SDG 7, 13)
+initESGMode();
+
+// 背景分頁節能模式偵測
 document.addEventListener("visibilitychange", () => {
-    document.getElementById('energyNotice').style.display = document.hidden ? "flex" : "none";
+    // 只有在非 ESG 模式下，才由切換分頁來決定提示字的隱藏
+    if (!window.ESG_ECO_MODE) {
+        document.getElementById('energyNotice').style.display = document.hidden ? "flex" : "none";
+    }
     if (rm) rm.isActive = !document.hidden;
 });
