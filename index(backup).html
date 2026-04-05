@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="張承偉">
+    <meta name="copyright" content="© 2026 張承偉 (CyberSentinel)">
+    <title>CyberSentinel 3D Audio Visualizer Studio</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/727/727218.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <style>
+        body { background-color: #030305; }
+        .glass-panel { background: rgba(31, 41, 55, 0.7); backdrop-filter: blur(10px); }
+        input[type=range] { accent-color: #3b82f6; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .recording-dot { animation: blink 1.5s infinite; }
+    </style>
+</head>
+<body class="text-gray-100 min-h-screen flex flex-col font-sans overflow-x-hidden">
+
+    <!-- 導航欄 -->
+    <nav class="p-4 border-b border-gray-800 flex justify-between items-center glass-panel sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">CS</div>
+            <span class="text-xl font-bold tracking-tight text-blue-400" data-i18n="nav_brand">CyberSentinel 黑核核心</span>
+        </div>
+        <div class="flex items-center gap-6">
+            <span class="text-sm text-gray-500 hidden md:block" data-i18n="creator_label">研發者：張承偉</span>
+            <select id="langSelect" class="bg-gray-800 text-sm p-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500">
+                <option value="zh-TW">繁體中文</option>
+                <option value="en-US">English</option>
+            </select>
+        </div>
+    </nav>
+
+    <!-- 主框架 -->
+    <main class="flex-1 flex flex-col lg:flex-row gap-6 w-full max-w-[1800px] mx-auto py-6 lg:py-8 px-4 lg:px-6">
+        
+        <!-- 【左半部：設定與控制樞紐】 -->
+        <div class="w-full lg:w-4/12 flex flex-col gap-5 order-2 lg:order-1 h-fit">
+            
+            <!-- 區塊 1：素材與排版 -->
+            <div class="bg-gray-800/60 p-5 rounded-2xl border border-gray-700 shadow-lg">
+                <h3 class="text-lg font-bold text-blue-400 mb-4 border-b border-gray-700 pb-2" data-i18n="step1_title">1️⃣ 匯入素材 (音源與排版)</h3>
+                
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button id="btnMic" class="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold transition-colors text-sm">🎙️ 麥克風</button>
+                    <label class="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold cursor-pointer transition-colors text-center text-sm">
+                        <span data-i18n="btn_upload">🎵 上傳音樂</span>
+                        <input type="file" id="audioUpload" accept="audio/*" class="hidden">
+                    </label>
+                    <audio id="audioPlayer" class="hidden"></audio>
+                </div>
+                
+                <div class="flex flex-col gap-2">
+                    <input type="text" id="topicTitle" placeholder="大標題 (專題主題)" class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full text-sm">
+                    <input type="text" id="speakerInfo" placeholder="副標題 (講者資訊)" class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full text-sm">
+                    <textarea id="channelName" rows="2" placeholder="左上角頻道資訊..." class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full resize-none text-sm"></textarea>
+                    <label class="bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm">
+                        <span id="logoLabel">🖼️ 上傳頻道 Logo</span>
+                        <input type="file" id="channelLogo" accept="image/*" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <!-- 區塊 2：動態歌詞 (LRC) -->
+            <div class="bg-gray-800/60 p-5 rounded-2xl border border-gray-700 shadow-lg">
+                <div class="flex justify-between items-center mb-3 border-b border-gray-700 pb-2">
+                    <h3 class="text-base font-bold text-blue-400" data-i18n="step2_title">2️⃣ 動態歌詞 (LRC 打軸)</h3>
+                    <button id="btnToggleSync" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded shadow-md transition-colors">🛠️ 工具</button>
+                </div>
+                <textarea id="lyricsInput" rows="4" placeholder="請貼上純文字歌詞，或 LRC 格式..." class="bg-gray-900 text-white w-full px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none resize-y text-sm"></textarea>
+                
+                <div id="syncToolPanel" class="hidden mt-3 p-3 bg-gray-950 border border-blue-500 rounded-xl">
+                    <div class="flex flex-col gap-2 mb-2">
+                        <button id="btnStartSync" class="w-full px-3 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-sm transition-colors">▶️ 開始播放</button>
+                        <button id="btnMarkTime" disabled class="w-full py-2 bg-gray-800 text-gray-500 border border-gray-700 rounded-lg font-bold disabled:opacity-50 text-sm transition-colors">標記下一句 [空白鍵]</button>
+                    </div>
+                    <div class="p-2 bg-black rounded-lg text-center border border-gray-800">
+                        <p class="text-xs text-gray-500 mb-1">準備標記：</p>
+                        <div class="text-base font-bold text-yellow-400 min-h-[24px] truncate" id="currentSyncLine">-- 準備開始 --</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 區塊 3：視覺特效 -->
+            <div class="bg-gray-800/60 p-5 rounded-2xl border border-gray-700 shadow-lg mb-4">
+                <h3 class="text-base font-bold text-blue-400 mb-3 border-b border-gray-700 pb-2" data-i18n="step3_title">3️⃣ 視覺特效與微調</h3>
+                
+                <select id="vfxSelector" class="w-full bg-gray-900 text-white p-2.5 rounded-lg border border-gray-600 focus:border-blue-500 outline-none font-bold text-sm mb-4">
+                    <option value="aurora">🌌 3D 極光水晶柱 (3D WebGL)</option>
+                    <option value="particle">☄️ 粒子與星雲流體 (2D 深空軌跡)</option>
+                    <option value="circular">💿 對稱環形光譜 (2D 廣播級美學引擎)</option>
+                    <option value="eq">🎚️ 柱狀均衡器 (2D 廣播級美學引擎)</option>
+                    <option value="waveform" selected>🌊 霓虹時域波形 (2D 多重殘影版)</option>
+                </select>
+
+                <!-- 3D 模式專屬微調選項 -->
+                <div id="panel3D" class="flex flex-col gap-3 hidden">
+                    <div class="flex flex-wrap gap-3 mb-1">
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="checkbox" id="chkAurora" checked class="w-3.5 h-3.5 bg-gray-700 rounded border-gray-600 focus:ring-blue-500">
+                            <span class="text-sm text-gray-300 group-hover:text-white transition-colors" data-i18n="vfx_mod_aurora">極光水晶柱</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="checkbox" id="chkSun" checked class="w-3.5 h-3.5 bg-gray-700 rounded border-gray-600 focus:ring-orange-500">
+                            <span class="text-sm text-gray-300 group-hover:text-white transition-colors" data-i18n="vfx_mod_sun">核心太陽</span>
+                        </label>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_transmission">💎 透光度</span><span id="valTransmission" class="text-blue-400">0.90</span>
+                        </label>
+                        <input type="range" id="slTransmission" min="0" max="1" step="0.05" value="0.9" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_speed">🔄 旋轉速度</span><span id="valRotation" class="text-blue-400">0.20</span>
+                        </label>
+                        <input type="range" id="slRotation" min="-1" max="5" step="0.05" value="0.2" class="w-full">
+                    </div>
+                </div>
+
+                <!-- 粒子模式專屬微調選項 -->
+                <div id="panelParticle" class="flex flex-col gap-3 hidden">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_p_amount">☄️ 噴發數量 (Density)</span><span id="valParticleAmount" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slParticleAmount" min="0.1" max="4.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_p_speed">🚀 飛行速度 (Speed)</span><span id="valParticleSpeed" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slParticleSpeed" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                </div>
+
+                <!-- 環形光譜專屬微調選項 -->
+                <div id="panelCircular" class="flex flex-col gap-3 hidden">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_c_count">📊 能量柱數量 (Bar Count)</span><span id="valCircCount" class="text-blue-400">360</span>
+                        </label>
+                        <input type="range" id="slCircCount" min="60" max="720" step="2" value="360" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_c_amp">💥 光譜爆發力 (Amplitude)</span><span id="valCircAmp" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slCircAmp" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_c_color">🌈 色彩流轉 (Color Flow)</span><span id="valCircColor" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slCircColor" min="0" max="5.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_c_spin">💿 唱盤轉速 (Spin Speed)</span><span id="valCircSpin" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slCircSpin" min="0" max="3.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                </div>
+
+                <!-- EQ 柱狀體專屬微調選項 -->
+                <div id="panelEq" class="flex flex-col gap-3 hidden">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_e_count">📊 能量柱數量 (Bar Count)</span><span id="valEqCount" class="text-blue-400">128</span>
+                        </label>
+                        <input type="range" id="slEqCount" min="32" max="256" step="4" value="128" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_e_amp">💥 光譜爆發力 (Amplitude)</span><span id="valEqAmp" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slEqAmp" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_e_color">🌈 色彩流轉 (Color Flow)</span><span id="valEqColor" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slEqColor" min="0" max="5.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_e_gravity">☄️ 懸浮重力 (Cap Gravity)</span><span id="valEqGravity" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slEqGravity" min="0.1" max="3.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                </div>
+
+                <!-- 🌊 霓虹時域波形專屬微調選項 -->
+                <div id="panelWaveform" class="flex flex-col gap-3">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_w_amp">💥 波幅張力 (Amplitude)</span><span id="valWaveAmp" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slWaveAmp" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_w_color">🌈 色彩流轉 (Color Flow)</span><span id="valWaveColor" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slWaveColor" min="0" max="5.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_w_glow">✨ 霓虹殘影 (Neon Trails)</span><span id="valWaveGlow" class="text-blue-400">1.0x</span>
+                        </label>
+                        <input type="range" id="slWaveGlow" min="0" max="3.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs flex justify-between text-gray-400">
+                            <span data-i18n="vfx_w_thick">📏 線條粗細 (Line Thickness)</span><span id="valWaveThick" class="text-blue-400">5</span>
+                        </label>
+                        <input type="range" id="slWaveThick" min="1" max="15" step="1" value="5" class="w-full">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between mt-3 p-2 bg-gray-900/50 rounded-lg">
+                    <label class="text-xs text-gray-400 flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="chkA11y" class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500">
+                        <span data-i18n="vfx_a11y">🔒 視覺保護模式</span>
+                    </label>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- 【右半部：監看器與輸出樞紐】 -->
+        <div class="w-full lg:w-8/12 flex flex-col gap-6 order-1 lg:order-2">
+            
+            <div class="sticky top-[72px] lg:top-24 z-40 bg-gray-900 lg:bg-transparent pb-4 lg:pb-0 shadow-2xl lg:shadow-none -mx-4 px-4 lg:mx-0 lg:px-0">
+                <div class="bg-gray-800/90 backdrop-blur-md p-4 lg:p-6 rounded-b-2xl lg:rounded-2xl border-b border-gray-700 lg:border-t shadow-2xl">
+                    
+                    <div class="flex justify-between items-center mb-4 px-1 hidden lg:flex">
+                        <h3 class="text-xl font-bold text-blue-400" data-i18n="step4_title">4️⃣ 即時預覽與錄製 (67% 大視窗)</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-400">錄影畫質:</span>
+                            <select id="resSelector" class="bg-gray-900 text-white text-sm p-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none">
+                                <option value="1280x720">720p (標準)</option>
+                                <option value="1920x1080" selected>1080p (高畫質)</option>
+                                <option value="2560x1440">2K (超清)</option>
+                                <option value="3840x2160">4K (極致)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 監看畫布 (16:9) -->
+                    <div class="relative w-full aspect-video rounded-xl overflow-hidden border-2 border-gray-900 bg-black mb-5 group shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+                        <canvas id="visualizer3D" width="1920" height="1080" class="hidden"></canvas>
+                        <canvas id="visualizer2D" width="1920" height="1080" class="w-full h-full object-cover"></canvas>
+                        
+                        <div id="canvasOverlay" class="absolute inset-0 flex flex-col items-center justify-center text-gray-300 pointer-events-none bg-black/70 z-10 backdrop-blur-md transition-opacity duration-500">
+                            <span class="text-6xl mb-4 drop-shadow-lg">🌌</span>
+                            <p class="text-xl font-bold tracking-widest text-blue-300" id="overlayText">等待音源輸入...</p>
+                        </div>
+                        
+                        <div id="energyNotice" class="absolute top-4 right-4 bg-green-900/80 text-green-300 px-3 py-1.5 rounded-full text-xs hidden items-center gap-2 border border-green-700 z-20 shadow-lg">
+                            <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                            <span data-i18n="energy_msg">🌱 節能模式</span>
+                        </div>
+                    </div>
+
+                    <!-- 錄影控制台 -->
+                    <div class="flex items-center gap-3 lg:gap-4 bg-gray-900 p-3 lg:p-4 rounded-xl border border-gray-700">
+                        <button id="btnRecord" disabled class="flex-1 py-3 text-lg lg:text-xl bg-red-600 text-white rounded-xl font-bold transition-all flex justify-center items-center gap-3 shadow-lg hover:bg-red-500 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-700 disabled:hover:shadow-none">
+                            <div class="w-4 h-4 rounded-full bg-red-500"></div> <span data-i18n="btn_record">🔴 開始錄影</span>
+                        </button>
+                        <button id="btnStopRecord" disabled class="px-6 lg:px-8 py-3 text-base lg:text-lg bg-gray-500 text-white rounded-xl font-bold transition-all shadow-md hover:bg-gray-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.4)] disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-700 disabled:hover:shadow-none">
+                            停止
+                        </button>
+                        
+                        <div class="w-24 lg:w-28 text-right pr-2">
+                            <span id="recordingStatus" class="hidden text-red-400 text-sm lg:text-base font-bold flex items-center justify-end gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-red-500 recording-dot"></div> 錄製中
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 手機版的畫質選擇 -->
+                    <div class="flex justify-end items-center mt-3 lg:hidden px-2">
+                        <span class="text-xs text-gray-400 mr-2">畫質:</span>
+                        <select id="resSelectorMobile" class="bg-gray-900 text-white text-xs p-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none">
+                            <option value="1280x720">720p</option>
+                            <option value="1920x1080" selected>1080p</option>
+                            <option value="2560x1440">2K</option>
+                            <option value="3840x2160">4K</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 【滿版彈跳視窗 (Modal)】：錄影結果與轉檔區塊 -->
+    <div id="resultModal" class="hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm items-center justify-center p-4 lg:p-8">
+        <div class="bg-gray-800 w-full max-w-4xl rounded-2xl shadow-2xl border border-green-600 flex flex-col gap-5 relative overflow-hidden max-h-[95vh] overflow-y-auto p-6 lg:p-8">
+            
+            <button id="btnCloseResult" class="absolute top-4 right-5 text-gray-400 hover:text-white text-4xl leading-none transition-colors">&times;</button>
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-blue-500"></div>
+            
+            <h3 class="text-2xl font-bold text-green-400 text-center flex items-center justify-center gap-2 mt-2"><span>✅</span> 錄製完成！</h3>
+            
+            <div class="w-full border-2 border-gray-700 rounded-xl overflow-hidden bg-black shadow-inner shrink-0">
+                <video id="recordedVideo" controls class="w-full max-h-[45vh] object-contain"></video>
+            </div>
+            
+            <a id="downloadLink" class="px-6 py-4 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold text-xl transition-colors w-full text-center shadow-lg transform hover:scale-[1.01] shrink-0">⬇️ 下載影片檔 (WebM 格式)</a>
+            
+            <div class="w-full mt-2 bg-gray-900 border border-gray-700 rounded-xl p-5 shadow-inner shrink-0">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-2xl">🔄</span>
+                    <h4 class="text-blue-400 font-bold text-lg" data-i18n="convert_title">進階：需要轉檔為 MP4 嗎？</h4>
+                </div>
+                <p class="text-sm text-gray-400 mb-4 leading-relaxed" data-i18n="convert_desc">由於瀏覽器技術限制，錄影原生輸出為 WebM 格式。若您需要傳送至 iPhone、LINE 或 Instagram 等平台，建議使用以下安全免費的線上轉檔工具：</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <a href="https://www.freeconvert.com/webm-to-mp4" target="_blank" class="flex flex-col items-center justify-center gap-1 px-4 py-4 bg-indigo-700 hover:bg-indigo-600 text-white rounded-xl font-bold transition-colors shadow-md group">
+                        <span class="flex items-center gap-2 text-base" data-i18n="convert_free">🌐 前往 FreeConvert 轉檔</span>
+                    </a>
+                    <a href="https://cloudconvert.com/webm-to-mp4" target="_blank" class="flex flex-col items-center justify-center gap-1 px-4 py-4 bg-blue-700 hover:bg-blue-600 text-white rounded-xl font-bold transition-colors shadow-md group">
+                        <span class="flex items-center gap-2 text-base" data-i18n="convert_cloud">☁️ 前往 CloudConvert 轉檔</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 核心字典與多國語系
+        // ==========================================
+        const translations = {
+            "zh-TW": {
+                "nav_brand": "CyberSentinel 黑核核心",
+                "creator_label": "研發者：張承偉",
+                "step1_title": "1️⃣ 匯入素材 (音源與排版)",
+                "btn_mic": "🎙️ 啟用麥克風",
+                "btn_upload": "🎵 上傳音樂",
+                "step2_title": "2️⃣ 動態歌詞 (LRC 打軸)",
+                "step3_title": "3️⃣ 視覺特效與微調",
+                "step4_title": "4️⃣ 即時預覽與錄製 (大視窗)",
+                "btn_record": "🔴 開始錄影",
+                "vfx_mod_aurora": "極光水晶柱",
+                "vfx_mod_sun": "核心太陽",
+                "vfx_transmission": "💎 透光度",
+                "vfx_speed": "🔄 旋轉速度",
+                "vfx_a11y": "🔒 視覺保護模式",
+                "energy_msg": "🌱 節能模式",
+                "vfx_p_amount": "☄️ 噴發數量 (Density)",
+                "vfx_p_speed": "🚀 飛行速度 (Speed)",
+                "vfx_c_count": "📊 能量柱數量 (Bar Count)",
+                "vfx_c_amp": "💥 光譜爆發力 (Amplitude)",
+                "vfx_c_color": "🌈 色彩流轉 (Color Flow)",
+                "vfx_c_spin": "💿 唱盤轉速 (Spin Speed)",
+                "vfx_e_count": "📊 能量柱數量 (Bar Count)",
+                "vfx_e_amp": "💥 光譜爆發力 (Amplitude)",
+                "vfx_e_color": "🌈 色彩流轉 (Color Flow)",
+                "vfx_e_gravity": "☄️ 懸浮重力 (Cap Gravity)",
+                "vfx_w_amp": "💥 波幅張力 (Amplitude)",
+                "vfx_w_color": "🌈 色彩流轉 (Color Flow)",
+                "vfx_w_glow": "✨ 霓虹殘影 (Neon Trails)",
+                "vfx_w_thick": "📏 線條粗細 (Line Thickness)",
+                "convert_title": "進階：需要轉檔為 MP4 嗎？",
+                "convert_desc": "由於瀏覽器技術限制，錄影原生輸出為 WebM 格式。若您需要傳送至 iPhone、LINE 或 Instagram 等平台，建議使用以下安全免費的線上轉檔工具：",
+                "convert_free": "🌐 前往 FreeConvert 轉檔",
+                "convert_cloud": "☁️ 前往 CloudConvert 轉檔"
+            },
+            "en-US": {
+                "nav_brand": "CyberSentinel Core",
+                "creator_label": "Developer: Zhang Cheng-wei",
+                "step1_title": "1️⃣ Import Materials",
+                "btn_mic": "🎙️ Enable Mic",
+                "btn_upload": "🎵 Upload Audio",
+                "step2_title": "2️⃣ Dynamic Lyrics",
+                "step3_title": "3️⃣ Visual Effects",
+                "step4_title": "4️⃣ Preview & Record",
+                "btn_record": "🔴 Start Recording",
+                "vfx_mod_aurora": "Aurora Bars",
+                "vfx_mod_sun": "Core Sun",
+                "vfx_transmission": "💎 Transmission",
+                "vfx_speed": "🔄 Rotation Speed",
+                "vfx_a11y": "🔒 Visual Protection",
+                "energy_msg": "🌱 Power Saving",
+                "vfx_p_amount": "☄️ Particle Density",
+                "vfx_p_speed": "🚀 Flying Speed",
+                "vfx_c_count": "📊 Bar Count",
+                "vfx_c_amp": "💥 Amplitude",
+                "vfx_c_color": "🌈 Color Flow",
+                "vfx_c_spin": "💿 Spin Speed",
+                "vfx_e_count": "📊 Bar Count",
+                "vfx_e_amp": "💥 Amplitude",
+                "vfx_e_color": "🌈 Color Flow",
+                "vfx_e_gravity": "☄️ Cap Gravity",
+                "vfx_w_amp": "💥 Amplitude",
+                "vfx_w_color": "🌈 Color Flow",
+                "vfx_w_glow": "✨ Neon Trails",
+                "vfx_w_thick": "📏 Line Thickness",
+                "convert_title": "Need MP4 Format?",
+                "convert_desc": "Native output is WebM. If you need to share to iPhone, LINE, or Instagram, use these free tools:",
+                "convert_free": "🌐 Convert via FreeConvert",
+                "convert_cloud": "☁️ Convert via CloudConvert"
+            }
+        };
+
+        // ==========================================
+        // 基礎架構宣告 (AudioEngine)
+        // ==========================================
+        class AudioEngine {
+            constructor() {
+                this.audioCtx = null;
+                this.analyser = null;
+                this.dataArray = null;
+                this.source = null;
+            }
+            async init(sourceInput) {
+                if (!this.audioCtx) {
+                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.analyser = this.audioCtx.createAnalyser();
+                    this.analyser.fftSize = 2048; 
+                    this.analyser.smoothingTimeConstant = 0.75; 
+                    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                }
+                if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+                if (this.source) this.source.disconnect();
+
+                if (sourceInput instanceof HTMLMediaElement) {
+                    if (!sourceInput.audioSourceNode) {
+                        sourceInput.audioSourceNode = this.audioCtx.createMediaElementSource(sourceInput);
+                    }
+                    this.source = sourceInput.audioSourceNode;
+                    this.source.connect(this.analyser);
+                    this.analyser.connect(this.audioCtx.destination);
+                } else if (sourceInput instanceof MediaStream) {
+                    this.source = this.audioCtx.createMediaStreamSource(sourceInput);
+                    this.source.connect(this.analyser);
+                }
+            }
+            getBassData() {
+                if (!this.analyser) return 0;
+                this.analyser.getByteFrequencyData(this.dataArray);
+                let bass = 0;
+                for (let i = 0; i < 6; i++) bass += this.dataArray[i];
+                return Math.pow((bass / 6) / 255, 3.0); 
+            }
+        }
+
+        // ==========================================
+        // UI DOM 變數與畫布設定
+        // ==========================================
+        const audioUpload = document.getElementById('audioUpload');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const btnMic = document.getElementById('btnMic');
+        const btnRecord = document.getElementById('btnRecord');
+        const btnStopRecord = document.getElementById('btnStopRecord');
+        const vfxSelector = document.getElementById('vfxSelector');
+        
+        let audio = new AudioEngine();
+        let streamDestination = null;
+        let isDrawing = false;
+        let currentMode = null;
+        let mediaRecorder, recordedChunks = [];
+        let logoImg = new Image();
+
+        const canvas2D = document.getElementById('visualizer2D');
+        const ctx2D = canvas2D.getContext('2d');
+        const canvas3D = document.getElementById('visualizer3D'); 
+        
+        const particleCanvas = document.createElement('canvas');
+        const pCtx = particleCanvas.getContext('2d');
+
+        function applyResolution(width, height) {
+            canvas2D.width = width;
+            canvas2D.height = height;
+            canvas3D.width = width;
+            canvas3D.height = height;
+            particleCanvas.width = width;
+            particleCanvas.height = height;
+            
+            pCtx.fillStyle = '#000000';
+            pCtx.fillRect(0, 0, width, height);
+
+            if (rm && rm.renderer) {
+                rm.renderer.setSize(width, height, false);
+                rm.camera.aspect = width / height;
+                rm.camera.updateProjectionMatrix();
+            }
+            if (!isDrawing) drawLayout();
+        }
+
+        document.getElementById('resSelector').addEventListener('change', (e) => {
+            const [w, h] = e.target.value.split('x').map(Number);
+            document.getElementById('resSelectorMobile').value = e.target.value; 
+            applyResolution(w, h);
+        });
+        document.getElementById('resSelectorMobile').addEventListener('change', (e) => {
+            const [w, h] = e.target.value.split('x').map(Number);
+            document.getElementById('resSelector').value = e.target.value; 
+            applyResolution(w, h);
+        });
+
+        function getScale() {
+            return canvas2D.width / 1920;
+        }
+
+        // ==========================================
+        // 3D Aurora 模組 (WebGL)
+        // ==========================================
+        class RenderManager {
+            constructor(canvas) {
+                this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+                this.renderer.setSize(canvas.width, canvas.height, false);
+                this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(50, canvas.width / canvas.height, 1, 1500);
+                
+                this.camera.position.set(0, 180, 380); 
+                this.camera.lookAt(0, 20, 0);
+            }
+        }
+
+        const rm = new RenderManager(canvas3D);
+        
+        class VfxManager {
+            constructor(scene) {
+                this.scene = scene;
+                this.modules = new Map(); 
+            }
+            addModule(id, instance, textures = {}) {
+                instance.setup(this.scene, textures.bar, textures.ray);
+                this.modules.set(id, { instance: instance, enabled: true });
+            }
+            updateAll(dataArray, orbPulse, rotationSpeed) {
+                this.modules.forEach(mod => {
+                    if (mod.enabled) mod.instance.update(dataArray, orbPulse, rotationSpeed);
+                });
+            }
+        }
+        const vfxManager = new VfxManager(rm.scene);
+
+        class AuroraBars {
+            constructor() {
+                this.bars = [];
+                this.rays = [];
+                this.smoothedOrbPulse = 0;
+                this.group = new THREE.Group();
+            }
+            setup(scene, barTex, rayTex) {
+                const radius = 130;
+                for (let i = 0; i < 128; i++) {
+                    const angle = (i / 128) * Math.PI * 2;
+                    const color = new THREE.Color(`hsl(${(i / 128) * 360}, 90%, 65%)`);
+
+                    const material = new THREE.MeshPhysicalMaterial({
+                        color: color, map: barTex, transmission: 0.9, transparent: true,
+                        emissive: color, emissiveMap: barTex, emissiveIntensity: 1.0, roughness: 0.1
+                    });
+                    const bar = new THREE.Mesh(new THREE.BoxGeometry(4.5, 2, 12), material);
+                    bar.position.set(Math.cos(angle) * radius, 1, Math.sin(angle) * radius);
+                    bar.rotation.y = -angle;
+
+                    const rayGeo = new THREE.PlaneGeometry(16, 1);
+                    rayGeo.rotateX(-Math.PI / 2); rayGeo.translate(0, 0, 0.5);
+                    const rayMat = new THREE.MeshBasicMaterial({
+                        color: color, alphaMap: rayTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+                    });
+                    const ray = new THREE.Mesh(rayGeo, rayMat);
+                    ray.position.set(Math.cos(angle) * (radius + 2), 0.5, Math.sin(angle) * (radius + 2));
+                    ray.lookAt(new THREE.Vector3(Math.cos(angle) * radius * 2, 0.5, Math.sin(angle) * radius * 2));
+
+                    this.bars.push(bar); this.rays.push(ray); this.group.add(bar, ray);
+                }
+                scene.add(this.group);
+            }
+            update(dataArray, orbPulse, rotationSpeed) {
+                this.smoothedOrbPulse += (orbPulse - this.smoothedOrbPulse) * 0.08;
+                this.group.rotation.y -= 0.002 * rotationSpeed;
+                
+                const smoothedData = [];
+                for (let i = 0; i < 64; i++) {
+                    let sum = 0, count = 0;
+                    for(let j = Math.max(0, i - 1); j <= Math.min(63, i + 1); j++) { sum += dataArray[j]; count++; }
+                    smoothedData[i] = (sum / count) / 255;
+                }
+
+                this.bars.forEach((bar, i) => {
+                    let freqIndex = i < 64 ? i : 127 - i;
+                    const val = smoothedData[freqIndex];
+                    const targetHeight = Math.max(0.5, Math.pow(val, 1.6) * 55);
+                    bar.scale.y += (targetHeight - bar.scale.y) * 0.15;
+                    bar.position.y = bar.scale.y / 2;
+                    
+                    if(this.rays[i]) {
+                        const targetRayZ = 4 + (val * 180 + this.smoothedOrbPulse * 600);
+                        this.rays[i].scale.z += (targetRayZ - this.rays[i].scale.z) * 0.05;
+                        this.rays[i].material.opacity = (val * 0.4 + this.smoothedOrbPulse * 1.5);
+                    }
+                });
+            }
+        }
+
+        function createBarTexture() {
+            const c = document.createElement('canvas'); c.width = 2; c.height = 256;
+            const cx = c.getContext('2d');
+            const g = cx.createLinearGradient(0, 256, 0, 0);
+            g.addColorStop(0, '#111'); g.addColorStop(0.5, '#888'); g.addColorStop(1, '#fff');
+            cx.fillStyle = g; cx.fillRect(0, 0, 2, 256);
+            return new THREE.CanvasTexture(c);
+        }
+        function createRayTexture() {
+            const c = document.createElement('canvas'); c.width = 2; c.height = 128;
+            const cx = c.getContext('2d');
+            const g = cx.createLinearGradient(0, 0, 0, 128);
+            g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+            cx.fillStyle = g; cx.fillRect(0, 0, 2, 128);
+            return new THREE.CanvasTexture(c);
+        }
+
+        const sun = new THREE.Mesh(
+            new THREE.SphereGeometry(26, 32, 32),
+            new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff6600, wireframe: true, transparent: true, opacity: 0.8 })
+        );
+        sun.position.y = 30;
+        rm.scene.add(sun);
+
+        const aurora = new AuroraBars();
+        vfxManager.addModule('aurora', aurora, { bar: createBarTexture(), ray: createRayTexture() });
+
+        // ==========================================
+        // 2D 特效模組 & 頂級音頻解譯引擎
+        // ==========================================
+        
+        function getPremiumAudioAmps(dataArray, stateArrayName, numBins, vfxType = 'circular') {
+            if (!window[stateArrayName] || window[stateArrayName].length !== numBins) {
+                window[stateArrayName] = new Array(numBins).fill(0);
+            }
+            const state = window[stateArrayName];
+            const bufferLength = dataArray.length;
+            
+            const minFreqBin = 2; 
+            const maxFreqBin = Math.floor(bufferLength * 0.65); 
+            
+            for (let i = 0; i < numBins; i++) {
+                const startBin = Math.floor(minFreqBin * Math.pow(maxFreqBin / minFreqBin, i / numBins));
+                let endBin = Math.floor(minFreqBin * Math.pow(maxFreqBin / minFreqBin, (i + 1) / numBins));
+                if (endBin <= startBin) endBin = startBin + 1; 
+                
+                let sum = 0, count = 0;
+                let maxBinVal = 0;
+                for (let j = startBin; j < endBin && j < bufferLength; j++) {
+                    sum += dataArray[j];
+                    if (dataArray[j] > maxBinVal) maxBinVal = dataArray[j];
+                    count++;
+                }
+                
+                let rawVal = 0;
+                if (vfxType === 'circular') {
+                    rawVal = count > 0 ? (i < numBins*0.3 ? sum/count : maxBinVal) / 255.0 : 0;
+                } else {
+                    rawVal = count > 0 ? (sum / count) / 255.0 : 0;
+                }
+                
+                let weight = 1.0;
+                if (vfxType === 'circular') {
+                    weight = 1.0 + Math.pow(i / numBins, 1.8) * 2.2; 
+                } else {
+                    weight = 1.0 + Math.pow(i / numBins, 1.5) * 1.5; 
+                }
+                
+                let val = rawVal * weight;
+                
+                if (vfxType === 'eq') {
+                    val = Math.tanh(val * 1.2); 
+                } else {
+                    val = Math.tanh(val * 1.15); 
+                }
+                
+                const targetAmp = (vfxType === 'circular') ? Math.pow(val, 2.0) : Math.pow(val, 1.4); 
+                
+                const attack = (vfxType === 'circular') ? 0.88 : 0.65; 
+                const release = (vfxType === 'circular') ? 0.12 : 0.10; 
+                
+                if (targetAmp > state[i]) {
+                    state[i] += (targetAmp - state[i]) * attack; 
+                } else {
+                    state[i] += (targetAmp - state[i]) * release; 
+                }
+            }
+            
+            const smoothedState = new Array(numBins);
+            for (let i = 0; i < numBins; i++) {
+                let prev, next;
+
+                if (vfxType === 'circular') {
+                    prev = i > 0 ? state[i - 1] : state[1]; 
+                    next = i < numBins - 1 ? state[i + 1] : state[numBins - 2]; 
+                } else {
+                    prev = i > 0 ? state[i - 1] : state[i];
+                    next = i < numBins - 1 ? state[i + 1] : state[i];
+                }
+
+                if (vfxType === 'eq') {
+                    smoothedState[i] = state[i] * 0.5 + prev * 0.25 + next * 0.25;
+                } else {
+                    smoothedState[i] = state[i] * 0.8 + prev * 0.1 + next * 0.1;
+                }
+            }
+            
+            return smoothedState;
+        }
+
+        // --- 粒子系統 ---
+        let particles = [];
+        let lastBeatTime = 0;
+
+        class Particle {
+            constructor(x, y, force, scale, speedMult = 1.0) {
+                this.x = x; this.y = y;
+                const angle = Math.random() * Math.PI * 2;
+                
+                const speed = (Math.random() * 20 + 8) * force * scale * speedMult;
+                this.vx = Math.cos(angle) * speed; 
+                this.vy = Math.sin(angle) * speed;
+                this.life = 1.0; 
+                this.decay = Math.random() * 0.004 + 0.0015; 
+                
+                const colors = [{h:190,s:80,l:60}, {h:280,s:80,l:65}, {h:330,s:80,l:65}, {h:45,s:90,l:65}, {h:150,s:80,l:60}];
+                const c = colors[Math.floor(Math.random() * colors.length)];
+                this.hue = c.h + (Math.random() * 20 - 10); this.sat = c.s; this.lit = c.l;
+                
+                this.size = (Math.random() * 1.5 + 0.5 + (force * 0.2)) * scale; 
+                this.friction = Math.random() * 0.01 + 0.985; 
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.vx *= this.friction; this.vy *= this.friction;
+                this.life -= this.decay; 
+                this.size *= 0.98;
+            }
+            draw(ctx) {
+                if (this.life <= 0) return;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue}, ${this.sat}%, ${this.lit}%, ${this.life})`; 
+                ctx.fill();
+            }
+        }
+
+        // --- 特效全域變數 ---
+        let circularRotation = 0;
+        let circColorOffset = 0; 
+        
+        let eqColorOffset = 0;
+        let smoothedCamY = 180;
+        
+        window.waveColorOffset = 0;
+
+        // ==========================================
+        // 總渲染迴圈 (Master Render Loop)
+        // ==========================================
+        function drawMasterLoop() {
+            if (!isDrawing) return;
+            requestAnimationFrame(drawMasterLoop);
+            
+            if (!audio.analyser) return;
+
+            const bufferLength = audio.analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            audio.analyser.getByteFrequencyData(dataArray);
+            
+            const activeVfx = vfxSelector.value;
+            const scale = getScale(); 
+
+            let bassSum = 0; for (let i = 0; i < 6; i++) bassSum += dataArray[i];
+            const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
+
+            const isA11y = document.getElementById('chkA11y').checked;
+            const safePulse = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
+
+            ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
+
+            switch (activeVfx) {
+                
+                case 'aurora': {
+                    ctx2D.fillStyle = '#030305';
+                    ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+                    
+                    const rotSpeed = parseFloat(document.getElementById('slRotation').value);
+                    const transmission = parseFloat(document.getElementById('slTransmission').value);
+                    const showAurora = document.getElementById('chkAurora').checked;
+                    const showSun = document.getElementById('chkSun').checked;
+                    
+                    document.getElementById('valRotation').textContent = rotSpeed.toFixed(2);
+                    document.getElementById('valTransmission').textContent = transmission.toFixed(2);
+
+                    aurora.group.visible = showAurora;
+                    if (showAurora) {
+                        vfxManager.updateAll(dataArray, safePulse, rotSpeed);
+                        aurora.bars.forEach(bar => bar.material.transmission = transmission);
+                    }
+                    sun.visible = showSun;
+                    if (showSun) {
+                        const targetOrbScale = 1 + safePulse * 2.0;
+                        sun.scale.set(targetOrbScale, targetOrbScale, targetOrbScale);
+                        sun.material.emissiveIntensity = 1.5 + safePulse * 5.0;
+                        sun.rotation.y += 0.005;
+                    }
+
+                    const camAngle = performance.now() * 0.00002;
+                    rm.camera.position.x = Math.sin(camAngle) * 380;
+                    rm.camera.position.z = Math.cos(camAngle) * 380;
+                    const targetCamY = 180 - safePulse * 25;
+                    smoothedCamY += (targetCamY - smoothedCamY) * 0.2; 
+                    rm.camera.position.y = smoothedCamY;
+                    rm.camera.lookAt(0, 20, 0);
+
+                    rm.renderer.render(rm.scene, rm.camera);
+                    ctx2D.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
+                    break;
+                }
+
+                case 'particle': {
+                    ctx2D.fillStyle = '#000000';
+                    ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+                    
+                    pCtx.globalCompositeOperation = 'source-over';
+                    pCtx.fillStyle = 'rgba(0, 0, 0, 0.06)'; 
+                    pCtx.fillRect(0, 0, particleCanvas.width, particleCanvas.height);
+                    
+                    const pCx = particleCanvas.width / 2;
+                    const pCy = particleCanvas.height * 0.55; 
+                    
+                    let volSum = 0; for(let i=0; i<bufferLength; i++) volSum+=dataArray[i];
+                    const volAvg = volSum / bufferLength;
+                    const bassAvg = bassSum / 6;
+
+                    const pAmountMult = parseFloat(document.getElementById('slParticleAmount').value) || 1.0;
+                    const pSpeedMult = parseFloat(document.getElementById('slParticleSpeed').value) || 1.0;
+
+                    const baseSize = (70 + (volAvg / 255) * 40) * scale;
+                    const punch = (Math.pow(bassAvg / 255, 3) * 250) * scale;
+                    const coreRadius = baseSize + punch;
+                    
+                    pCtx.save();
+                    pCtx.translate(pCx, pCy);
+                    const nebulaGrad = pCtx.createRadialGradient(0,0, coreRadius*0.5, 0,0, coreRadius*4);
+                    nebulaGrad.addColorStop(0, 'rgba(0, 150, 255, 0.3)');
+                    nebulaGrad.addColorStop(0.5, 'rgba(200, 50, 255, 0.1)');
+                    nebulaGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    pCtx.fillStyle = nebulaGrad;
+                    pCtx.beginPath(); pCtx.arc(0, 0, coreRadius*4, 0, Math.PI*2); pCtx.fill();
+                    
+                    pCtx.rotate(performance.now() / 1500);
+                    const ringGrad = pCtx.createLinearGradient(-coreRadius, -coreRadius, coreRadius, coreRadius);
+                    ringGrad.addColorStop(0, 'hsl(190, 80%, 60%)'); ringGrad.addColorStop(0.33, 'hsl(280, 80%, 65%)');
+                    ringGrad.addColorStop(0.66, 'hsl(330, 80%, 65%)'); ringGrad.addColorStop(1, 'hsl(45, 90%, 65%)');
+                    
+                    pCtx.beginPath(); pCtx.arc(0, 0, coreRadius, 0, Math.PI * 2);
+                    pCtx.lineWidth = (6 * scale) + (punch * 0.04);
+                    pCtx.strokeStyle = ringGrad;
+                    pCtx.shadowBlur = 30 + punch * 0.1; pCtx.shadowColor = 'rgba(200, 150, 255, 0.8)';
+                    pCtx.stroke();
+                    pCtx.restore();
+
+                    if (!isA11y && bassAvg > 210 && performance.now() - lastBeatTime > 200) {
+                        const burstCount = Math.floor((Math.random() * 20 + 15) * pAmountMult); 
+                        const force = Math.pow(bassAvg / 255, 1.5) * 6.0; 
+                        
+                        for (let i = 0; i < burstCount; i++) {
+                            particles.push(new Particle(pCx, pCy, force, scale, pSpeedMult));
+                        }
+                        lastBeatTime = performance.now();
+                    } else if (Math.random() < 0.15 * pAmountMult) {
+                        particles.push(new Particle(pCx, pCy, (volAvg / 255) * 2.0, scale, pSpeedMult));
+                    }
+
+                    for (let i = particles.length - 1; i >= 0; i--) {
+                        particles[i].update(); particles[i].draw(pCtx);
+                        if (particles[i].life <= 0 || particles[i].size <= 0.1) particles.splice(i, 1); 
+                    }
+                    ctx2D.drawImage(particleCanvas, 0, 0);
+                    break;
+                }
+
+                case 'circular': {
+                    const cBgGrad = ctx2D.createRadialGradient(canvas2D.width * 0.70, canvas2D.height / 2, 50 * scale, canvas2D.width * 0.70, canvas2D.height / 2, 900 * scale);
+                    cBgGrad.addColorStop(0, '#1a1a2e'); cBgGrad.addColorStop(1, '#050505');
+                    ctx2D.fillStyle = cBgGrad; ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+
+                    const cx = canvas2D.width * 0.70;
+                    const cy = canvas2D.height / 2;
+                    
+                    const circAmpMult = parseFloat(document.getElementById('slCircAmp').value) || 1.0;
+                    const circColorMult = parseFloat(document.getElementById('slCircColor').value) || 1.0;
+                    const circSpinMult = parseFloat(document.getElementById('slCircSpin').value) || 1.0;
+                    const circCount = parseInt(document.getElementById('slCircCount').value) || 360;
+                    
+                    const halfBars = Math.floor(circCount / 2);
+                    const numBins = halfBars + 1; 
+
+                    const baseRadius = 180 * scale;
+                    const dynamicRadius = baseRadius + (safePulse * 40 * scale * circAmpMult);
+                    
+                    const circDynamicBeatAmp = 1.0 + (safePulse * 1.5); 
+
+                    const premiumCircAmps = getPremiumAudioAmps(dataArray, 'circAmpsState', numBins, 'circular');
+
+                    let cVolSum = 0; for(let i=0; i < dataArray.length * 0.45; i++) cVolSum+=dataArray[i];
+                    const cVolAvg = cVolSum / (dataArray.length * 0.45);
+
+                    circularRotation += (0.005 + (cVolAvg / 255) * 0.04) * circSpinMult; 
+                    circColorOffset += 1.5 * circColorMult; 
+
+                    ctx2D.save(); 
+                    ctx2D.translate(cx, cy);
+                    ctx2D.rotate(circularRotation); 
+
+                    const dynamicLineWidth = Math.max(1.0, ((Math.PI * dynamicRadius) / halfBars) * 0.7);
+
+                    const drawPremiumCircBar = (angle, amp, val, i) => {
+                        const startX = Math.cos(angle) * (dynamicRadius + 6*scale);
+                        const startY = Math.sin(angle) * (dynamicRadius + 6*scale);
+                        const endX = Math.cos(angle) * (dynamicRadius + 6*scale + amp);
+                        const endY = Math.sin(angle) * (dynamicRadius + 6*scale + amp);
+                        
+                        const hue = ((i / halfBars) * 360 + circColorOffset) % 360;
+                        
+                        const barGrad = ctx2D.createLinearGradient(startX, startY, endX, endY);
+                        barGrad.addColorStop(0, `hsla(${hue}, 100%, 30%, 0.4)`);
+                        barGrad.addColorStop(0.5, `hsla(${hue}, 100%, 50%, 0.8)`);
+                        barGrad.addColorStop(1, `hsla(${hue}, 100%, 70%, 1.0)`);
+
+                        ctx2D.beginPath();
+                        ctx2D.moveTo(startX, startY); ctx2D.lineTo(endX, endY);
+                        ctx2D.strokeStyle = barGrad;
+                        ctx2D.lineWidth = dynamicLineWidth * scale;
+                        ctx2D.lineCap = 'round'; 
+                        ctx2D.shadowBlur = val > 0.3 ? 15 * scale : 5 * scale;
+                        ctx2D.shadowColor = `hsl(${hue}, 100%, 50%)`;
+                        ctx2D.stroke();
+
+                        if (val > 0.15) {
+                            ctx2D.beginPath();
+                            ctx2D.arc(endX, endY, (dynamicLineWidth / 2) * scale, 0, Math.PI * 2);
+                            ctx2D.fillStyle = '#ffffff';
+                            ctx2D.shadowBlur = 12 * scale;
+                            ctx2D.fill();
+                        }
+                    };
+
+                    const angleOffset = Math.PI / 2; 
+
+                    for (let i = 0; i <= halfBars; i++) {
+                        const pVal = isA11y ? Math.min(premiumCircAmps[i], 0.4) : premiumCircAmps[i];
+                        
+                        const amp = Math.max(8*scale, Math.pow(pVal, 1.2) * 380 * scale * circAmpMult * circDynamicBeatAmp); 
+                        
+                        const angleRight = angleOffset - (i / halfBars) * Math.PI;
+                        const angleLeft = angleOffset + (i / halfBars) * Math.PI;
+
+                        drawPremiumCircBar(angleRight, amp, pVal, i); 
+                        if (i > 0 && i < halfBars) {
+                            drawPremiumCircBar(angleLeft, amp, pVal, i); 
+                        }
+                    }
+                    ctx2D.shadowBlur = 0;
+
+                    ctx2D.beginPath(); ctx2D.arc(0, 0, dynamicRadius, 0, Math.PI * 2);
+                    ctx2D.fillStyle = '#0f0f0f'; ctx2D.fill();
+                    ctx2D.lineWidth = 3 * scale; ctx2D.strokeStyle = '#222'; ctx2D.stroke();
+
+                    ctx2D.lineWidth = 1 * scale; ctx2D.strokeStyle = '#1a1a1a';
+                    for (let r = dynamicRadius - 15*scale; r > dynamicRadius * 0.4; r -= 8*scale) {
+                        ctx2D.beginPath(); ctx2D.arc(0, 0, r, 0, Math.PI * 2); ctx2D.stroke();
+                    }
+
+                    const labelR = dynamicRadius * 0.35;
+                    ctx2D.beginPath(); ctx2D.arc(0, 0, labelR, 0, Math.PI * 2);
+                    const vinylGrad = ctx2D.createLinearGradient(-labelR, -labelR, labelR, labelR);
+                    vinylGrad.addColorStop(0, '#00c6ff'); vinylGrad.addColorStop(1, '#0072ff');
+                    ctx2D.fillStyle = vinylGrad; ctx2D.fill();
+
+                    ctx2D.restore(); 
+
+                    ctx2D.save();
+                    ctx2D.translate(cx, cy);
+
+                    ctx2D.shadowBlur = 15 * scale;
+                    ctx2D.shadowColor = '#00c6ff';
+                    ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx2D.font = `bold ${18*scale}px sans-serif`;
+                    ctx2D.textAlign = 'center'; ctx2D.textBaseline = 'middle';
+                    ctx2D.fillText('AUDIO', 0, -14*scale); 
+                    ctx2D.fillText('VISUAL', 0, 14*scale);
+                    
+                    ctx2D.shadowBlur = 0;
+                    ctx2D.beginPath(); ctx2D.arc(0, 0, 5*scale, 0, Math.PI * 2);
+                    ctx2D.fillStyle = '#000'; ctx2D.fill();
+
+                    const gloss = ctx2D.createLinearGradient(-dynamicRadius, -dynamicRadius, dynamicRadius, dynamicRadius);
+                    gloss.addColorStop(0, 'rgba(255,255,255,0.15)');
+                    gloss.addColorStop(0.4, 'rgba(255,255,255,0)');
+                    gloss.addColorStop(1, 'rgba(255,255,255,0.05)');
+                    ctx2D.fillStyle = gloss;
+                    ctx2D.beginPath(); ctx2D.arc(0, 0, dynamicRadius, 0, Math.PI * 2); ctx2D.fill();
+                    ctx2D.restore();
+                    break;
+                }
+
+                case 'eq': {
+                    const eBgGrad = ctx2D.createLinearGradient(0, 0, 0, canvas2D.height);
+                    eBgGrad.addColorStop(0, '#050505'); eBgGrad.addColorStop(1, '#1a1a2e');
+                    ctx2D.fillStyle = eBgGrad; ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+
+                    const eqCount = parseInt(document.getElementById('slEqCount').value) || 128;
+                    const eqAmpMult = parseFloat(document.getElementById('slEqAmp').value) || 1.0;
+                    const eqColorMult = parseFloat(document.getElementById('slEqColor').value) || 1.0;
+                    const eqGravityMult = parseFloat(document.getElementById('slEqGravity').value) || 1.0;
+
+                    const numEqBars = eqCount;
+                    const eGap = 4 * scale;
+                    const eWidth = (canvas2D.width / numEqBars) - eGap; 
+                    
+                    const premiumEqAmps = getPremiumAudioAmps(dataArray, 'eqAmpsState', numEqBars, 'eq');
+
+                    if (!window.eqCapsState || window.eqCapsState.length !== numEqBars) {
+                        window.eqCapsState = new Array(numEqBars).fill(0);
+                    }
+
+                    eqColorOffset += 1.5 * eqColorMult; 
+
+                    const eBaseY = canvas2D.height * 0.88 + (safePulse * 15 * scale);
+                    let ex = eGap / 2;
+
+                    for (let i = 0; i < numEqBars; i++) {
+                        const pVal = isA11y ? Math.min(premiumEqAmps[i], 0.4) : premiumEqAmps[i];
+                        
+                        const barHeight = Math.max(4*scale, pVal * (canvas2D.height * 0.65) * eqAmpMult);
+
+                        const hue = ((i / numEqBars) * 300 + eqColorOffset) % 360;
+                        const color = `hsl(${hue}, 100%, 60%)`;
+                        const topColor = `hsl(${hue}, 100%, 80%)`;
+
+                        if (barHeight + (10*scale) > window.eqCapsState[i]) {
+                            window.eqCapsState[i] = barHeight + (10*scale);
+                        } else { 
+                            window.eqCapsState[i] -= (3 * scale * eqGravityMult); 
+                            if (window.eqCapsState[i] < 0) window.eqCapsState[i] = 0; 
+                        }
+
+                        const grad = ctx2D.createLinearGradient(0, eBaseY, 0, eBaseY - barHeight);
+                        grad.addColorStop(0, `hsla(${hue}, 100%, 20%, 0.5)`); grad.addColorStop(1, color); 
+
+                        ctx2D.fillStyle = grad; ctx2D.beginPath();
+                        ctx2D.roundRect(ex, eBaseY - barHeight, eWidth, barHeight, [4*scale, 4*scale, 0, 0]); ctx2D.fill();
+
+                        ctx2D.fillStyle = topColor; ctx2D.shadowBlur = 10 * scale; ctx2D.shadowColor = color;
+                        ctx2D.beginPath(); ctx2D.roundRect(ex, eBaseY - window.eqCapsState[i] - 5*scale, eWidth, 5*scale, 2*scale); ctx2D.fill();
+                        ctx2D.shadowBlur = 0; 
+
+                        const refHeight = barHeight * 0.3; 
+                        const refGrad = ctx2D.createLinearGradient(0, eBaseY, 0, eBaseY + refHeight);
+                        refGrad.addColorStop(0, `hsla(${hue}, 100%, 60%, 0.3)`); refGrad.addColorStop(1, `hsla(${hue}, 100%, 60%, 0)`); 
+
+                        ctx2D.fillStyle = refGrad; ctx2D.beginPath();
+                        ctx2D.roundRect(ex, eBaseY + 2*scale, eWidth, refHeight, [0, 0, 4*scale, 4*scale]); ctx2D.fill();
+                        
+                        ex += eWidth + eGap;
+                    }
+                    ctx2D.strokeStyle = 'rgba(255, 255, 255, 0.1)'; ctx2D.lineWidth = 2 * scale;
+                    ctx2D.beginPath(); ctx2D.moveTo(0, eBaseY); ctx2D.lineTo(canvas2D.width, eBaseY); ctx2D.stroke();
+                    break;
+                }
+
+                case 'waveform': {
+                    const wBgGrad = ctx2D.createRadialGradient(canvas2D.width/2, canvas2D.height/2, 100*scale, canvas2D.width/2, canvas2D.height/2, 900*scale);
+                    wBgGrad.addColorStop(0, '#111827'); wBgGrad.addColorStop(1, '#000000');
+                    ctx2D.fillStyle = wBgGrad; ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+
+                    const waveAmpMult = parseFloat(document.getElementById('slWaveAmp').value) || 1.0;
+                    const waveColorMult = parseFloat(document.getElementById('slWaveColor').value) || 1.0;
+                    const waveGlowMult = parseFloat(document.getElementById('slWaveGlow').value) || 1.0;
+                    const waveThick = parseFloat(document.getElementById('slWaveThick').value) || 5.0;
+
+                    window.waveColorOffset += (2.0 + safePulse * 20.0) * waveColorMult;
+
+                    const wBaseY = canvas2D.height * 0.55 + (safePulse * 25 * scale);
+
+                    ctx2D.strokeStyle = 'rgba(255, 255, 255, 0.05)'; 
+                    ctx2D.lineWidth = 2 * scale;
+                    ctx2D.beginPath(); ctx2D.moveTo(0, wBaseY); ctx2D.lineTo(canvas2D.width, wBaseY); ctx2D.stroke();
+
+                    const timeData = new Uint8Array(bufferLength);
+                    audio.analyser.getByteTimeDomainData(timeData);
+
+                    const waveDynamicBeatAmp = 1.0 + (safePulse * 4.0); 
+
+                    const currentPath = new Float32Array(bufferLength);
+                    for (let i = 0; i < bufferLength; i++) {
+                        const v = timeData[i] / 128.0; 
+                        let amplitude = (v - 1) * (canvas2D.height / 3.5) * waveAmpMult;
+                        currentPath[i] = isA11y ? (amplitude * 0.5) : (amplitude * waveDynamicBeatAmp);
+                    }
+
+                    if (!window.waveTrails) window.waveTrails = [];
+                    window.waveTrails.unshift(currentPath);
+                    const maxTrails = Math.max(1, Math.floor(15 * waveGlowMult));
+                    if (window.waveTrails.length > maxTrails) window.waveTrails.length = maxTrails;
+
+                    const sliceWidth = canvas2D.width * 1.0 / bufferLength;
+
+                    ctx2D.globalCompositeOperation = 'lighter';
+                    ctx2D.lineJoin = 'round'; 
+                    ctx2D.lineCap = 'round';
+
+                    const trailCount = window.waveTrails.length;
+
+                    for (let t = trailCount - 1; t >= 0; t--) {
+                        const path = window.waveTrails[t];
+                        const ageRatio = t / trailCount; 
+                        
+                        ctx2D.beginPath();
+                        let wx = 0;
+                        for (let i = 0; i < bufferLength; i++) {
+                            let y = wBaseY + path[i];
+                            if (i === 0) ctx2D.moveTo(wx, y); 
+                            else ctx2D.lineTo(wx, y);
+                            wx += sliceWidth;
+                        }
+
+                        const baseOpacity = (1.0 - Math.pow(ageRatio, 0.8));
+                        const dynamicOpacity = baseOpacity * (0.4 + safePulse * 1.5); 
+                        const opacity = Math.min(1.0, dynamicOpacity); 
+                        
+                        const hueStart = (window.waveColorOffset - (t * 10)) % 360;
+                        
+                        const wGrad = ctx2D.createLinearGradient(0, 0, canvas2D.width, 0);
+                        wGrad.addColorStop(0, `hsla(${hueStart}, 100%, 60%, ${opacity})`);
+                        wGrad.addColorStop(0.5, `hsla(${(hueStart + 60) % 360}, 100%, 60%, ${opacity})`);
+                        wGrad.addColorStop(1, `hsla(${(hueStart + 120) % 360}, 100%, 60%, ${opacity})`);
+
+                        ctx2D.strokeStyle = wGrad;
+                        
+                        ctx2D.lineWidth = (waveThick * scale) + (t * scale * 1.2);
+                        
+                        if (t === 0) {
+                            ctx2D.shadowBlur = (15 + safePulse * 30) * scale;
+                            ctx2D.shadowColor = `hsla(${hueStart}, 100%, 60%, 1)`;
+                        } else {
+                            ctx2D.shadowBlur = 0;
+                        }
+
+                        ctx2D.stroke();
+                    }
+
+                    ctx2D.globalCompositeOperation = 'source-over';
+                    
+                    ctx2D.beginPath();
+                    let wxCore = 0;
+                    const newestPath = window.waveTrails[0];
+                    for (let i = 0; i < bufferLength; i++) {
+                        let y = wBaseY + newestPath[i];
+                        if (i === 0) ctx2D.moveTo(wxCore, y); 
+                        else ctx2D.lineTo(wxCore, y);
+                        wxCore += sliceWidth;
+                    }
+                    ctx2D.lineWidth = Math.max(1.5, waveThick * 0.25 + safePulse * 2.0) * scale;
+                    ctx2D.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx2D.shadowBlur = 0;
+                    ctx2D.stroke();
+                    break;
+                }
+            }
+
+            drawLayout(activeVfx, scale);
+            drawLyrics(activeVfx, scale);
+        }
+
+        // ==========================================
+        // 排版與 LRC 工具邏輯
+        // ==========================================
+        
+        function drawLayout(activeVfx = vfxSelector.value, scale = getScale()) {
+            const cName = document.getElementById('channelName').value.trim();
+            const topic = document.getElementById('topicTitle').value.trim();
+            const speaker = document.getElementById('speakerInfo').value.trim();
+            const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
+
+            ctx2D.shadowColor = 'rgba(0, 0, 0, 1)';
+            ctx2D.shadowBlur = 12 * scale;
+            
+            const isLeftAlign = (activeVfx === 'circular');
+            const align = isLeftAlign ? 'left' : 'center';
+            const tx = isLeftAlign ? 80 * scale : canvas2D.width / 2;
+            
+            const ty = isLeftAlign ? canvas2D.height * 0.40 : canvas2D.height * 0.15;
+            const sx = isLeftAlign ? 80 * scale : canvas2D.width / 2;
+            const sy = isLeftAlign ? canvas2D.height * 0.50 : canvas2D.height * 0.23;
+
+            if (cName) {
+                ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
+                const lines = cName.split('\n');
+                ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx2D.font = `bold ${42*scale}px ${font}`;
+                ctx2D.fillText(lines[0], 60*scale, 60*scale);
+                if (lines.length > 1) {
+                    ctx2D.fillStyle = 'rgba(255, 255, 255, 0.7)'; ctx2D.font = `${24*scale}px ${font}`;
+                    for (let i = 1; i < lines.length; i++) ctx2D.fillText(lines[i], 60*scale, (60 + 48 + (i-1)*32)*scale);
+                }
+            }
+            
+            if (topic) {
+                ctx2D.textAlign = align; 
+                ctx2D.textBaseline = 'middle';
+                ctx2D.fillStyle = '#ffffff'; 
+                ctx2D.font = `bold ${(align === 'center' ? 64 : 72) * scale}px ${font}`;
+                ctx2D.shadowBlur = 20 * scale;
+                ctx2D.fillText(topic, tx, ty);
+                ctx2D.shadowBlur = 12 * scale; 
+            }
+            
+            if (speaker) {
+                ctx2D.textAlign = align; 
+                ctx2D.textBaseline = 'middle';
+                ctx2D.fillStyle = '#a0aec0'; 
+                ctx2D.font = `${26*scale}px ${font}`;
+                ctx2D.fillText(speaker, sx, sy);
+            }
+            
+            ctx2D.shadowBlur = 0;
+            if (logoImg.src && logoImg.complete) {
+                const maxW = 120 * scale; const aspect = logoImg.width / logoImg.height;
+                const dw = aspect < 1 ? maxW * aspect : maxW;
+                const dh = aspect < 1 ? maxW : maxW / aspect;
+                ctx2D.drawImage(logoImg, canvas2D.width - dw - 60*scale, 60*scale, dw, dh);
+            }
+        }
+
+        let parsedLyrics = [], rawLines = [], syncIndex = 0, isSyncing = false;
+        const inputLyrics = document.getElementById('lyricsInput');
+
+        function parseLRC(text) {
+            parsedLyrics = [];
+            const timeRegEx = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+            text.split('\n').forEach(line => {
+                const m = timeRegEx.exec(line);
+                if (m) {
+                    const time = parseInt(m[1])*60 + parseInt(m[2]) + parseInt(m[3])/Math.pow(10, m[3].length);
+                    const txt = line.replace(timeRegEx, '').trim();
+                    if(txt) parsedLyrics.push({time, text: txt});
+                }
+            });
+        }
+        inputLyrics.addEventListener('input', () => parseLRC(inputLyrics.value));
+
+        function drawLyrics(activeVfx = vfxSelector.value, scale = getScale()) {
+            if (currentMode !== 'file' || parsedLyrics.length === 0 || audioPlayer.paused) return;
+            const ct = audioPlayer.currentTime;
+            let active = "";
+            for (let i = 0; i < parsedLyrics.length; i++) {
+                if (ct >= parsedLyrics[i].time) active = parsedLyrics[i].text;
+                else break; 
+            }
+            if (active) {
+                ctx2D.textAlign = activeVfx==='circular' ? 'left' : 'center'; 
+                ctx2D.textBaseline = 'middle';
+                ctx2D.fillStyle = '#ffde2a'; 
+                ctx2D.font = `bold ${46*scale}px "Microsoft JhengHei", sans-serif`;
+                ctx2D.shadowColor = 'rgba(0,0,0,1)'; ctx2D.shadowBlur = 15 * scale;
+                const lx = activeVfx==='circular' ? 80*scale : canvas2D.width/2;
+                const ly = activeVfx==='circular' ? canvas2D.height * 0.88 : canvas2D.height * 0.90;
+                ctx2D.fillText(active, lx, ly);
+                ctx2D.shadowBlur = 0;
+            }
+        }
+
+        function stopSyncing() {
+            isSyncing = false;
+            document.getElementById('btnStartSync').innerHTML = '▶️ 開始播放';
+            const btnMarkTime = document.getElementById('btnMarkTime');
+            btnMarkTime.disabled = true;
+            document.getElementById('currentSyncLine').innerText = '-- 已結束或取消 --';
+        }
+
+        document.getElementById('btnToggleSync').addEventListener('click', () => {
+            const panel = document.getElementById('syncToolPanel');
+            panel.classList.toggle('hidden');
+            if (panel.classList.contains('hidden')) stopSyncing();
+        });
+        
+        document.getElementById('btnStartSync').addEventListener('click', () => {
+            if(currentMode !== 'file') return alert('請先上傳音樂！');
+            if (isSyncing) { audioPlayer.pause(); stopSyncing(); return; }
+            const text = inputLyrics.value.trim();
+            if (!text) return alert('請貼上純文字歌詞！');
+
+            rawLines = text.split('\n').map(l=>l.trim()).filter(l=>l);
+            syncIndex = 0; isSyncing = true;
+            inputLyrics.value = rawLines.join('\n');
+
+            document.getElementById('btnStartSync').innerHTML = '⏸️ 停止打軸';
+            const btnMarkTime = document.getElementById('btnMarkTime');
+            btnMarkTime.disabled = false;
+            document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
+            
+            audioPlayer.currentTime = 0; audioPlayer.play();
+        });
+        
+        document.getElementById('btnMarkTime').addEventListener('click', () => {
+            if(!isSyncing || syncIndex >= rawLines.length) return;
+            const ct = audioPlayer.currentTime;
+            const m = Math.floor(ct/60).toString().padStart(2,'0');
+            const s = Math.floor(ct%60).toString().padStart(2,'0');
+            const ms = Math.floor((ct%1)*100).toString().padStart(2,'0');
+            const tag = `[${m}:${s}.${ms}]`;
+            
+            let lines = inputLyrics.value.split('\n');
+            for(let i=0; i<lines.length; i++){
+                if(lines[i] === rawLines[syncIndex]){ lines[i] = tag + rawLines[syncIndex]; break; }
+            }
+            inputLyrics.value = lines.join('\n');
+            parseLRC(inputLyrics.value);
+            syncIndex++;
+            if (syncIndex >= rawLines.length) {
+                document.getElementById('currentSyncLine').innerHTML = '<span class="text-green-400">🎉 全部標記完成！</span>';
+                isSyncing = false;
+                document.getElementById('btnStartSync').innerHTML = '▶️ 重新開始';
+                document.getElementById('btnMarkTime').disabled = true;
+            } else {
+                document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
+            }
+        });
+        window.addEventListener('keydown', (e) => { if(isSyncing && e.code === 'Space' && document.activeElement !== inputLyrics && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { e.preventDefault(); document.getElementById('btnMarkTime').click(); }});
+
+        // ==========================================
+        // 介面切換與錄影引擎
+        // ==========================================
+        
+        vfxSelector.addEventListener('change', (e) => {
+            const v = e.target.value;
+            const panel3D = document.getElementById('panel3D');
+            const panelParticle = document.getElementById('panelParticle');
+            const panelCircular = document.getElementById('panelCircular');
+            const panelEq = document.getElementById('panelEq');
+            const panelWaveform = document.getElementById('panelWaveform');
+            
+            // UI 面板切換
+            panel3D.classList.add('hidden');
+            panelParticle.classList.add('hidden');
+            panelCircular.classList.add('hidden');
+            panelEq.classList.add('hidden');
+            panelWaveform.classList.add('hidden');
+
+            if (v === 'aurora') panel3D.classList.remove('hidden');
+            else if (v === 'particle') panelParticle.classList.remove('hidden');
+            else if (v === 'circular') panelCircular.classList.remove('hidden');
+            else if (v === 'eq') panelEq.classList.remove('hidden');
+            else if (v === 'waveform') panelWaveform.classList.remove('hidden');
+
+            if (audio.analyser) {
+                audio.analyser.fftSize = (v === 'waveform' || v === 'aurora') ? 2048 : 256;
+            }
+
+            if (!isDrawing) drawLayout(v);
+        });
+
+        // 滑桿連動更新
+        ['slCircAmp', 'slCircColor', 'slCircSpin', 'slCircCount', 'slEqCount', 'slEqAmp', 'slEqColor', 'slEqGravity', 'slWaveAmp', 'slWaveColor', 'slWaveGlow', 'slWaveThick'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (id === 'slCircCount' || id === 'slEqCount' || id === 'slWaveThick') {
+                    document.getElementById(id.replace('sl', 'val')).textContent = val;
+                } else {
+                    document.getElementById(id.replace('sl', 'val')).textContent = val.toFixed(1) + 'x';
+                }
+            });
+        });
+
+        async function connectAudio(sourceType) {
+            try {
+                await audio.init(sourceType === 'mic' ? await navigator.mediaDevices.getUserMedia({ audio: true }) : audioPlayer);
+                
+                if (!streamDestination) {
+                    streamDestination = audio.audioCtx.createMediaStreamDestination();
+                    audio.analyser.connect(streamDestination);
+                }
+                
+                document.getElementById('canvasOverlay').style.display = 'none';
+                
+                const btnRecord = document.getElementById('btnRecord');
+                btnRecord.disabled = false;
+                btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
+                btnRecord.classList.replace('text-gray-400', 'text-white');
+                
+                currentMode = sourceType;
+                applyResolution(1920, 1080); 
+                if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
+            } catch(e) { alert("音源存取失敗"); }
+        }
+
+        document.getElementById('btnMic').addEventListener('click', () => connectAudio('mic'));
+        document.getElementById('audioUpload').addEventListener('change', (e) => {
+            if(e.target.files.length) {
+                audioPlayer.src = URL.createObjectURL(e.target.files[0]);
+                connectAudio('file');
+            }
+        });
+        document.getElementById('channelLogo').addEventListener('change', function(e) {
+            if(this.files.length) {
+                logoImg.onload = () => { document.getElementById('logoLabel').innerText = "✅ 已載入 Logo"; if (!isDrawing) drawLayout(); };
+                logoImg.src = URL.createObjectURL(this.files[0]);
+            }
+        });
+
+        // 錄影核心
+        document.getElementById('btnRecord').addEventListener('click', () => {
+            recordedChunks = [];
+            const canvasStream = canvas2D.captureStream(30);
+            const combinedStream = new MediaStream([...canvasStream.getTracks(), ...streamDestination.stream.getTracks()]);
+            
+            let options = { mimeType: 'video/webm; codecs=vp9' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm' };
+
+            try { mediaRecorder = new MediaRecorder(combinedStream, options); } 
+            catch (e) { alert('您的瀏覽器不支援錄製此格式影片。'); return; }
+
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const videoUrl = URL.createObjectURL(blob);
+                document.getElementById('recordedVideo').src = videoUrl;
+                const dlLink = document.getElementById('downloadLink');
+                dlLink.href = videoUrl;
+                dlLink.download = `CyberSentinel_Record_${document.getElementById('resSelector').value}_${Date.now()}.webm`; 
+                
+                const resultModal = document.getElementById('resultModal');
+                resultModal.classList.remove('hidden');
+                resultModal.classList.add('flex'); 
+                
+                document.getElementById('recordingStatus').classList.add('hidden');
+                
+                // 恢復按鈕狀態
+                document.getElementById('btnRecord').disabled = false;
+                document.getElementById('btnStopRecord').disabled = true;
+            };
+
+            mediaRecorder.start();
+            if(currentMode === 'file') { audioPlayer.currentTime = 0; audioPlayer.play(); }
+            
+            document.getElementById('recordingStatus').classList.remove('hidden');
+            document.getElementById('btnRecord').disabled = true;
+            document.getElementById('btnStopRecord').disabled = false;
+        });
+
+        document.getElementById('btnStopRecord').addEventListener('click', () => {
+            if (mediaRecorder) mediaRecorder.stop();
+            if (currentMode === 'file') audioPlayer.pause();
+            isDrawing = false;
+        });
+
+        document.getElementById('btnCloseResult').addEventListener('click', () => {
+            const resultModal = document.getElementById('resultModal');
+            resultModal.classList.add('hidden');
+            resultModal.classList.remove('flex');
+        });
+
+        // ==========================================
+        // 初始化與響應式
+        // ==========================================
+        function updateLanguage(lang) {
+            const dict = translations[lang];
+            if (!dict) return;
+            document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = dict[el.getAttribute('data-i18n')] || el.textContent);
+            localStorage.setItem('preferredLang', lang);
+        }
+        document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
+        updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
+
+        document.addEventListener("visibilitychange", () => {
+            document.getElementById('energyNotice').style.display = document.hidden ? "flex" : "none";
+            if (rm) rm.isActive = !document.hidden;
+        });
+
+        setTimeout(() => applyResolution(1920, 1080), 500);
+
+    </script>
+</body>
+</html>

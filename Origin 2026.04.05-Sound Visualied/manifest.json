@@ -1,0 +1,17 @@
+{
+  "short_name": "CS-Core",
+  "name": "CyberSentinel 3D Audio Engine",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/727/727218.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#030305",
+  "display": "standalone",
+  "scope": "./",
+  "theme_color": "#3b82f6",
+  "description": "Professional 3D Audio Visualizer by 張承偉"
+}
