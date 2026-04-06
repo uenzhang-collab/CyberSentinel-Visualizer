@@ -1,4 +1,4 @@
-import { AudioEngine } from './audioEngine.js';
+import { AudioEngine } from './AudioEngine.js';
 import { initAurora3D, renderAurora3D } from './vfx/Aurora3D.js';
 import { renderParticles } from './vfx/Particles.js';
 import { renderCircular, renderEq, renderWaveform } from './vfx/AudioSpectrums.js';
