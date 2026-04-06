@@ -1,4 +1,4 @@
-import { getPremiumAudioAmps } from '../audioEngine.js';
+import { getPremiumAudioAmps } from '../AudioEngine.js';
 
 // 將原本全域污染的變數安全地鎖在模組內
 let circularRotation = 0;
