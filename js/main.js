@@ -9,7 +9,7 @@ import { renderCircular, renderEq, renderWaveform } from './vfx/AudioSpectrums.j
 const translations = {
     "zh-TW": {
         "nav_brand": "CyberSentinel 黑核核心",
-        "creator_label": "研發者：張承偉",
+        "creator_label": "CS-Founder 2026.04.06",
         "step1_title": "1️⃣ 匯入素材 (音源與排版)",
         "btn_mic": "🎙️ 啟用麥克風",
         "btn_upload": "🎵 上傳音樂",
@@ -46,7 +46,7 @@ const translations = {
     },
     "en-US": {
         "nav_brand": "CyberSentinel Core",
-        "creator_label": "Developer: Zhang Cheng-wei",
+        "creator_label": "CS-Founder 2026.04.06",
         "step1_title": "1️⃣ Import Materials",
         "btn_mic": "🎙️ Enable Mic",
         "btn_upload": "🎵 Upload Audio",
