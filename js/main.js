@@ -382,44 +382,62 @@ function stopSyncing() {
 // 🚀 方向一：檔案匯入、拖曳與靜態波形邏輯
 // ==========================================
 async function handleFileImport(file) {
-    if (!file.type.startsWith('audio/')) return;
-
-    // 1. 自動提取元數據 (解析檔名)
-    const fileName = file.name.replace(/\.[^/.]+$/, "");
-    if (fileName.includes(" - ")) {
-        const parts = fileName.split(" - ");
-        document.getElementById('topicTitle').value = parts[1].trim();
-        document.getElementById('speakerInfo').value = `Artist: ${parts[0].trim()}`;
-    } else {
-        document.getElementById('topicTitle').value = fileName;
+    if (!file.type.startsWith('audio/')) {
+        alert('請匯入有效的音訊檔案！');
+        return;
     }
 
-    // 2. 生成並繪製靜態波形
-    const waveformData = await audio.getStaticWaveform(file);
-    drawStaticWaveform(waveformData);
+    try {
+        // 1. 自動提取元數據 (解析檔名)
+        const fileName = file.name.replace(/\.[^/.]+$/, "");
+        if (fileName.includes(" - ")) {
+            const parts = fileName.split(" - ");
+            document.getElementById('topicTitle').value = parts[1].trim();
+            document.getElementById('speakerInfo').value = `Artist: ${parts[0].trim()}`;
+        } else {
+            document.getElementById('topicTitle').value = fileName;
+        }
 
-    // 3. 載入播放器與初始化 AudioEngine
-    audioPlayer.src = URL.createObjectURL(file);
-    await audio.init(audioPlayer);
-    
-    if (!streamDestination) { 
-        streamDestination = audio.audioCtx.createMediaStreamDestination(); 
-        audio.analyser.connect(streamDestination); 
+        // 2. 先載入播放器並初始化 AudioEngine (這會建立 audioCtx)
+        audioPlayer.src = URL.createObjectURL(file);
+        await audio.init(audioPlayer);
+        
+        if (!streamDestination) { 
+            streamDestination = audio.audioCtx.createMediaStreamDestination(); 
+            audio.analyser.connect(streamDestination); 
+        }
+
+        // 3. 生成並繪製靜態波形 (確保 audioCtx 已存在後才執行)
+        const waveformData = await audio.getStaticWaveform(file);
+        drawStaticWaveform(waveformData);
+
+        // 4. UI 反饋：明確顯示已載入
+        const overlayText = document.getElementById('overlayText');
+        if(overlayText) overlayText.innerText = '🎵 音樂已載入，請點選「開始錄影」';
+        
+        const overlay = document.getElementById('canvasOverlay');
+        if(overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+        }
+
+        btnRecord.disabled = false;
+        btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
+        btnRecord.classList.replace('text-gray-400', 'text-white');
+        currentMode = 'file';
+        
+        applyResolution(1920, 1080); 
+        if (!isDrawing) drawLayout(); // 僅更新排版，等待點擊才開始迴圈
+
+    } catch (e) {
+        console.error("載入失敗:", e);
+        alert("載入音訊檔案失敗，請確認格式正確！");
     }
-
-    // 4. UI 反饋與開始渲染
-    document.getElementById('canvasOverlay').style.display = 'none';
-    btnRecord.disabled = false;
-    btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
-    btnRecord.classList.replace('text-gray-400', 'text-white');
-    currentMode = 'file';
-    applyResolution(1920, 1080); 
-    if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
 }
 
 function drawStaticWaveform(data) {
     const container = document.getElementById('waveformPreview');
-    if (!container) return; // 避免 HTML 尚未加上節點時報錯
+    if (!container) return; 
     container.innerHTML = ''; 
     const max = Math.max(...data);
     
@@ -523,7 +541,20 @@ document.getElementById('btnStartSync').addEventListener('click', () => {
     btnMarkTime.disabled = false;
     document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
     
-    audioPlayer.currentTime = 0; audioPlayer.play();
+    // 為了讓打軸時也能看到特效，隱藏遮罩並啟動渲染
+    const overlay = document.getElementById('canvasOverlay');
+    if (overlay && overlay.style.display !== 'none') {
+        overlay.style.opacity = '0';
+        setTimeout(() => { overlay.style.display = 'none'; }, 300);
+    }
+    
+    if (!isDrawing) { 
+        isDrawing = true; 
+        drawMasterLoop(); 
+    }
+
+    audioPlayer.currentTime = 0; 
+    audioPlayer.play();
 });
 
 document.getElementById('btnMarkTime').addEventListener('click', () => {
@@ -566,13 +597,23 @@ document.getElementById('btnMic').addEventListener('click', async () => {
             streamDestination = audio.audioCtx.createMediaStreamDestination(); 
             audio.analyser.connect(streamDestination); 
         }
-        document.getElementById('canvasOverlay').style.display = 'none';
+        
+        const overlayText = document.getElementById('overlayText');
+        if(overlayText) overlayText.innerText = '🎙️ 麥克風就緒，請點選「開始錄影」';
+        
+        const overlay = document.getElementById('canvasOverlay');
+        if(overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+        }
+
         btnRecord.disabled = false;
         btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
         btnRecord.classList.replace('text-gray-400', 'text-white');
         currentMode = 'mic';
+        
         applyResolution(1920, 1080); 
-        if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
+        if (!isDrawing) drawLayout();
     } catch(e) { 
         alert("音源存取失敗，請確認麥克風權限。"); 
     }
@@ -637,6 +678,19 @@ btnRecord.addEventListener('click', () => {
     };
 
     mediaRecorder.start();
+    
+    // 按下錄影時，隱藏遮罩並啟動渲染迴圈
+    const overlay = document.getElementById('canvasOverlay');
+    if (overlay && overlay.style.display !== 'none') {
+        overlay.style.opacity = '0';
+        setTimeout(() => { overlay.style.display = 'none'; }, 300);
+    }
+    
+    if (!isDrawing) { 
+        isDrawing = true; 
+        drawMasterLoop(); 
+    }
+
     if(currentMode === 'file') { 
         audioPlayer.currentTime = 0; 
         audioPlayer.play(); 

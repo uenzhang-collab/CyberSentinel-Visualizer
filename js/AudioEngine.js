@@ -53,6 +53,11 @@ export class AudioEngine {
      * 將檔案解碼後取樣，產出 200 個能量點供 UI 繪製進度條
      */
     async getStaticWaveform(file) {
+        // 🚨 修復核心：確保在解碼前，音訊大腦 (audioCtx) 已經被建立
+        if (!this.audioCtx) {
+            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
         const arrayBuffer = await file.arrayBuffer();
         // 為了不干擾播放，我們開一個離線上下文進行解碼
         const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
