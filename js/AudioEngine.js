@@ -5,64 +5,102 @@
  */
 export class AudioEngine {
     constructor() {
-        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        this.analyser = this.audioCtx.createAnalyser();
+        // 延遲初始化：避免在網頁載入時觸發瀏覽器的 Autoplay 安全阻斷
+        this.audioCtx = null;
+        this.analyser = null;
+        this.streamDestination = null;
         
-        // 統一使用高解析度 2048，供我們的新解譯引擎重採樣
-        this.analyser.fftSize = 2048; 
-        // 將原生平滑度調低，把物理重力計算交給我們自己寫的 ADSR 引擎 (getPremiumAudioAmps)
-        this.analyser.smoothingTimeConstant = 0.75; 
-
-        // 錄影輸出的終點
-        this.streamDestination = this.audioCtx.createMediaStreamDestination();
-
-        // 雙軌獨立控制節點 (Gain Nodes)
-        this.bgmGain = this.audioCtx.createGain();
-        this.micGain = this.audioCtx.createGain();
-
-        // 🎚️ 核心路由 (Routing)
-        // 1. 背景音樂 (BGM) -> 喇叭(自己聽) + 錄影軌道 + 視覺分析器
-        this.bgmGain.connect(this.audioCtx.destination);
-        this.bgmGain.connect(this.streamDestination);
-        this.bgmGain.connect(this.analyser);
-
-        // 2. 麥克風 (Mic) -> 錄影軌道 + 視覺分析器 
-        // 🛡️ (故意不連接到 audioCtx.destination，防止喇叭發出麥克風的聲音造成無限回音 Howling)
-        this.micGain.connect(this.streamDestination);
-        this.micGain.connect(this.analyser);
-
+        this.bgmGain = null;
+        this.micGain = null;
+        
         this.bgmSource = null;
         this.micSource = null;
     }
 
-    async initBGM(mediaElement) {
-        if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
-        if (!this.bgmSource) {
-            this.bgmSource = this.audioCtx.createMediaElementSource(mediaElement);
-            this.bgmSource.connect(this.bgmGain);
+    // 核心引擎初始化
+    _init() {
+        if (!this.audioCtx) {
+            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            this.analyser = this.audioCtx.createAnalyser();
+            
+            // 統一使用高解析度 2048，供我們的新解譯引擎重採樣
+            this.analyser.fftSize = 2048; 
+            // 將原生平滑度調低，把物理重力計算交給我們自己寫的 ADSR 引擎
+            this.analyser.smoothingTimeConstant = 0.75; 
+
+            // 錄影輸出的終點
+            this.streamDestination = this.audioCtx.createMediaStreamDestination();
+
+            // 雙軌獨立控制節點 (Gain Nodes)
+            this.bgmGain = this.audioCtx.createGain();
+            this.micGain = this.audioCtx.createGain();
+
+            // 🎚️ 核心路由 (Routing)
+            // 1. 背景音樂 (BGM) -> 喇叭(自己聽) + 錄影軌道 + 視覺分析器
+            this.bgmGain.connect(this.audioCtx.destination);
+            this.bgmGain.connect(this.streamDestination);
+            this.bgmGain.connect(this.analyser);
+
+            // 2. 麥克風 (Mic) -> 錄影軌道 + 視覺分析器 
+            // 🛡️ (故意不連接到 audioCtx.destination，防止喇叭發出麥克風的聲音造成無限回音)
+            this.micGain.connect(this.streamDestination);
+            this.micGain.connect(this.analyser);
         }
     }
 
+    async resumeContext() {
+        if (this.audioCtx && this.audioCtx.state === 'suspended') {
+            try {
+                await this.audioCtx.resume();
+            } catch (e) {
+                console.warn("AudioContext resume deferred until user interaction.");
+            }
+        }
+    }
+
+    async initBGM(mediaElement) {
+        this._init();
+        await this.resumeContext();
+
+        if (this.bgmSource) {
+            this.bgmSource.disconnect();
+        }
+
+        // 🛡️ 核心防呆：將 SourceNode 綁定在 DOM 元素上，防止拖曳多首歌曲時引發 InvalidStateError
+        if (!mediaElement.audioSourceNode) {
+            mediaElement.audioSourceNode = this.audioCtx.createMediaElementSource(mediaElement);
+        }
+        this.bgmSource = mediaElement.audioSourceNode;
+        this.bgmSource.connect(this.bgmGain);
+    }
+
     async initMic(stream) {
-        if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
-        if (this.micSource) this.micSource.disconnect();
+        this._init();
+        await this.resumeContext();
+
+        if (this.micSource) {
+            this.micSource.disconnect();
+        }
+        
         this.micSource = this.audioCtx.createMediaStreamSource(stream);
         this.micSource.connect(this.micGain);
     }
 
-    setBGMVolume(val) { this.bgmGain.gain.value = val; }
-    setMicVolume(val) { this.micGain.gain.value = val; }
+    setBGMVolume(val) { if (this.bgmGain) this.bgmGain.gain.value = val; }
+    setMicVolume(val) { if (this.micGain) this.micGain.gain.value = val; }
 
     /**
      * ⚔️ 秘密武器：靜態波形生成器 (用於產生上方預覽波形圖)
      */
     async getStaticWaveform(file) {
+        this._init();
         const arrayBuffer = await file.arrayBuffer();
         const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
         const rawData = audioBuffer.getChannelData(0);
         const samples = 200; 
         const blockSize = Math.floor(rawData.length / samples);
         const filteredData = [];
+        
         for (let i = 0; i < samples; i++) {
             let blockStart = blockSize * i;
             let sum = 0;

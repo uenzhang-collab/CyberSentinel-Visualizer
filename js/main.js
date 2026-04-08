@@ -59,14 +59,13 @@ function loadState() {
     if (savedUi) State.ui = { ...State.ui, ...JSON.parse(savedUi) };
     if (savedLayout) {
         State.layoutOffsets = { ...State.layoutOffsets, ...JSON.parse(savedLayout) };
-        userHasDragged = true; // 有讀到排版紀錄代表使用者拖曳過
+        userHasDragged = true; 
     }
     const vfxSelector = document.getElementById('vfxSelector');
     if (savedActive && document.querySelector(`#vfxSelector option[value="${savedActive}"]`)) {
         vfxSelector.value = savedActive;
     }
 
-    // 將 UI 狀態同步回 DOM
     document.getElementById('topicTitle').value = State.ui.topicTitle;
     document.getElementById('speakerInfo').value = State.ui.speakerInfo;
     document.getElementById('channelName').value = State.ui.channelName;
@@ -345,15 +344,11 @@ function forceRenderFrame() {
     }
     
     ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
-    
-    // 1. 繪製自訂背景 (圖片/影片)
     bgManager.draw(ctx2D, canvas2D.width, canvas2D.height);
     
-    // 2. 繪製視覺特效
     const effect = VFXRegistry[vfxSelector.value];
     if (effect) effect.render(ctx2D, canvas2D, canvas3D, dataArray, safePulse, getScale());
     
-    // 3. 繪製排版與互動
     drawLayout(); drawLyrics(); drawInteractions(); 
 }
 
@@ -368,7 +363,7 @@ function drawMasterLoop() {
     const safePulse = State.ui.isA11y ? Math.min(Math.pow((bassSum / 6) / 255, 3.0), 0.15) : Math.pow((bassSum / 6) / 255, 3.0); 
 
     ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
-    bgManager.draw(ctx2D, canvas2D.width, canvas2D.height); // 繪製沉浸式背景
+    bgManager.draw(ctx2D, canvas2D.width, canvas2D.height); 
     
     const effect = VFXRegistry[vfxSelector.value];
     if (effect) effect.render(ctx2D, canvas2D, canvas3D, dataArray, safePulse, getScale());
@@ -388,7 +383,6 @@ function drawLayout() {
     const tx = State.layoutOffsets.titles.px * canvas2D.width; const ty = State.layoutOffsets.titles.py * canvas2D.height;
     const lx = State.layoutOffsets.logo.px * canvas2D.width; const ly = State.layoutOffsets.logo.py * canvas2D.height;
 
-    // 高效渲染：直接使用 Cache 的寬度計算
     if (State.ui.channelName && State.cache.cNameLines.length > 0) {
         ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
         ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx2D.font = `bold ${32*scale}px ${font}`;
@@ -538,8 +532,12 @@ function drawLyrics() {
 }
 
 // 歌詞打軸控制
-document.getElementById('btnStartSync').addEventListener('click', () => {
+document.getElementById('btnStartSync').addEventListener('click', async () => {
     if(!currentMode) return alert(window.t('alert_no_audio'));
+    
+    // 🛡️ 合法的互動：趁機安全解鎖 AudioContext
+    await audio.resumeContext();
+
     if (lyricsManager.isSyncing) { 
         audioPlayer.pause(); lyricsManager.stopSync();
         document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_start');
@@ -600,7 +598,10 @@ document.getElementById('btnExportSRT')?.addEventListener('click', () => {
 // ==========================================
 // 🎥 錄影引擎事件
 // ==========================================
-btnRecord.addEventListener('click', () => {
+btnRecord.addEventListener('click', async () => {
+    // 🛡️ 合法的互動：趁機安全解鎖 AudioContext
+    await audio.resumeContext();
+
     // 錄影時將 AudioEngine 混合後的音軌交給 VideoRecorder
     const success = videoRecorder.start(audio.streamDestination, (videoUrl) => {
         document.getElementById('recordedVideo').src = videoUrl;
@@ -632,7 +633,12 @@ btnStopRecord.addEventListener('click', () => {
 // 🎚️ 檔案匯入與雙軌混音 UI
 // ==========================================
 async function handleFileImport(file) {
-    if (!file.type.startsWith('audio/') && !file.type.startsWith('video/') && file.type !== "") return alert(window.t('alert_invalid_file'));
+    if (!file) return;
+    // 稍微放寬副檔名檢查以防拖放事件異常 (保留空字串放行，依賴後續 try-catch 處理錯誤)
+    if (!file.type.startsWith('audio/') && !file.type.startsWith('video/') && file.type !== "") {
+        return alert(window.t('alert_invalid_file'));
+    }
+    
     try {
         const fileName = file.name.replace(/\.[^/.]+$/, "");
         if (fileName.includes(" - ")) {
@@ -646,7 +652,14 @@ async function handleFileImport(file) {
 
         audioPlayer.src = URL.createObjectURL(file); 
         await audio.initBGM(audioPlayer); // 🎵 新版雙軌架構
-        drawStaticWaveform(await audio.getStaticWaveform(file));
+        
+        // 生成波形圖 (包裝於 try-catch，避免特殊音檔無法解碼中斷主要流程)
+        try {
+            const waveData = await audio.getStaticWaveform(file);
+            drawStaticWaveform(waveData);
+        } catch (waveErr) {
+            console.warn("Waveform generation skipped:", waveErr);
+        }
         
         currentMode = (currentMode === 'mic') ? 'dual' : 'file';
         
@@ -654,7 +667,11 @@ async function handleFileImport(file) {
         const overlay = document.getElementById('canvasOverlay'); if(overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
         btnRecord.disabled = false; btnRecord.classList.replace('bg-gray-700', 'bg-red-600'); btnRecord.classList.replace('text-gray-400', 'text-white');
         applyResolution(1920, 1080); 
-    } catch (e) { alert(window.t('alert_load_fail')); }
+    } catch (e) { 
+        console.error("載入失敗詳細錯誤:", e);
+        // ⚠️ 彈出視窗附帶實際錯誤訊息，方便除錯
+        alert(window.t('alert_load_fail') + "\n" + (e.message || "請確認檔案格式是否受支援")); 
+    }
 }
 
 document.getElementById('btnMic').addEventListener('click', async () => {
@@ -701,7 +718,11 @@ function drawStaticWaveform(data) {
         const bar = document.createElement('div');
         bar.className = 'w-1 bg-gray-600 rounded-full transition-all hover:bg-blue-400 cursor-pointer';
         bar.style.height = `${Math.max(10, (val / max) * 100)}%`;
-        bar.onclick = () => audioPlayer.currentTime = audioPlayer.duration * (i / data.length);
+        bar.onclick = async () => {
+            await audio.resumeContext(); // 🛡️ 解鎖
+            audioPlayer.currentTime = audioPlayer.duration * (i / data.length);
+            if (audioPlayer.paused) audioPlayer.play().catch(e => console.warn(e));
+        };
         container.appendChild(bar);
     });
 }
@@ -709,7 +730,11 @@ function drawStaticWaveform(data) {
 // 拖放功能
 window.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('bg-blue-900/20'); });
 window.addEventListener('dragleave', () => document.body.classList.remove('bg-blue-900/20'));
-window.addEventListener('drop', (e) => { e.preventDefault(); document.body.classList.remove('bg-blue-900/20'); if (e.dataTransfer.files[0]) handleFileImport(e.dataTransfer.files[0]); });
+window.addEventListener('drop', (e) => { 
+    e.preventDefault(); 
+    document.body.classList.remove('bg-blue-900/20'); 
+    if (e.dataTransfer.files[0]) handleFileImport(e.dataTransfer.files[0]); 
+});
 
 // UI 基礎事件
 document.getElementById('audioUpload').addEventListener('change', (e) => { if(e.target.files.length) handleFileImport(e.target.files[0]); });
@@ -752,15 +777,20 @@ document.getElementById('slLogoScale')?.addEventListener('input', (e) => {
 });
 
 document.getElementById('chkA11y')?.addEventListener('change', (e) => { State.ui.isA11y = e.target.checked; saveState(); forceRenderFrame(); });
-document.getElementById('btnToggleSync').addEventListener('click', () => {
-    const panel = document.getElementById('syncToolPanel'); panel.classList.toggle('hidden');
-    if (panel.classList.contains('hidden')) {
-        lyricsManager.stopSync();
-        document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_start');
-        document.getElementById('btnMarkTime').disabled = true;
-        document.getElementById('currentSyncLine').innerText = window.t('sync_end');
-    }
-});
+
+function showPrivacyToast() {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-6 right-6 bg-gray-900/95 backdrop-blur-md border border-blue-500/50 text-blue-300 px-5 py-4 rounded-xl text-sm shadow-2xl z-[100] flex items-center gap-4 transform transition-all duration-700 translate-y-24 opacity-0 max-w-sm';
+    toast.innerHTML = `
+        <span class="text-2xl drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]">🛡️</span> 
+        <p data-i18n="privacy_notice" class="leading-relaxed"></p> 
+        <button class="text-gray-500 hover:text-white text-xl leading-none transition-colors" onclick="this.parentElement.remove()">&times;</button>
+    `;
+    document.body.appendChild(toast);
+    toast.querySelector('[data-i18n]').textContent = window.t('privacy_notice');
+    requestAnimationFrame(() => { setTimeout(() => { toast.classList.remove('translate-y-24', 'opacity-0'); }, 100); });
+    setTimeout(() => { if(document.body.contains(toast)) { toast.classList.add('translate-y-24', 'opacity-0'); setTimeout(() => { if(document.body.contains(toast)) toast.remove(); }, 700); } }, 8000);
+}
 
 // ==========================================
 // 🌐 語言選單自動生成與更新引擎
@@ -776,6 +806,7 @@ function initLanguageSelect() {
     }
     langSelect.value = localStorage.getItem('preferredLang') || 'zh-TW';
 }
+
 function updateLanguage(lang) {
     const dict = translations[lang] || translations['en-US']; if (!dict) return;
     document.querySelectorAll('[data-i18n]').forEach(el => el.innerHTML = dict[el.getAttribute('data-i18n')] || el.innerHTML);
