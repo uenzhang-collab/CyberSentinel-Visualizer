@@ -5,8 +5,11 @@ let circularRotation = 0;
 let circColorOffset = 0; 
 let eqColorOffset = 0;
 let waveColorOffset = 0;
-let waveTrails = []; 
 let eqCapsState = [];
+
+// --- 核心優化：環形緩衝區變數 ---
+let waveTrailsBuffer = null;
+let waveBufferHead = 0; 
 
 export function renderCircular(ctx2D, canvas2D, dataArray, scale, safePulse, isA11y, config) {
     const cBgGrad = ctx2D.createRadialGradient(canvas2D.width * 0.70, canvas2D.height / 2, 50 * scale, canvas2D.width * 0.70, canvas2D.height / 2, 900 * scale);
@@ -179,13 +182,15 @@ export function renderEq(ctx2D, canvas2D, dataArray, scale, safePulse, isA11y, c
     ctx2D.beginPath(); ctx2D.moveTo(0, eBaseY); ctx2D.lineTo(canvas2D.width, eBaseY); ctx2D.stroke();
 }
 
+/**
+ * 🌊 霓虹時域波形 - 環形緩衝優化版
+ */
 export function renderWaveform(ctx2D, canvas2D, analyser, scale, safePulse, isA11y, config) {
     const wBgGrad = ctx2D.createRadialGradient(canvas2D.width/2, canvas2D.height/2, 100*scale, canvas2D.width/2, canvas2D.height/2, 900*scale);
     wBgGrad.addColorStop(0, '#111827'); wBgGrad.addColorStop(1, '#000000');
     ctx2D.fillStyle = wBgGrad; ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
 
     waveColorOffset += (2.0 + safePulse * 20.0) * config.colorMult;
-
     const wBaseY = canvas2D.height * 0.55 + (safePulse * 25 * scale);
 
     ctx2D.strokeStyle = 'rgba(255, 255, 255, 0.05)'; 
@@ -193,33 +198,36 @@ export function renderWaveform(ctx2D, canvas2D, analyser, scale, safePulse, isA1
     ctx2D.beginPath(); ctx2D.moveTo(0, wBaseY); ctx2D.lineTo(canvas2D.width, wBaseY); ctx2D.stroke();
 
     const bufferLength = analyser.frequencyBinCount;
+    const maxTrails = Math.max(1, Math.floor(15 * config.glowMult));
+
+    // --- 初始化固定長度的 Float32Array 矩陣 (僅執行一次) ---
+    if (!waveTrailsBuffer || waveTrailsBuffer.length !== maxTrails) {
+        waveTrailsBuffer = Array.from({ length: maxTrails }, () => new Float32Array(bufferLength));
+        waveBufferHead = 0;
+    }
+
     const timeData = new Uint8Array(bufferLength);
     analyser.getByteTimeDomainData(timeData);
 
+    // --- 將最新數據寫入 Head 位置 ---
+    const currentPath = waveTrailsBuffer[waveBufferHead];
     const waveDynamicBeatAmp = 1.0 + (safePulse * 4.0); 
-
-    const currentPath = new Float32Array(bufferLength);
     for (let i = 0; i < bufferLength; i++) {
         const v = timeData[i] / 128.0; 
         let amplitude = (v - 1) * (canvas2D.height / 3.5) * config.ampMult;
         currentPath[i] = isA11y ? (amplitude * 0.5) : (amplitude * waveDynamicBeatAmp);
     }
 
-    waveTrails.unshift(currentPath);
-    const maxTrails = Math.max(1, Math.floor(15 * config.glowMult));
-    if (waveTrails.length > maxTrails) waveTrails.length = maxTrails;
-
     const sliceWidth = canvas2D.width * 1.0 / bufferLength;
-
     ctx2D.globalCompositeOperation = 'lighter';
     ctx2D.lineJoin = 'round'; 
     ctx2D.lineCap = 'round';
 
-    const trailCount = waveTrails.length;
-
-    for (let t = trailCount - 1; t >= 0; t--) {
-        const path = waveTrails[t];
-        const ageRatio = t / trailCount; 
+    // --- 渲染循環：從 Head 往前追蹤歷史數據 ---
+    for (let t = 0; t < maxTrails; t++) {
+        const index = (waveBufferHead - t + maxTrails) % maxTrails;
+        const path = waveTrailsBuffer[index];
+        const ageRatio = t / maxTrails; 
         
         ctx2D.beginPath();
         let wx = 0;
@@ -230,18 +238,10 @@ export function renderWaveform(ctx2D, canvas2D, analyser, scale, safePulse, isA1
             wx += sliceWidth;
         }
 
-        const baseOpacity = (1.0 - Math.pow(ageRatio, 0.8));
-        const dynamicOpacity = baseOpacity * (0.4 + safePulse * 1.5); 
-        const opacity = Math.min(1.0, dynamicOpacity); 
-        
+        const opacity = Math.min(1.0, (1.0 - Math.pow(ageRatio, 0.8)) * (0.4 + safePulse * 1.5)); 
         const hueStart = (waveColorOffset - (t * 10)) % 360;
         
-        const wGrad = ctx2D.createLinearGradient(0, 0, canvas2D.width, 0);
-        wGrad.addColorStop(0, `hsla(${hueStart}, 100%, 60%, ${opacity})`);
-        wGrad.addColorStop(0.5, `hsla(${(hueStart + 60) % 360}, 100%, 60%, ${opacity})`);
-        wGrad.addColorStop(1, `hsla(${(hueStart + 120) % 360}, 100%, 60%, ${opacity})`);
-
-        ctx2D.strokeStyle = wGrad;
+        ctx2D.strokeStyle = `hsla(${hueStart}, 100%, 60%, ${opacity})`;
         ctx2D.lineWidth = (config.thick * scale) + (t * scale * 1.2);
         
         if (t === 0) {
@@ -253,11 +253,14 @@ export function renderWaveform(ctx2D, canvas2D, analyser, scale, safePulse, isA1
         ctx2D.stroke();
     }
 
+    // --- 更新指針，循環利用空間 ---
+    waveBufferHead = (waveBufferHead + 1) % maxTrails;
+
     ctx2D.globalCompositeOperation = 'source-over';
     
     ctx2D.beginPath();
     let wxCore = 0;
-    const newestPath = waveTrails[0];
+    const newestPath = waveTrailsBuffer[(waveBufferHead - 1 + maxTrails) % maxTrails];
     for (let i = 0; i < bufferLength; i++) {
         let y = wBaseY + newestPath[i];
         if (i === 0) ctx2D.moveTo(wxCore, y); 

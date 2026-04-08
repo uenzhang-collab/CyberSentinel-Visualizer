@@ -1,141 +1,51 @@
-// =============================================================================
-// [1] 核心模組匯入 (Core Imports)
-// =============================================================================
-import { AudioEngine }                               from './AudioEngine.js';
-import { initAurora3D, renderAurora3D }              from './vfx/Aurora3D.js';
-import { renderParticles }                           from './vfx/Particles.js';
-import { renderCircular, renderEq, renderWaveform }  from './vfx/AudioSpectrums.js';
-import { initNebulaShader, renderNebulaShader }      from './vfx/NebulaShader.js';
+import { AudioEngine } from './AudioEngine.js';
+import { initAurora3D, renderAurora3D } from './vfx/Aurora3D.js';
+import { renderParticles } from './vfx/Particles.js';
+import { renderCircular, renderEq, renderWaveform } from './vfx/AudioSpectrums.js';
+import { initNebulaShader, renderNebulaShader } from './vfx/NebulaShader.js';
+import { translations } from './i18n.js';
 
-// =============================================================================
-// [2] 核心字典與多國語系 (I18n Translations)
-// =============================================================================
-const translations = {
-    "zh-TW": {
-        "nav_brand":        "CyberSentinel 黑核核心",
-        "creator_label":    "CS-Founder 2026.04.06",
-        "step1_title":      "1️⃣ 匯入素材 (音源與排版)",
-        "btn_mic":          "🎙️ 啟用麥克風",
-        "btn_upload":       "🎵 上傳音樂",
-        "step2_title":      "2️⃣ 動態歌詞 (LRC 打軸)",
-        "step3_title":      "3️⃣ 視覺特效與微調",
-        "step4_title":      "4️⃣ 即時預覽與錄製 (大視窗)",
-        "btn_record":       "🔴 開始錄影",
-        "vfx_mod_aurora":   "極光水晶柱",
-        "vfx_mod_sun":      "核心太陽",
-        "vfx_transmission": "💎 透光度",
-        "vfx_speed":        "🔄 旋轉速度",
-        "vfx_a11y":         "🔒 視覺保護模式",
-        "energy_msg":       "🌱 節能模式",
-        "vfx_p_amount":     "☄️ 噴發數量 (Density)",
-        "vfx_p_speed":      "🚀 飛行速度 (Speed)",
-        "vfx_c_count":      "📊 能量柱數量 (Bar Count)",
-        "vfx_c_amp":        "💥 光譜爆發力 (Amplitude)",
-        "vfx_c_color":      "🌈 色彩流轉 (Color Flow)",
-        "vfx_c_spin":       "💿 唱盤轉速 (Spin Speed)",
-        "vfx_e_count":      "📊 能量柱數量 (Bar Count)",
-        "vfx_e_amp":        "💥 光譜爆發力 (Amplitude)",
-        "vfx_e_color":      "🌈 色彩流轉 (Color Flow)",
-        "vfx_e_gravity":    "☄️ 懸浮重力 (Cap Gravity)",
-        "vfx_w_amp":        "💥 波幅張力 (Amplitude)",
-        "vfx_w_color":      "🌈 色彩流轉 (Color Flow)",
-        "vfx_w_glow":       "✨ 霓虹殘影 (Neon Trails)",
-        "vfx_w_thick":      "📏 線條粗細 (Line Thickness)",
-        "vfx_n_viscosity":  "🧪 流體黏滯度 (Viscosity)",
-        "vfx_n_color":      "🎨 異星色調偏移 (Color Shift)",
-        "convert_title":    "進階：需要轉檔為 MP4 嗎？",
-        "convert_desc":     "由於瀏覽器技術限制，錄影原生輸出為 WebM 格式。若您需要傳送至 iPhone、LINE 或 Instagram 等平台，建議使用以下安全免費的線上轉檔工具：",
-        "convert_free":     "🌐 前往 FreeConvert 轉檔",
-        "convert_cloud":    "☁️ 前往 CloudConvert 轉檔",
-        "privacy_notice":   "🛡️ 隱私主權承諾：本系統採 100% 本地端邊緣運算，您的音訊絕不上傳雲端，完美保障資料安全。",
-        "esg_eco_mode":     "🌱 ESG 節能模式啟動 (低電量)"
-    },
-    "en-US": {
-        "nav_brand":        "CyberSentinel Core",
-        "creator_label":    "CS-Founder 2026.04.06",
-        "step1_title":      "1️⃣ Import Materials",
-        "btn_mic":          "🎙️ Enable Mic",
-        "btn_upload":       "🎵 Upload Audio",
-        "step2_title":      "2️⃣ Dynamic Lyrics",
-        "step3_title":      "3️⃣ Visual Effects",
-        "step4_title":      "4️⃣ Preview & Record",
-        "btn_record":       "🔴 Start Recording",
-        "vfx_mod_aurora":   "Aurora Bars",
-        "vfx_mod_sun":      "Core Sun",
-        "vfx_transmission": "💎 Transmission",
-        "vfx_speed":        "🔄 Rotation Speed",
-        "vfx_a11y":         "🔒 Visual Protection",
-        "energy_msg":       "🌱 Power Saving",
-        "vfx_p_amount":     "☄️ Particle Density",
-        "vfx_p_speed":      "🚀 Flying Speed",
-        "vfx_c_count":      "📊 Bar Count",
-        "vfx_c_amp":        "💥 Amplitude",
-        "vfx_c_color":      "🌈 Color Flow",
-        "vfx_c_spin":       "💿 Spin Speed",
-        "vfx_e_count":      "📊 Bar Count",
-        "vfx_e_amp":        "💥 Amplitude",
-        "vfx_e_color":      "🌈 Color Flow",
-        "vfx_e_gravity":    "☄️ Cap Gravity",
-        "vfx_w_amp":        "💥 Amplitude",
-        "vfx_w_color":      "🌈 Color Flow",
-        "vfx_w_glow":       "✨ Neon Trails",
-        "vfx_w_thick":      "📏 Line Thickness",
-        "vfx_n_viscosity":  "🧪 Fluid Viscosity",
-        "vfx_n_color":      "🎨 Alien Color Shift",
-        "convert_title":    "Need MP4 Format?",
-        "convert_desc":     "Native output is WebM. If you need to share to iPhone, LINE, or Instagram, use these free tools:",
-        "convert_free":     "🌐 Convert via FreeConvert",
-        "convert_cloud":    "☁️ Convert via CloudConvert",
-        "privacy_notice":   "🛡️ Privacy Pledge: 100% local edge computing. Your audio never leaves your device.",
-        "esg_eco_mode":     "🌱 ESG Eco Mode (Low Battery)"
-    }
-};
+// ==========================================
+// UI DOM 變數與基礎設定
+// ==========================================
+const audioPlayer = document.getElementById('audioPlayer');
+const btnRecord = document.getElementById('btnRecord');
+const btnStopRecord = document.getElementById('btnStopRecord');
+const vfxSelector = document.getElementById('vfxSelector');
+const lyricsInput = document.getElementById('lyricsInput');
 
-// =============================================================================
-// [3] UI DOM 變數與基礎狀態 (UI & State)
-// =============================================================================
-const audioPlayer     = document.getElementById('audioPlayer');
-const btnRecord       = document.getElementById('btnRecord');
-const btnStopRecord   = document.getElementById('btnStopRecord');
-const vfxSelector     = document.getElementById('vfxSelector');
-const lyricsInput     = document.getElementById('lyricsInput');
-
-const canvas2D        = document.getElementById('visualizer2D');
-const canvas3D        = document.getElementById('visualizer3D');
-const ctx2D           = canvas2D.getContext('2d');
-
-const particleCanvas  = document.createElement('canvas');
-const pCtx            = particleCanvas.getContext('2d');
-
-let audio             = new AudioEngine();
+let audio = new AudioEngine();
 let streamDestination = null;
-let isDrawing         = false;
-let currentMode       = null;
-let mediaRecorder     = null;
-let recordedChunks    = [];
-let logoImg           = new Image();
+let isDrawing = false;
+let currentMode = null;
+let mediaRecorder, recordedChunks = [];
+let logoImg = new Image();
 
-let rm, vfxManager, aurora, sun;
-let nebulaSystem;
+const canvas2D = document.getElementById('visualizer2D');
+const ctx2D = canvas2D.getContext('2d');
+const canvas3D = document.getElementById('visualizer3D'); 
+const particleCanvas = document.createElement('canvas');
+const pCtx = particleCanvas.getContext('2d');
 
-// =============================================================================
-// [4] 3D 與 Shader 初始化 (Engine Setup)
-// =============================================================================
+let rm, vfxManager, aurora, sun; 
+let nebulaSystem; 
+
+// --- 初始化 3D 與 Shader 引擎 ---
 function setup3D() {
     const auroraSystem = initAurora3D(canvas3D);
-    rm                 = auroraSystem.rm;
-    vfxManager         = auroraSystem.vfxManager;
-    aurora             = auroraSystem.aurora;
-    sun                = auroraSystem.sun;
-    
-    nebulaSystem       = initNebulaShader(canvas3D);
+    rm = auroraSystem.rm;
+    vfxManager = auroraSystem.vfxManager;
+    aurora = auroraSystem.aurora;
+    sun = auroraSystem.sun;
+    nebulaSystem = initNebulaShader(canvas3D);
 }
 
+// --- 畫布解析度同步 ---
 function applyResolution(width, height) {
-    canvas2D.width       = width;
-    canvas2D.height      = height;
-    canvas3D.width       = width;
-    canvas3D.height      = height;
+    canvas2D.width = width;
+    canvas2D.height = height;
+    canvas3D.width = width;
+    canvas3D.height = height;
     particleCanvas.width = width;
     particleCanvas.height = height;
     
@@ -151,7 +61,6 @@ function applyResolution(width, height) {
     if (nebulaSystem && nebulaSystem.renderer) {
         nebulaSystem.renderer.setSize(width, height, false);
     }
-    
     if (!isDrawing) drawLayout();
 }
 
@@ -159,9 +68,9 @@ function getScale() {
     return canvas2D.width / 1920; 
 }
 
-// =============================================================================
-// [5] ESG 節能引擎與電池偵測 (ESG & Battery)
-// =============================================================================
+// ==========================================
+// ESG 節能引擎與電池偵測
+// ==========================================
 window.ESG_ECO_MODE = false;
 
 async function initESGMode() {
@@ -187,14 +96,14 @@ async function initESGMode() {
             battery.addEventListener('chargingchange', handleBatteryChange);
             handleBatteryChange();
         } catch(e) {
-            console.log('Battery Status API not fully supported on this browser.');
+            console.log('Battery Status API not fully supported.');
         }
     }
 }
 
-// =============================================================================
-// [6] 總渲染迴圈 (Master Render Loop)
-// =============================================================================
+// ==========================================
+// 總渲染迴圈
+// ==========================================
 function drawMasterLoop() {
     if (!isDrawing) return;
     requestAnimationFrame(drawMasterLoop);
@@ -202,69 +111,66 @@ function drawMasterLoop() {
     if (!audio.analyser) return;
 
     const bufferLength = audio.analyser.frequencyBinCount;
-    const dataArray    = new Uint8Array(bufferLength);
+    const dataArray = new Uint8Array(bufferLength);
     audio.analyser.getByteFrequencyData(dataArray);
     
-    const activeVfx    = vfxSelector.value;
-    const scale        = getScale(); 
+    const activeVfx = vfxSelector.value;
+    const scale = getScale(); 
 
-    const bassSum      = dataArray.slice(0, 6).reduce((a, b) => a + b, 0);
-    const orbPulse     = Math.pow((bassSum / 6) / 255, 3.0); 
-    const isA11y       = document.getElementById('chkA11y').checked;
-    const safePulse    = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
+    const bassSum = dataArray.slice(0, 6).reduce((a, b) => a + b, 0);
+    const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
+    const isA11y = document.getElementById('chkA11y').checked;
+    const safePulse = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
 
-    // --- 渲染參數配置 ---
     const config = {
         aurora: {
-            rotSpeed:     parseFloat(document.getElementById('slRotation')?.value)     || 0.2,
+            rotSpeed: parseFloat(document.getElementById('slRotation')?.value) || 0.2,
             transmission: parseFloat(document.getElementById('slTransmission')?.value) || 0.9,
-            showAurora:   document.getElementById('chkAurora')?.checked ?? true,
-            showSun:      document.getElementById('chkSun')?.checked    ?? true,
+            showAurora: document.getElementById('chkAurora')?.checked ?? true,
+            showSun: document.getElementById('chkSun')?.checked ?? true,
         },
         particle: {
-            amountMult:   parseFloat(document.getElementById('slParticleAmount')?.value) || 1.0,
-            speedMult:    parseFloat(document.getElementById('slParticleSpeed')?.value)  || 1.0,
+            amountMult: parseFloat(document.getElementById('slParticleAmount')?.value) || 1.0,
+            speedMult: parseFloat(document.getElementById('slParticleSpeed')?.value) || 1.0,
         },
         circular: {
-            count:        parseInt(document.getElementById('slCircCount')?.value) || 360,
-            ampMult:      parseFloat(document.getElementById('slCircAmp')?.value) || 1.0,
-            colorMult:    parseFloat(document.getElementById('slCircColor')?.value) || 1.0,
-            spinMult:     parseFloat(document.getElementById('slCircSpin')?.value) || 1.0,
+            count: parseInt(document.getElementById('slCircCount')?.value) || 360,
+            ampMult: parseFloat(document.getElementById('slCircAmp')?.value) || 1.0,
+            colorMult: parseFloat(document.getElementById('slCircColor')?.value) || 1.0,
+            spinMult: parseFloat(document.getElementById('slCircSpin')?.value) || 1.0,
         },
         eq: {
-            count:        parseInt(document.getElementById('slEqCount')?.value) || 128,
-            ampMult:      parseFloat(document.getElementById('slEqAmp')?.value) || 1.0,
-            colorMult:    parseFloat(document.getElementById('slEqColor')?.value) || 1.0,
-            gravityMult:  parseFloat(document.getElementById('slEqGravity')?.value) || 1.0,
+            count: parseInt(document.getElementById('slEqCount')?.value) || 128,
+            ampMult: parseFloat(document.getElementById('slEqAmp')?.value) || 1.0,
+            colorMult: parseFloat(document.getElementById('slEqColor')?.value) || 1.0,
+            gravityMult: parseFloat(document.getElementById('slEqGravity')?.value) || 1.0,
         },
         waveform: {
-            ampMult:      parseFloat(document.getElementById('slWaveAmp')?.value) || 1.0,
-            colorMult:    parseFloat(document.getElementById('slWaveColor')?.value) || 1.0,
-            glowMult:     parseFloat(document.getElementById('slWaveGlow')?.value) || 1.0,
-            thick:        parseFloat(document.getElementById('slWaveThick')?.value) || 5.0,
+            ampMult: parseFloat(document.getElementById('slWaveAmp')?.value) || 1.0,
+            colorMult: parseFloat(document.getElementById('slWaveColor')?.value) || 1.0,
+            glowMult: parseFloat(document.getElementById('slWaveGlow')?.value) || 1.0,
+            thick: parseFloat(document.getElementById('slWaveThick')?.value) || 5.0,
         },
-        nebula: {
-            viscosity:    parseFloat(document.getElementById('slNebViscosity')?.value) || 0.2,
-            colorFlow:    parseFloat(document.getElementById('slNebColor')?.value)     || 1.0,
+        nebula: { 
+            viscosity: parseFloat(document.getElementById('slNebViscosity')?.value) || 0.2,
+            colorFlow: parseFloat(document.getElementById('slNebColor')?.value) || 1.0,
         }
     };
 
-    // --- ESG 節能調整 ---
     if (window.ESG_ECO_MODE) {
         config.particle.amountMult = Math.min(config.particle.amountMult, 0.25); 
-        config.waveform.glowMult   = Math.min(config.waveform.glowMult, 0.3); 
-        config.circular.count      = Math.min(config.circular.count, 90); 
-        config.eq.count            = Math.min(config.eq.count, 64); 
-        config.nebula.viscosity    = Math.min(config.nebula.viscosity, 0.1);
+        config.waveform.glowMult = Math.min(config.waveform.glowMult, 0.3); 
+        config.circular.count = Math.min(config.circular.count, 90); 
+        config.eq.count = Math.min(config.eq.count, 64); 
+        config.nebula.viscosity = Math.min(config.nebula.viscosity, 0.1); 
     }
 
-    // --- 分支渲染邏輯 ---
     switch (activeVfx) {
         case 'aurora':
             canvas3D.style.display = 'block';
             renderAurora3D(ctx2D, canvas2D, canvas3D, rm, vfxManager, aurora, sun, dataArray, safePulse, config.aurora);
             break;
-        case 'nebula':
+        case 'nebula': 
             canvas3D.style.display = 'block';
             ctx2D.fillStyle = '#000000';
             ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height); 
@@ -293,9 +199,9 @@ function drawMasterLoop() {
     drawLyrics();
 }
 
-// =============================================================================
-// [7] UI 系統 (Privacy, Layout, Lyrics)
-// =============================================================================
+// ==========================================
+// 隱私權與排版 UI 系統
+// ==========================================
 function showPrivacyToast() {
     const toast = document.createElement('div');
     toast.className = 'fixed bottom-6 right-6 bg-gray-900/95 backdrop-blur-md border border-blue-500/50 text-blue-300 px-5 py-4 rounded-xl text-sm shadow-2xl z-[100] flex items-center gap-4 transform transition-all duration-700 translate-y-24 opacity-0 max-w-sm';
@@ -318,23 +224,22 @@ function showPrivacyToast() {
 }
 
 function drawLayout() {
-    const cName    = document.getElementById('channelName').value.trim();
-    const topic    = document.getElementById('topicTitle').value.trim();
-    const speaker  = document.getElementById('speakerInfo').value.trim();
-    const font     = '"Microsoft JhengHei", "PingFang TC", sans-serif';
-    const scale    = getScale();
-
+    const cName = document.getElementById('channelName').value.trim();
+    const topic = document.getElementById('topicTitle').value.trim();
+    const speaker = document.getElementById('speakerInfo').value.trim();
+    const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
+    const scale = getScale();
     const shadowIntensity = (vfxSelector.value === 'nebula') ? 30 : 12;
 
     ctx2D.shadowColor = 'rgba(0, 0, 0, 1)';
-    ctx2D.shadowBlur  = shadowIntensity * scale;
+    ctx2D.shadowBlur = shadowIntensity * scale;
     
     const isLeftAlign = (vfxSelector.value === 'circular');
-    const align       = isLeftAlign ? 'left' : 'center';
-    const tx          = isLeftAlign ? 80 * scale : canvas2D.width / 2;
-    const ty          = isLeftAlign ? canvas2D.height * 0.40 : canvas2D.height * 0.15;
-    const sx          = isLeftAlign ? 80 * scale : canvas2D.width / 2;
-    const sy          = isLeftAlign ? canvas2D.height * 0.50 : canvas2D.height * 0.23;
+    const align = isLeftAlign ? 'left' : 'center';
+    const tx = isLeftAlign ? 80 * scale : canvas2D.width / 2;
+    const ty = isLeftAlign ? canvas2D.height * 0.40 : canvas2D.height * 0.15;
+    const sx = isLeftAlign ? 80 * scale : canvas2D.width / 2;
+    const sy = isLeftAlign ? canvas2D.height * 0.50 : canvas2D.height * 0.23;
 
     if (cName) {
         ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
@@ -348,23 +253,22 @@ function drawLayout() {
     }
     
     if (topic) {
-        ctx2D.textAlign    = align; ctx2D.textBaseline = 'middle';
-        ctx2D.fillStyle    = '#ffffff'; ctx2D.font = `bold ${(align === 'center' ? 64 : 72) * scale}px ${font}`;
-        ctx2D.shadowBlur   = (shadowIntensity * 1.5) * scale; ctx2D.fillText(topic, tx, ty); ctx2D.shadowBlur = shadowIntensity * scale; 
+        ctx2D.textAlign = align; ctx2D.textBaseline = 'middle';
+        ctx2D.fillStyle = '#ffffff'; ctx2D.font = `bold ${(align === 'center' ? 64 : 72) * scale}px ${font}`;
+        ctx2D.shadowBlur = (shadowIntensity * 1.5) * scale; ctx2D.fillText(topic, tx, ty); ctx2D.shadowBlur = shadowIntensity * scale; 
     }
     
     if (speaker) {
-        ctx2D.textAlign    = align; ctx2D.textBaseline = 'middle';
-        ctx2D.fillStyle    = '#a0aec0'; ctx2D.font = `${26*scale}px ${font}`;
+        ctx2D.textAlign = align; ctx2D.textBaseline = 'middle';
+        ctx2D.fillStyle = '#a0aec0'; ctx2D.font = `${26*scale}px ${font}`;
         ctx2D.fillText(speaker, sx, sy);
     }
     
     ctx2D.shadowBlur = 0;
     if (logoImg.src && logoImg.complete) {
-        const maxW   = 120 * scale; 
-        const aspect = logoImg.width / logoImg.height;
-        const dw     = aspect < 1 ? maxW * aspect : maxW;
-        const dh     = aspect < 1 ? maxW : maxW / aspect;
+        const maxW = 120 * scale; const aspect = logoImg.width / logoImg.height;
+        const dw = aspect < 1 ? maxW * aspect : maxW;
+        const dh = aspect < 1 ? maxW : maxW / aspect;
         ctx2D.drawImage(logoImg, canvas2D.width - dw - 60*scale, 60*scale, dw, dh);
     }
 }
@@ -372,13 +276,13 @@ function drawLayout() {
 let parsedLyrics = [], rawLines = [], syncIndex = 0, isSyncing = false;
 
 function parseLRC(text) {
-    parsedLyrics     = [];
-    const timeRegEx  = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+    parsedLyrics = [];
+    const timeRegEx = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
     text.split('\n').forEach(line => {
         const m = timeRegEx.exec(line);
         if (m) {
             const time = parseInt(m[1])*60 + parseInt(m[2]) + parseInt(m[3])/Math.pow(10, m[3].length);
-            const txt  = line.replace(timeRegEx, '').trim();
+            const txt = line.replace(timeRegEx, '').trim();
             if(txt) parsedLyrics.push({time, text: txt});
         }
     });
@@ -395,7 +299,7 @@ function drawLyrics() {
         else break; 
     }
     if (active) {
-        const scale    = getScale();
+        const scale = getScale();
         const activeVfx = vfxSelector.value;
         ctx2D.textAlign = activeVfx === 'circular' ? 'left' : 'center'; 
         ctx2D.textBaseline = 'middle';
@@ -412,19 +316,18 @@ function drawLyrics() {
 function stopSyncing() {
     isSyncing = false;
     document.getElementById('btnStartSync').innerHTML = '▶️ 開始播放';
-    document.getElementById('btnMarkTime').disabled   = true;
+    document.getElementById('btnMarkTime').disabled = true;
     document.getElementById('currentSyncLine').innerText = '-- 已結束或取消 --';
 }
 
-// =============================================================================
-// [8] 匯入、拖曳與波形邏輯 (File & Waveform)
-// =============================================================================
+// ==========================================
+// 檔案匯入邏輯
+// ==========================================
 async function handleFileImport(file) {
     if (!file.type.startsWith('audio/')) {
         alert('請匯入有效的音訊檔案！');
         return;
     }
-
     try {
         const fileName = file.name.replace(/\.[^/.]+$/, "");
         if (fileName.includes(" - ")) {
@@ -434,35 +337,26 @@ async function handleFileImport(file) {
         } else {
             document.getElementById('topicTitle').value = fileName;
         }
-
         audioPlayer.src = URL.createObjectURL(file);
         await audio.init(audioPlayer);
-        
         if (!streamDestination) { 
             streamDestination = audio.audioCtx.createMediaStreamDestination(); 
             audio.analyser.connect(streamDestination); 
         }
-
         const waveformData = await audio.getStaticWaveform(file);
         drawStaticWaveform(waveformData);
-
         const overlayText = document.getElementById('overlayText');
         if(overlayText) overlayText.innerText = '🎵 音樂已載入，請點選「開始錄影」';
-        
         const overlay = document.getElementById('canvasOverlay');
         if(overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
-
         btnRecord.disabled = false;
         btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
         btnRecord.classList.replace('text-gray-400', 'text-white');
         currentMode = 'file';
-        
         applyResolution(1920, 1080); 
         if (!isDrawing) drawLayout();
-
     } catch (e) {
-        console.error("載入失敗:", e);
-        alert("載入音訊檔案失敗，請確認格式正確！");
+        alert("載入失敗！");
     }
 }
 
@@ -471,9 +365,8 @@ function drawStaticWaveform(data) {
     if (!container) return; 
     container.innerHTML = ''; 
     const max = Math.max(...data);
-    
     data.forEach((val, i) => {
-        const bar    = document.createElement('div');
+        const bar = document.createElement('div');
         const height = (val / max) * 100;
         bar.className = 'w-1 bg-gray-600 rounded-full transition-all hover:bg-blue-400 cursor-pointer';
         bar.style.height = `${Math.max(10, height)}%`;
@@ -501,9 +394,9 @@ window.addEventListener('drop', (e) => {
     if (file) handleFileImport(file);
 });
 
-// =============================================================================
-// [9] UI 事件監聽綁定 (Event Listeners)
-// =============================================================================
+// ==========================================
+// UI 事件監聽綁定
+// ==========================================
 document.getElementById('resSelector').addEventListener('change', (e) => {
     const [w, h] = e.target.value.split('x').map(Number);
     document.getElementById('resSelectorMobile').value = e.target.value; 
@@ -516,51 +409,12 @@ document.getElementById('resSelectorMobile').addEventListener('change', (e) => {
     applyResolution(w, h);
 });
 
-vfxSelector.addEventListener('change', (e) => {
-    const v = e.target.value;
-    const panels = ['panel3D', 'panelNebula', 'panelParticle', 'panelCircular', 'panelEq', 'panelWaveform'];
-    
-    panels.forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.classList.add('hidden');
-    });
-
-    if (v === 'aurora')   document.getElementById('panel3D').classList.remove('hidden');
-    if (v === 'nebula')    document.getElementById('panelNebula').classList.remove('hidden');
-    if (v === 'particle')  document.getElementById('panelParticle').classList.remove('hidden');
-    if (v === 'circular')  document.getElementById('panelCircular').classList.remove('hidden');
-    if (v === 'eq')        document.getElementById('panelEq').classList.remove('hidden');
-    if (v === 'waveform')  document.getElementById('panelWaveform').classList.remove('hidden');
-
-    if (audio.analyser) {
-        audio.analyser.fftSize = (v === 'waveform' || v === 'aurora' || v === 'nebula') ? 2048 : 256;
-    }
-    if (!isDrawing) drawLayout();
-});
-
-const slKeys = [
-    'slCircAmp', 'slCircColor', 'slCircSpin', 'slCircCount', 'slEqCount', 'slEqAmp', 
-    'slEqColor', 'slEqGravity', 'slWaveAmp', 'slWaveColor', 'slWaveGlow', 'slWaveThick', 
-    'slTransmission', 'slRotation', 'slParticleAmount', 'slParticleSpeed', 'slNebViscosity', 'slNebColor'
-];
-
-slKeys.forEach(id => {
-    const el = document.getElementById(id);
-    if(el) {
-        el.addEventListener('input', (e) => {
-            const val   = parseFloat(e.target.value);
-            const label = document.getElementById(id.replace('sl', 'val'));
-            if(label) {
-                label.textContent = (id.includes('Count') || id.includes('Thick')) ? val : val.toFixed(2) + 'x';
-            }
-        });
-    }
-});
-
 document.getElementById('btnToggleSync').addEventListener('click', () => {
     const panel = document.getElementById('syncToolPanel');
     panel.classList.toggle('hidden');
-    if (panel.classList.contains('hidden')) stopSyncing();
+    if (panel.classList.contains('hidden')) {
+        stopSyncing();
+    }
 });
 
 document.getElementById('btnStartSync').addEventListener('click', () => {
@@ -570,12 +424,13 @@ document.getElementById('btnStartSync').addEventListener('click', () => {
     const text = lyricsInput.value.trim();
     if (!text) return alert('請貼上純文字歌詞！');
 
-    rawLines  = text.split('\n').map(l=>l.trim()).filter(l=>l);
+    rawLines = text.split('\n').map(l=>l.trim()).filter(l=>l);
     syncIndex = 0; isSyncing = true;
     lyricsInput.value = rawLines.join('\n');
 
     document.getElementById('btnStartSync').innerHTML = '⏸️ 停止打軸';
-    document.getElementById('btnMarkTime').disabled   = false;
+    const btnMarkTime = document.getElementById('btnMarkTime');
+    btnMarkTime.disabled = false;
     document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
     
     const overlay = document.getElementById('canvasOverlay');
@@ -584,17 +439,21 @@ document.getElementById('btnStartSync').addEventListener('click', () => {
         setTimeout(() => { overlay.style.display = 'none'; }, 300);
     }
     
-    if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
+    if (!isDrawing) { 
+        isDrawing = true; 
+        drawMasterLoop(); 
+    }
+
     audioPlayer.currentTime = 0; 
     audioPlayer.play();
 });
 
 document.getElementById('btnMarkTime').addEventListener('click', () => {
     if(!isSyncing || syncIndex >= rawLines.length) return;
-    const ct  = audioPlayer.currentTime;
-    const m   = Math.floor(ct/60).toString().padStart(2,'0');
-    const s   = Math.floor(ct%60).toString().padStart(2,'0');
-    const ms  = Math.floor((ct%1)*100).toString().padStart(2,'0');
+    const ct = audioPlayer.currentTime;
+    const m = Math.floor(ct/60).toString().padStart(2,'0');
+    const s = Math.floor(ct%60).toString().padStart(2,'0');
+    const ms = Math.floor((ct%1)*100).toString().padStart(2,'0');
     const tag = `[${m}:${s}.${ms}]`;
     
     let lines = lyricsInput.value.split('\n');
@@ -609,48 +468,23 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
         document.getElementById('currentSyncLine').innerHTML = '<span class="text-green-400">🎉 全部標記完成！</span>';
         isSyncing = false;
         document.getElementById('btnStartSync').innerHTML = '▶️ 重新開始';
-        document.getElementById('btnMarkTime').disabled   = true;
+        document.getElementById('btnMarkTime').disabled = true;
     } else {
         document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
     }
 });
 
 window.addEventListener('keydown', (e) => { 
-    const active = document.activeElement;
-    if(isSyncing && e.code === 'Space' && active !== lyricsInput && active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA') { 
+    if(isSyncing && e.code === 'Space' && document.activeElement !== lyricsInput && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { 
         e.preventDefault(); 
         document.getElementById('btnMarkTime').click(); 
     }
 });
 
-document.getElementById('btnMic').addEventListener('click', async () => {
-    try {
-        await audio.init(await navigator.mediaDevices.getUserMedia({ audio: true }));
-        if (!streamDestination) { 
-            streamDestination = audio.audioCtx.createMediaStreamDestination(); 
-            audio.analyser.connect(streamDestination); 
-        }
-        
-        const overlayText = document.getElementById('overlayText');
-        if(overlayText) overlayText.innerText = '🎙️ 麥克風就緒，請點選「開始錄影」';
-        
-        const overlay = document.getElementById('canvasOverlay');
-        if(overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
-
-        btnRecord.disabled = false;
-        btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
-        btnRecord.classList.replace('text-gray-400', 'text-white');
-        currentMode = 'mic';
-        
-        applyResolution(1920, 1080); 
-        if (!isDrawing) drawLayout();
-    } catch(e) { 
-        alert("音源存取失敗，請確認麥克風權限。"); 
-    }
-});
-
 document.getElementById('audioUpload').addEventListener('change', (e) => {
-    if(e.target.files.length) handleFileImport(e.target.files[0]);
+    if(e.target.files.length) {
+        handleFileImport(e.target.files[0]);
+    }
 });
 
 document.getElementById('channelLogo').addEventListener('change', function(e) {
@@ -669,58 +503,85 @@ document.getElementById('channelLogo').addEventListener('change', function(e) {
     });
 });
 
-// =============================================================================
-// [10] 錄影引擎與輸出 (MediaRecorder)
-// =============================================================================
+// ==========================================
+// 🛡️ 安全機制：將錄影資料存入 IndexedDB
+// ==========================================
+async function cacheVideoRecord(blob) {
+    const DB_NAME = "CS_Video_Cache";
+    return new Promise((resolve) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
+            e.target.result.createObjectStore("records");
+        };
+        request.onsuccess = (e) => {
+            const db = e.target.result;
+            const transaction = db.transaction("records", "readwrite");
+            const store = transaction.objectStore("records");
+            store.put(blob, "latest_session");
+            transaction.oncomplete = () => {
+                console.log("[CyberSentinel] 影片已安全暫存至 IndexedDB");
+                resolve();
+            };
+            transaction.onerror = (err) => {
+                console.error("[CyberSentinel] IndexedDB 寫入失敗", err);
+                resolve(); 
+            };
+        };
+        request.onerror = (e) => {
+            console.error("[CyberSentinel] 無法開啟 IndexedDB", e);
+            resolve(); 
+        };
+    });
+}
+
+// ==========================================
+// 錄影引擎 (MediaRecorder)
+// ==========================================
 btnRecord.addEventListener('click', () => {
-    recordedChunks     = [];
+    recordedChunks = [];
     const canvasStream = canvas2D.captureStream(30);
     const combinedStream = new MediaStream([...canvasStream.getTracks(), ...streamDestination.stream.getTracks()]);
-    
     let options = { mimeType: 'video/webm; codecs=vp9' };
     if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm' };
-
     try {
         mediaRecorder = new MediaRecorder(combinedStream, options);
     } catch (e) {
-        alert('您的瀏覽器不支援錄製此格式影片。'); 
-        return; 
+        alert('不支援此格式。'); return; 
     }
-
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
     
-    mediaRecorder.onstop = () => {
-        const blob     = new Blob(recordedChunks, { type: 'video/webm' });
+    // --- 優化：錄影停止後的 IndexedDB 自動暫存邏輯 ---
+    mediaRecorder.onstop = async () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        
+        // 核心改進：等待影片暫存至本地資料庫，防止瀏覽器崩潰丟失檔案
+        await cacheVideoRecord(blob); 
+
         const videoUrl = URL.createObjectURL(blob);
-        document.getElementById('recordedVideo').src  = videoUrl;
-        document.getElementById('downloadLink').href  = videoUrl;
+        document.getElementById('recordedVideo').src = videoUrl;
+        document.getElementById('downloadLink').href = videoUrl;
         document.getElementById('downloadLink').download = `CyberSentinel_Record_${Date.now()}.webm`; 
         
-        const modal = document.getElementById('resultModal');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex'); 
+        document.getElementById('resultModal').classList.remove('hidden');
+        document.getElementById('resultModal').classList.add('flex'); 
         document.getElementById('recordingStatus').classList.add('hidden');
-        
-        btnRecord.disabled     = false;
+        btnRecord.disabled = false;
         btnStopRecord.disabled = true;
     };
 
     mediaRecorder.start();
-    
     const overlay = document.getElementById('canvasOverlay');
-    if (overlay && overlay.style.display !== 'none') {
-        overlay.style.opacity = '0';
-        setTimeout(() => { overlay.style.display = 'none'; }, 300);
-    }
-    
+    if (overlay) { overlay.style.opacity = '0'; setTimeout(() => { overlay.style.display = 'none'; }, 300); }
     if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
     if(currentMode === 'file') { audioPlayer.currentTime = 0; audioPlayer.play(); }
-    
     document.getElementById('recordingStatus').classList.remove('hidden');
-    btnRecord.disabled     = true;
+    btnRecord.disabled = true;
     btnStopRecord.disabled = false;
 });
 
+// ==========================================
+// 其餘事件監聽
+// ==========================================
 btnStopRecord.addEventListener('click', () => {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     if (currentMode === 'file') audioPlayer.pause();
@@ -728,14 +589,46 @@ btnStopRecord.addEventListener('click', () => {
 });
 
 document.getElementById('btnCloseResult').addEventListener('click', () => {
-    const modal = document.getElementById('resultModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    document.getElementById('resultModal').classList.add('hidden');
+    document.getElementById('resultModal').classList.remove('flex');
 });
 
-// =============================================================================
-// [11] 語系切換與初始化啟動 (Initialize)
-// =============================================================================
+vfxSelector.addEventListener('change', (e) => {
+    const v = e.target.value;
+    ['panel3D', 'panelNebula', 'panelParticle', 'panelCircular', 'panelEq', 'panelWaveform'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.classList.add('hidden');
+    });
+    if (document.getElementById('panel' + v.charAt(0).toUpperCase() + v.slice(1))) {
+        document.getElementById('panel' + v.charAt(0).toUpperCase() + v.slice(1)).classList.remove('hidden');
+    } else if (v === 'aurora') document.getElementById('panel3D').classList.remove('hidden');
+    
+    if (audio.analyser) {
+        audio.analyser.fftSize = (v === 'waveform' || v === 'aurora' || v === 'nebula') ? 2048 : 256;
+    }
+    if (!isDrawing) drawLayout();
+});
+
+['slCircAmp', 'slCircColor', 'slCircSpin', 'slCircCount', 'slEqCount', 'slEqAmp', 'slEqColor', 'slEqGravity', 'slWaveAmp', 'slWaveColor', 'slWaveGlow', 'slWaveThick', 'slTransmission', 'slRotation', 'slParticleAmount', 'slParticleSpeed', 'slNebViscosity', 'slNebColor'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        const label = document.getElementById(id.replace('sl', 'val'));
+        if(label) label.textContent = (id.includes('Count') || id.includes('Thick')) ? val : val.toFixed(2) + 'x';
+    });
+});
+
+document.getElementById('btnMic').addEventListener('click', async () => {
+    try {
+        await audio.init(await navigator.mediaDevices.getUserMedia({ audio: true }));
+        if (!streamDestination) { streamDestination = audio.audioCtx.createMediaStreamDestination(); audio.analyser.connect(streamDestination); }
+        btnRecord.disabled = false;
+        currentMode = 'mic';
+        applyResolution(1920, 1080); if (!isDrawing) drawLayout();
+    } catch(e) { alert("存取失敗！"); }
+});
+
+document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
+
 function updateLanguage(lang) {
     const dict = translations[lang];
     if (!dict) return;
@@ -745,21 +638,13 @@ function updateLanguage(lang) {
     localStorage.setItem('preferredLang', lang);
 }
 
-document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
-
-// --- 啟動初始化程序 ---
+// 啟動
 setup3D();
 setTimeout(() => applyResolution(1920, 1080), 500);
 updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
-
 setTimeout(() => { showPrivacyToast(); }, 1000);
-
 initESGMode();
 
 document.addEventListener("visibilitychange", () => {
-    if (!window.ESG_ECO_MODE) {
-        const notice = document.getElementById('energyNotice');
-        if (notice) notice.style.display = document.hidden ? "flex" : "none";
-    }
     if (rm) rm.isActive = !document.hidden;
 });

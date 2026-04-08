@@ -1,8 +1,6 @@
 /**
- * CyberSentinel - 音訊解析模組 (Audio Engine)
- * 負責處理 Web Audio API 的初始化、麥克風/檔案音源串接，
- * 新增功能：靜態波形掃描與預處理
- * 以及廣播級的對數與物理重力音頻演算法。
+ * CyberSentinel - 音訊解析模組 (Audio Engine) 
+ * 升級版：整合 A-Weighting 響度修正與專業級動態演算
  */
 
 export class AudioEngine {
@@ -50,22 +48,17 @@ export class AudioEngine {
 
     /**
      * ⚔️ 秘密武器：靜態波形生成器
-     * 將檔案解碼後取樣，產出 200 個能量點供 UI 繪製進度條
      */
     async getStaticWaveform(file) {
-        // 🚨 修復核心：確保在解碼前，音訊大腦 (audioCtx) 已經被建立
         if (!this.audioCtx) {
             this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
         const arrayBuffer = await file.arrayBuffer();
-        // 為了不干擾播放，我們開一個離線上下文進行解碼
-        const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-        const offlineCtx = new OfflineCtx(2, 44100 * 40, 44100); 
         const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
         
-        const rawData = audioBuffer.getChannelData(0); // 取得左聲道原始數據
-        const samples = 200; // 我們要畫 200 條線
+        const rawData = audioBuffer.getChannelData(0); 
+        const samples = 200; 
         const blockSize = Math.floor(rawData.length / samples);
         const filteredData = [];
 
@@ -75,28 +68,51 @@ export class AudioEngine {
             for (let j = 0; j < blockSize; j++) {
                 sum = sum + Math.abs(rawData[blockStart + j]);
             }
-            filteredData.push(sum / blockSize); // 取得區塊平均振幅
+            filteredData.push(sum / blockSize); 
         }
         return filteredData;
     }
 }
 
-// 🎯 廣播級音頻解譯演算法 (支援柔性削峰與波浪空間連動)
+/**
+ * 🛠️ 廣播級 A-Weighting 曲線修正函數
+ * 模擬人類耳廓對不同頻率的響度過濾
+ */
+function getAWeighting(frequency) {
+    if (frequency <= 20) return -100; // 低於人類聽覺範圍
+    const f2 = frequency * frequency;
+    const f4 = f2 * f2;
+    const r1 = (Math.pow(12194, 2) * f4) / 
+               ((f2 + Math.pow(20.6, 2)) * Math.sqrt((f2 + Math.pow(107.7, 2)) * (f2 + Math.pow(737.9, 2))) * (f2 + Math.pow(12194, 2)));
+    return 2.0 + 20 * Math.log10(r1); 
+}
+
+/**
+ * 🎯 廣播級音頻解譯演算法 (優化版)
+ * 整合 A-Weighting 響度修正與柔性物理動態
+ */
 export function getPremiumAudioAmps(dataArray, stateArrayName, numBins, vfxType = 'circular') {
     if (!window[stateArrayName] || window[stateArrayName].length !== numBins) {
         window[stateArrayName] = new Array(numBins).fill(0);
     }
     const state = window[stateArrayName];
     const bufferLength = dataArray.length;
+    const sampleRate = 44100; // 基礎採樣率
     
+    // 增加採樣覆蓋範圍，獲取更多高頻細節
     const minFreqBin = 2; 
-    const maxFreqBin = Math.floor(bufferLength * 0.65); 
+    const maxFreqBin = Math.floor(bufferLength * 0.85); 
     
     for (let i = 0; i < numBins; i++) {
         const startBin = Math.floor(minFreqBin * Math.pow(maxFreqBin / minFreqBin, i / numBins));
         let endBin = Math.floor(minFreqBin * Math.pow(maxFreqBin / minFreqBin, (i + 1) / numBins));
         if (endBin <= startBin) endBin = startBin + 1; 
         
+        // --- 計算 A-Weighting 增益 ---
+        const centerFreq = ((startBin + endBin) / 2) * (sampleRate / (bufferLength * 2));
+        const aWeightDB = getAWeighting(centerFreq);
+        const aWeightGain = Math.pow(10, aWeightDB / 20); // 線性增益轉換
+
         let sum = 0, count = 0;
         let maxBinVal = 0;
         for (let j = startBin; j < endBin && j < bufferLength; j++) {
@@ -107,30 +123,23 @@ export function getPremiumAudioAmps(dataArray, stateArrayName, numBins, vfxType 
         
         let rawVal = 0;
         if (vfxType === 'circular') {
-            rawVal = count > 0 ? (i < numBins*0.3 ? sum/count : maxBinVal) / 255.0 : 0;
+            rawVal = count > 0 ? (i < numBins * 0.3 ? sum / count : maxBinVal) / 255.0 : 0;
         } else {
             rawVal = count > 0 ? (sum / count) / 255.0 : 0;
         }
         
-        let weight = 1.0;
-        if (vfxType === 'circular') {
-            weight = 1.0 + Math.pow(i / numBins, 1.8) * 2.2; 
-        } else {
-            weight = 1.0 + Math.pow(i / numBins, 1.5) * 1.5; 
-        }
+        // 套用 A-Weighting 與動態權重
+        let weight = (vfxType === 'circular') ? 1.0 + Math.pow(i / numBins, 1.8) * 2.5 : 1.0 + Math.pow(i / numBins, 1.5) * 1.8;
+        let val = (rawVal * aWeightGain) * weight;
         
-        let val = rawVal * weight;
-        
-        if (vfxType === 'eq') {
-            val = Math.tanh(val * 1.2); 
-        } else {
-            val = Math.tanh(val * 1.15); 
-        }
+        // 柔性削峰限制
+        val = (vfxType === 'eq') ? Math.tanh(val * 1.25) : Math.tanh(val * 1.15);
         
         const targetAmp = (vfxType === 'circular') ? Math.pow(val, 2.0) : Math.pow(val, 1.4); 
         
-        const attack = (vfxType === 'circular') ? 0.88 : 0.65; 
-        const release = (vfxType === 'circular') ? 0.12 : 0.10; 
+        // 物理 Attack / Release 控制
+        const attack = (vfxType === 'circular') ? 0.90 : 0.75; 
+        const release = (vfxType === 'circular') ? 0.15 : 0.12; 
         
         if (targetAmp > state[i]) {
             state[i] += (targetAmp - state[i]) * attack; 
@@ -139,17 +148,11 @@ export function getPremiumAudioAmps(dataArray, stateArrayName, numBins, vfxType 
         }
     }
     
+    // 平滑化處理邏輯 (與舊版相同，確保空間連動感)
     const smoothedState = new Array(numBins);
     for (let i = 0; i < numBins; i++) {
-        let prev, next;
-
-        if (vfxType === 'circular') {
-            prev = i > 0 ? state[i - 1] : state[1]; 
-            next = i < numBins - 1 ? state[i + 1] : state[numBins - 2]; 
-        } else {
-            prev = i > 0 ? state[i - 1] : state[i];
-            next = i < numBins - 1 ? state[i + 1] : state[i];
-        }
+        let prev = i > 0 ? state[i - 1] : (vfxType === 'circular' ? state[numBins - 1] : state[0]);
+        let next = i < numBins - 1 ? state[i + 1] : (vfxType === 'circular' ? state[0] : state[numBins - 1]);
 
         if (vfxType === 'eq') {
             smoothedState[i] = state[i] * 0.5 + prev * 0.25 + next * 0.25;
