@@ -35,7 +35,8 @@ let State = {
     },
     layoutOffsets: {
         channel: { px: 0.04, py: 0.06 }, titles: { px: 0.50, py: 0.16 },  
-        logo: { px: 0.96, py: 0.06 }, lyrics: { px: 0.50, py: 0.90 }   
+        logo: { px: 0.96, py: 0.06 }, lyrics: { px: 0.50, py: 0.90 },
+        vfx: { px: 0.50, py: 0.50 }
     },
     cache: {
         cNameLines: [], cNameMaxWidth: 0, topicWidth: 0, speakerWidth: 0, lastScale: 0
@@ -113,22 +114,22 @@ const ThemePresets = {
     lofi: { 
         vfx: 'circular', 
         vfxState: { circular: { count: 180, ampMult: 0.8, colorMult: 2.0, spinMult: 0.5 } }, 
-        layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.85 } } 
+        layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.85 }, vfx: { px: 0.50, py: 0.50 } } 
     },
     cyberpunk: { 
         vfx: 'waveform', 
         vfxState: { waveform: { ampMult: 1.5, colorMult: 3.0, glowMult: 2.5, thick: 8 } }, 
-        layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.90 } } 
+        layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.90 }, vfx: { px: 0.50, py: 0.50 } } 
     },
     podcast: { 
         vfx: 'eq', 
         vfxState: { eq: { count: 64, ampMult: 1.0, colorMult: 1.0, gravityMult: 1.5 } }, 
-        layout: { titles: { px: 0.08, py: 0.35 }, lyrics: { px: 0.08, py: 0.88 } } 
+        layout: { titles: { px: 0.08, py: 0.35 }, lyrics: { px: 0.08, py: 0.88 }, vfx: { px: 0.50, py: 0.50 } } 
     },
     minimal: {
         vfx: 'particle',
         vfxState: { particle: { amountMult: 0.5, speedMult: 0.8 } },
-        layout: { titles: { px: 0.50, py: 0.40 }, lyrics: { px: 0.50, py: 0.80 } }
+        layout: { titles: { px: 0.50, py: 0.40 }, lyrics: { px: 0.50, py: 0.80 }, vfx: { px: 0.50, py: 0.50 } }
     }
 };
 
@@ -326,7 +327,7 @@ const videoRecorder = new VideoRecorder(canvas2D);
 const lyricsManager = new LyricsManager();
 const bgManager = new BackgroundManager();
 
-let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x:0,y:0,w:0,h:0}, lyrics: {x:0,y:0,w:0,h:0} };
+let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x:0,y:0,w:0,h:0}, lyrics: {x:0,y:0,w:0,h:0}, vfx: {x:0,y:0,w:0,h:0} };
 let dragTarget = null, hoverTarget = null, dragOffsetX = 0, dragOffsetY = 0, userHasDragged = false; 
 
 function setup3D() {
@@ -413,17 +414,24 @@ function renderCore(dataArray, safePulse) {
     const hasBg = bgManager && bgManager.media;
     if (hasBg) {
         bgManager.draw(ctx2D, canvas2D.width, canvas2D.height);
+    } else {
+        ctx2D.fillStyle = '#000000';
+        ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
     }
 
     // 2. 特效層：將光譜與殘影先畫在獨立的 vfxCanvas 緩衝區
     const effect = VFXRegistry[vfxSelector.value];
     if (effect) {
-        // 許多光譜為了殘影會鋪上黑底，讓它們在 vfxCanvas 盡情揮灑
+        vfxCtx.clearRect(0, 0, vfxCanvas.width, vfxCanvas.height);
         effect.render(vfxCtx, vfxCanvas, canvas3D, dataArray, safePulse, getScale());
         
-        // 3. 疊加層：如果是自訂背景，使用 screen 模式濾掉黑色殘影底，保留發光線條
+        // 🌟 核心：根據拖曳的狀態，計算特效圖層偏移量
+        const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width;
+        const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height;
+        
+        // 3. 疊加層：包含自訂背景濾色混合與偏移輸出
         ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
-        ctx2D.drawImage(vfxCanvas, 0, 0);
+        ctx2D.drawImage(vfxCanvas, dx, dy);
     }
     
     // 4. UI 介面層：恢復一般疊加模式，繪製字體與框線
@@ -457,15 +465,15 @@ function drawMasterLoop() {
     const safePulse = State.ui.isA11y ? Math.min(Math.pow((bassSum / 6) / 255, 3.0), 0.15) : Math.pow((bassSum / 6) / 255, 3.0); 
     
     renderCore(dataArray, safePulse);
-}
-
-function drawLayout() {
-    const scale = getScale();
-    if (scale !== State.cache.lastScale) recalculateLayoutCache(ctx2D, scale);
-    const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
-
-    ctx2D.shadowColor = 'rgba(0, 0, 0, 1)';
-    ctx2D.shadowBlur = (vfxSelector.value === 'nebula' ? 30 : 15) * scale;
+    if (!userHasDragged) {
+        const isLeftAlign = (vfxSelector.value === 'circular');
+        State.layoutOffsets.titles.px = isLeftAlign ? 0.08 : 0.50; 
+        State.layoutOffsets.titles.py = isLeftAlign ? 0.35 : 0.16; 
+        State.layoutOffsets.lyrics.px = isLeftAlign ? 0.08 : 0.50; 
+        State.layoutOffsets.lyrics.py = isLeftAlign ? 0.88 : 0.90; 
+        State.layoutOffsets.vfx.px = 0.50;
+        State.layoutOffsets.vfx.py = 0.50;
+    }
 
     const cx = State.layoutOffsets.channel.px * canvas2D.width; const cy = State.layoutOffsets.channel.py * canvas2D.height;
     const tx = State.layoutOffsets.titles.px * canvas2D.width; const ty = State.layoutOffsets.titles.py * canvas2D.height;
@@ -512,6 +520,12 @@ function drawLayout() {
         ctx2D.drawImage(logoImg, drawX, drawY, dw, dh);
         hitboxes.logo = { x: drawX, y: drawY, w: dw, h: dh };
     } else hitboxes.logo = { x: 0, y: 0, w: 0, h: 0 };
+    
+    // 🌟 定義特效(VFX)的隱形拖曳熱區 (置於特效中心)
+    const vx = State.layoutOffsets.vfx.px * canvas2D.width;
+    const vy = State.layoutOffsets.vfx.py * canvas2D.height;
+    const vSize = 150 * scale; // 給一個 150px 的正方形好抓取
+    hitboxes.vfx = { x: vx - vSize/2, y: vy - vSize/2, w: vSize, h: vSize };
 }
 
 function drawInteractions() {
@@ -524,7 +538,22 @@ function drawInteractions() {
             ctx2D.setLineDash([8, 6]); ctx2D.strokeRect(box.x - 12*scale, box.y - 12*scale, box.w + 24*scale, box.h + 24*scale);
             ctx2D.fillStyle = 'rgba(59, 130, 246, 1.0)'; ctx2D.font = `bold ${15*scale}px sans-serif`;
             ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'bottom';
-            ctx2D.fillText(target === 'logo' ? window.t('drag_hint_logo') : window.t('drag_hint'), box.x - 10*scale, box.y - 16*scale);
+            
+            let hintText = window.t('drag_hint');
+            if (target === 'logo') hintText = window.t('drag_hint_logo');
+            if (target === 'vfx') hintText = window.t('drag_hint_vfx') || '⤡ 拖曳特效中心';
+            
+            ctx2D.fillText(hintText, box.x - 10*scale, box.y - 16*scale);
+            
+            // 如果正在拖曳特效，畫個十字準星輔助對齊曼陀羅中心
+            if (target === 'vfx') {
+                ctx2D.beginPath();
+                ctx2D.moveTo(box.x + box.w/2, box.y + box.h/2 - 15*scale);
+                ctx2D.lineTo(box.x + box.w/2, box.y + box.h/2 + 15*scale);
+                ctx2D.moveTo(box.x + box.w/2 - 15*scale, box.y + box.h/2);
+                ctx2D.lineTo(box.x + box.w/2 + 15*scale, box.y + box.h/2);
+                ctx2D.stroke();
+            }
             ctx2D.restore();
         }
     }
@@ -550,7 +579,8 @@ function handlePointerMove(e) {
         if(e.cancelable) e.preventDefault(); return;
     }
     hoverTarget = null; const pad = 15 * getScale();
-    for (const key of ['channel', 'titles', 'logo', 'lyrics']) {
+    // 🌟 將 vfx 放在陣列首位，讓游標能優先抓到重疊的熱區
+    for (const key of ['vfx', 'channel', 'titles', 'logo', 'lyrics']) {
         const box = hitboxes[key];
         if (box && box.w > 0 && pos.x >= box.x - pad && pos.x <= box.x + box.w + pad && pos.y >= box.y - pad && pos.y <= box.y + box.h + pad) {
             hoverTarget = key; break;
