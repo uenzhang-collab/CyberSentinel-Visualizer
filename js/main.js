@@ -36,9 +36,10 @@ let nebulaSystem;
 let layoutOffsets = {
     channel: { px: 0.04, py: 0.06 }, // 黃金比例：左上角 4%, 6%
     titles: { px: 0.50, py: 0.16 },  // 黃金比例：頂部中心 16% 下沉
-    logo: { px: 0.96, py: 0.06 }     // 黃金比例：右上角
+    logo: { px: 0.96, py: 0.06 },    // 黃金比例：右上角
+    lyrics: { px: 0.50, py: 0.90 }   // 🌟 歌詞預設黃金比例：底部中央
 };
-let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x:0,y:0,w:0,h:0} };
+let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x:0,y:0,w:0,h:0}, lyrics: {x:0,y:0,w:0,h:0} };
 let dragTarget = null;
 let hoverTarget = null;
 let dragOffsetX = 0;
@@ -222,6 +223,7 @@ function forceRenderFrame() {
     renderScene(activeVfx, dataArray, safePulse, scale, isA11y, config);
     drawLayout();
     drawLyrics();
+    drawInteractions(); // 🌟 確保虛線框畫在最上層
 }
 
 function drawMasterLoop() {
@@ -247,6 +249,7 @@ function drawMasterLoop() {
     renderScene(activeVfx, dataArray, safePulse, scale, isA11y, config);
     drawLayout();
     drawLyrics();
+    drawInteractions(); // 🌟 確保虛線框畫在最上層
 }
 
 // ==========================================
@@ -293,6 +296,8 @@ function drawLayout() {
         layoutOffsets.channel.py = 0.06;
         layoutOffsets.logo.px = 0.96;
         layoutOffsets.logo.py = 0.06;
+        layoutOffsets.lyrics.px = isLeftAlign ? 0.08 : 0.50; // 🌟 歌詞閃避至左側
+        layoutOffsets.lyrics.py = isLeftAlign ? 0.88 : 0.90; // 🌟 預設底部
     }
 
     const cx = layoutOffsets.channel.px * canvas2D.width;
@@ -379,12 +384,16 @@ function drawLayout() {
     } else {
         hitboxes.logo = { x: 0, y: 0, w: 0, h: 0 };
     }
+}
 
-    // 4. 繪製懸停與拖曳虛線外框 (UI 互動提示)
+// 🌟 獨立出互動虛線框繪製函數 (確保畫在最後一層)
+function drawInteractions() {
     if (hoverTarget || dragTarget) {
         const target = dragTarget || hoverTarget;
         const box = hitboxes[target];
         if (box && box.w > 0) {
+            const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
+            const scale = getScale();
             ctx2D.save();
             ctx2D.strokeStyle = 'rgba(59, 130, 246, 0.9)'; // Blue 500
             ctx2D.lineWidth = 2 * scale;
@@ -428,7 +437,7 @@ canvas2D.addEventListener('mousemove', (e) => {
     // 偵測懸停 (Hover)
     hoverTarget = null;
     const pad = 15 * getScale();
-    for (const key of ['channel', 'titles', 'logo']) {
+    for (const key of ['channel', 'titles', 'logo', 'lyrics']) { // 🌟 增加 lyrics 的偵測
         const box = hitboxes[key];
         if (box && box.w > 0 && 
             pos.x >= box.x - pad && pos.x <= box.x + box.w + pad &&
@@ -482,25 +491,57 @@ function parseLRC(text) {
 lyricsInput.addEventListener('input', () => parseLRC(lyricsInput.value));
 
 function drawLyrics() {
-    if (currentMode !== 'file' || parsedLyrics.length === 0 || audioPlayer.paused) return;
-    const ct = audioPlayer.currentTime;
     let active = "";
-    for (let i = 0; i < parsedLyrics.length; i++) {
-        if (ct >= parsedLyrics[i].time) active = parsedLyrics[i].text;
-        else break; 
+    let hasLyrics = parsedLyrics && parsedLyrics.length > 0;
+
+    // 若正在播放且有歌詞，擷取當前進度的歌詞
+    if (currentMode === 'file' && audioPlayer && !audioPlayer.paused && hasLyrics) {
+        const ct = audioPlayer.currentTime;
+        for (let i = 0; i < parsedLyrics.length; i++) {
+            if (ct >= parsedLyrics[i].time) active = parsedLyrics[i].text;
+            else break; 
+        }
     }
+
+    // 🌟 神奇體驗：就算沒播放，只要滑鼠去互動，就會亮出預覽！
+    if (!active && (dragTarget === 'lyrics' || hoverTarget === 'lyrics' || isSyncing)) {
+        active = hasLyrics ? "（歌詞顯示預覽）" : "（新增歌詞後顯示於此）";
+    }
+
+    const scale = getScale();
+    const lx = layoutOffsets.lyrics.px * canvas2D.width;
+    const ly = layoutOffsets.lyrics.py * canvas2D.height;
+    // 智慧對齊：在左側靠左，在右側靠右，在中間置中
+    const align = (layoutOffsets.lyrics.px < 0.25) ? 'left' : ((layoutOffsets.lyrics.px > 0.75) ? 'right' : 'center');
+
     if (active) {
-        const scale = getScale();
-        const activeVfx = vfxSelector.value;
-        ctx2D.textAlign = activeVfx === 'circular' ? 'left' : 'center'; 
+        ctx2D.textAlign = align; 
         ctx2D.textBaseline = 'middle';
         ctx2D.fillStyle = '#ffde2a'; 
         ctx2D.font = `bold ${46*scale}px "Microsoft JhengHei", sans-serif`;
-        ctx2D.shadowColor = 'rgba(0,0,0,1)'; ctx2D.shadowBlur = 15 * scale;
-        const lx = activeVfx === 'circular' ? 80*scale : canvas2D.width/2;
-        const ly = activeVfx === 'circular' ? canvas2D.height * 0.88 : canvas2D.height * 0.90;
+        ctx2D.shadowColor = 'rgba(0,0,0,1)'; 
+        ctx2D.shadowBlur = 15 * scale;
+        
         ctx2D.fillText(active, lx, ly);
         ctx2D.shadowBlur = 0;
+
+        // 計算 Hitbox，使藍色虛線能完美框住這句歌詞
+        const metrics = ctx2D.measureText(active);
+        const w = metrics.width;
+        const h = 46 * scale;
+        let hx = lx;
+        if (align === 'center') hx = lx - w/2;
+        if (align === 'right') hx = lx - w;
+        
+        hitboxes.lyrics = { x: hx, y: ly - h/2, w: w, h: h };
+    } else {
+        // 為了讓使用者「探索」到可拖曳，我們在背後塞一個寬寬的隱形判定框
+        const w = 400 * scale; 
+        const h = 60 * scale;
+        let hx = lx;
+        if (align === 'center') hx = lx - w/2;
+        if (align === 'right') hx = lx - w;
+        hitboxes.lyrics = { x: hx, y: ly - h/2, w: w, h: h };
     }
 }
 
