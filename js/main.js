@@ -834,6 +834,17 @@ document.getElementById('slLogoScale')?.addEventListener('input', (e) => {
 
 document.getElementById('chkA11y')?.addEventListener('change', (e) => { State.ui.isA11y = e.target.checked; saveState(); forceRenderFrame(); });
 
+document.getElementById('btnToggleSync')?.addEventListener('click', () => {
+    const panel = document.getElementById('syncToolPanel'); 
+    if(panel) panel.classList.toggle('hidden');
+    if (panel && panel.classList.contains('hidden')) {
+        lyricsManager.stopSync();
+        document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_start');
+        document.getElementById('btnMarkTime').disabled = true;
+        document.getElementById('currentSyncLine').innerText = window.t('sync_end');
+    }
+});
+
 function showPrivacyToast() {
     const toast = document.createElement('div');
     toast.className = 'fixed bottom-6 right-6 bg-gray-900/95 backdrop-blur-md border border-blue-500/50 text-blue-300 px-5 py-4 rounded-xl text-sm shadow-2xl z-[100] flex items-center gap-4 transform transition-all duration-700 translate-y-24 opacity-0 max-w-sm';
