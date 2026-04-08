@@ -36,7 +36,7 @@ let State = {
     layoutOffsets: {
         channel: { px: 0.04, py: 0.06 }, titles: { px: 0.50, py: 0.16 },  
         logo: { px: 0.96, py: 0.06 }, lyrics: { px: 0.50, py: 0.90 },
-        vfx: { px: 0.50, py: 0.50 }
+        vfx: { px: 0.50, py: 0.50 } // 🌟 特效中心點座標
     },
     cache: {
         cNameLines: [], cNameMaxWidth: 0, topicWidth: 0, speakerWidth: 0, lastScale: 0
@@ -163,7 +163,6 @@ const VFXRegistry = {
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
             canvas3D.style.display = 'block';
             renderAurora3D(ctx, canvas2D, canvas3D, rm, vfxManager, aurora, sun, dataArray, safePulse, State.vfx.aurora);
-            // 確保 3D 畫面印到緩衝區，支援背景混合與錄影
             ctx.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
         },
         schema: [
@@ -318,7 +317,7 @@ const canvas3D = document.getElementById('visualizer3D');
 const particleCanvas = document.createElement('canvas');
 const pCtx = particleCanvas.getContext('2d');
 
-// 🎨 核心技術：建立特效獨立緩衝區，保護背景不被殘影黑底蓋掉！
+// 🎨 獨立特效緩衝區 (實現濾色混合與特效拖曳)
 const vfxCanvas = document.createElement('canvas');
 const vfxCtx = vfxCanvas.getContext('2d');
 
@@ -341,9 +340,7 @@ function applyResolution(width, height) {
     canvas2D.width = width; canvas2D.height = height;
     canvas3D.width = width; canvas3D.height = height;
     particleCanvas.width = width; particleCanvas.height = height;
-    
-    // 緩衝區同步調整解析度
-    vfxCanvas.width = width; vfxCanvas.height = height;
+    vfxCanvas.width = width; vfxCanvas.height = height; // 確保緩衝區尺寸同步
 
     if (rm && rm.renderer) { rm.renderer.setSize(width, height, false); rm.camera.aspect = width / height; rm.camera.updateProjectionMatrix(); }
     if (nebulaSystem && nebulaSystem.renderer) nebulaSystem.renderer.setSize(width, height, false);
@@ -404,10 +401,9 @@ function formatTime(seconds) {
 }
 
 // ==========================================
-// 🎨 完美渲染迴圈 (解決背景黑屏遮擋問題)
+// 🎨 完美渲染迴圈 (解決背景黑屏遮擋與特效偏移)
 // ==========================================
 function renderCore(dataArray, safePulse) {
-    // 1. 底層：清除主畫布並處理背景
     ctx2D.globalCompositeOperation = 'source-over';
     ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
     
@@ -419,22 +415,19 @@ function renderCore(dataArray, safePulse) {
         ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
     }
 
-    // 2. 特效層：將光譜與殘影先畫在獨立的 vfxCanvas 緩衝區
     const effect = VFXRegistry[vfxSelector.value];
     if (effect) {
         vfxCtx.clearRect(0, 0, vfxCanvas.width, vfxCanvas.height);
         effect.render(vfxCtx, vfxCanvas, canvas3D, dataArray, safePulse, getScale());
         
-        // 🌟 核心：根據拖曳的狀態，計算特效圖層偏移量
+        // 特效圖層跟隨滑鼠偏移疊加
         const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width;
         const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height;
         
-        // 3. 疊加層：包含自訂背景濾色混合與偏移輸出
         ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
         ctx2D.drawImage(vfxCanvas, dx, dy);
     }
     
-    // 4. UI 介面層：恢復一般疊加模式，繪製字體與框線
     ctx2D.globalCompositeOperation = 'source-over';
     drawLayout(); 
     drawLyrics(); 
@@ -465,6 +458,16 @@ function drawMasterLoop() {
     const safePulse = State.ui.isA11y ? Math.min(Math.pow((bassSum / 6) / 255, 3.0), 0.15) : Math.pow((bassSum / 6) / 255, 3.0); 
     
     renderCore(dataArray, safePulse);
+}
+
+function drawLayout() {
+    const scale = getScale();
+    if (scale !== State.cache.lastScale) recalculateLayoutCache(ctx2D, scale);
+    const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
+
+    ctx2D.shadowColor = 'rgba(0, 0, 0, 1)';
+    ctx2D.shadowBlur = (vfxSelector.value === 'nebula' ? 30 : 15) * scale;
+
     if (!userHasDragged) {
         const isLeftAlign = (vfxSelector.value === 'circular');
         State.layoutOffsets.titles.px = isLeftAlign ? 0.08 : 0.50; 
@@ -479,7 +482,7 @@ function drawMasterLoop() {
     const tx = State.layoutOffsets.titles.px * canvas2D.width; const ty = State.layoutOffsets.titles.py * canvas2D.height;
     const lx = State.layoutOffsets.logo.px * canvas2D.width; const ly = State.layoutOffsets.logo.py * canvas2D.height;
 
-    // 高效渲染：直接使用 Cache 的寬度計算
+    // 1. 左上角文字
     if (State.ui.channelName && State.cache.cNameLines.length > 0) {
         ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
         ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx2D.font = `bold ${32*scale}px ${font}`;
@@ -495,6 +498,7 @@ function drawMasterLoop() {
         hitboxes.channel = { x: cx, y: cy, w: State.cache.cNameMaxWidth, h: currentY - cy };
     } else hitboxes.channel = { x: 0, y: 0, w: 0, h: 0 };
     
+    // 2. 主標題文字
     if (State.ui.topicTitle || State.ui.speakerInfo) {
         const align = (State.layoutOffsets.titles.px < 0.25) ? 'left' : ((State.layoutOffsets.titles.px > 0.75) ? 'right' : 'center');
         ctx2D.textAlign = align; ctx2D.textBaseline = 'top';
@@ -512,19 +516,22 @@ function drawMasterLoop() {
         hitboxes.titles = { x: boxX, y: ty, w: maxW, h: currentY - ty };
     } else hitboxes.titles = { x: 0, y: 0, w: 0, h: 0 };
     
+    // 3. Logo 繪製 (支援狀態記憶縮放)
     ctx2D.shadowBlur = 0;
     if (logoImg.src && logoImg.complete) {
-        const maxW = 120 * scale * State.ui.logoScale, aspect = logoImg.width / logoImg.height;
-        const dw = aspect < 1 ? maxW * aspect : maxW, dh = aspect < 1 ? maxW : maxW / aspect;
-        const drawX = lx - dw, drawY = ly;
+        const maxW = 120 * scale * State.ui.logoScale; 
+        const aspect = logoImg.width / logoImg.height;
+        const dw = aspect < 1 ? maxW * aspect : maxW;
+        const dh = aspect < 1 ? maxW : maxW / aspect;
+        const drawX = lx - dw; const drawY = ly;
         ctx2D.drawImage(logoImg, drawX, drawY, dw, dh);
         hitboxes.logo = { x: drawX, y: drawY, w: dw, h: dh };
     } else hitboxes.logo = { x: 0, y: 0, w: 0, h: 0 };
-    
-    // 🌟 定義特效(VFX)的隱形拖曳熱區 (置於特效中心)
+
+    // 4. 定義特效(VFX)的隱形拖曳熱區 (置於特效中心)
     const vx = State.layoutOffsets.vfx.px * canvas2D.width;
     const vy = State.layoutOffsets.vfx.py * canvas2D.height;
-    const vSize = 150 * scale; // 給一個 150px 的正方形好抓取
+    const vSize = 150 * scale; 
     hitboxes.vfx = { x: vx - vSize/2, y: vy - vSize/2, w: vSize, h: vSize };
 }
 
@@ -545,7 +552,6 @@ function drawInteractions() {
             
             ctx2D.fillText(hintText, box.x - 10*scale, box.y - 16*scale);
             
-            // 如果正在拖曳特效，畫個十字準星輔助對齊曼陀羅中心
             if (target === 'vfx') {
                 ctx2D.beginPath();
                 ctx2D.moveTo(box.x + box.w/2, box.y + box.h/2 - 15*scale);
@@ -579,7 +585,6 @@ function handlePointerMove(e) {
         if(e.cancelable) e.preventDefault(); return;
     }
     hoverTarget = null; const pad = 15 * getScale();
-    // 🌟 將 vfx 放在陣列首位，讓游標能優先抓到重疊的熱區
     for (const key of ['vfx', 'channel', 'titles', 'logo', 'lyrics']) {
         const box = hitboxes[key];
         if (box && box.w > 0 && pos.x >= box.x - pad && pos.x <= box.x + box.w + pad && pos.y >= box.y - pad && pos.y <= box.y + box.h + pad) {
