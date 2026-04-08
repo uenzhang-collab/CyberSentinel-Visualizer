@@ -16,7 +16,202 @@ window.t = function(key) {
 };
 
 // ==========================================
-// UI DOM 變數與基礎設定
+// 🧠 核心重構 3：狀態集中管理 (State Management)
+// 根除 DOM 頻繁讀取 (DOM Thrashing)
+// ==========================================
+const State = {
+    vfx: {
+        aurora: { rotSpeed: 0.2, transmission: 0.9, showAurora: true, showSun: true },
+        particle: { amountMult: 1.0, speedMult: 1.0 },
+        circular: { count: 360, ampMult: 1.0, colorMult: 1.0, spinMult: 1.0 },
+        eq: { count: 128, ampMult: 1.0, colorMult: 1.0, gravityMult: 1.0 },
+        waveform: { ampMult: 1.0, colorMult: 1.0, glowMult: 1.0, thick: 5 },
+        nebula: { viscosity: 0.2, colorFlow: 1.0 }
+    },
+    ui: {
+        channelName: "", topicTitle: "", speakerInfo: "", 
+        logoScale: 1.0, isA11y: false
+    },
+    // 🧠 核心重構 2：快取機制 (Memoization) 解決 Canvas 重複測量計算
+    cache: {
+        cNameLines: [], cNameMaxWidth: 0,
+        topicWidth: 0, speakerWidth: 0,
+        lastScale: 0
+    }
+};
+
+// ==========================================
+// 🧩 核心重構 4：註冊表模式 (Registry Pattern)
+// 根除巨型 Switch/Case，並導入 (1) 定義檔 Schema
+// ==========================================
+const VFXRegistry = {
+    aurora: {
+        render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
+            canvas3D.style.display = 'block';
+            renderAurora3D(ctx, canvas2D, canvas3D, rm, vfxManager, aurora, sun, dataArray, safePulse, State.vfx.aurora);
+        },
+        schema: [
+            { id: 'showAurora', type: 'checkbox', label: 'vfx_mod_aurora' },
+            { id: 'showSun', type: 'checkbox', label: 'vfx_mod_sun' },
+            { id: 'transmission', type: 'range', label: 'vfx_transmission', min: 0, max: 1, step: 0.05 },
+            { id: 'rotSpeed', type: 'range', label: 'vfx_speed', min: -1, max: 5, step: 0.05 }
+        ]
+    },
+    nebula: {
+        render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
+            canvas3D.style.display = 'block';
+            ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, canvas2D.width, canvas2D.height);
+            const cfg = { ...State.vfx.nebula };
+            if (window.ESG_ECO_MODE) cfg.viscosity = Math.min(cfg.viscosity, 0.1);
+            renderNebulaShader(nebulaSystem, canvas2D.width, canvas2D.height, safePulse, cfg);
+            ctx.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
+        },
+        schema: [
+            { id: 'viscosity', type: 'range', label: 'vfx_n_viscosity', min: 0.05, max: 1.0, step: 0.05 },
+            { id: 'colorFlow', type: 'range', label: 'vfx_n_color', min: 0, max: 3.0, step: 0.1 }
+        ]
+    },
+    particle: {
+        render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
+            canvas3D.style.display = 'none';
+            const cfg = { ...State.vfx.particle };
+            if (window.ESG_ECO_MODE) cfg.amountMult = Math.min(cfg.amountMult, 0.25);
+            renderParticles(ctx, canvas2D, particleCanvas, pCtx, dataArray, scale, State.ui.isA11y, cfg);
+        },
+        schema: [
+            { id: 'amountMult', type: 'range', label: 'vfx_p_amount', min: 0.1, max: 4.0, step: 0.1 },
+            { id: 'speedMult', type: 'range', label: 'vfx_p_speed', min: 0.5, max: 3.0, step: 0.1 }
+        ]
+    },
+    circular: {
+        render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
+            canvas3D.style.display = 'none';
+            const cfg = { ...State.vfx.circular };
+            if (window.ESG_ECO_MODE) cfg.count = Math.min(cfg.count, 90);
+            renderCircular(ctx, canvas2D, dataArray, scale, safePulse, State.ui.isA11y, cfg);
+        },
+        schema: [
+            { id: 'count', type: 'range', label: 'vfx_c_count', min: 60, max: 720, step: 2, isInt: true },
+            { id: 'ampMult', type: 'range', label: 'vfx_c_amp', min: 0.5, max: 3.0, step: 0.1 },
+            { id: 'colorMult', type: 'range', label: 'vfx_c_color', min: 0, max: 5.0, step: 0.1 },
+            { id: 'spinMult', type: 'range', label: 'vfx_c_spin', min: 0, max: 3.0, step: 0.1 }
+        ]
+    },
+    eq: {
+        render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
+            canvas3D.style.display = 'none';
+            const cfg = { ...State.vfx.eq };
+            if (window.ESG_ECO_MODE) cfg.count = Math.min(cfg.count, 64);
+            renderEq(ctx, canvas2D, dataArray, scale, safePulse, State.ui.isA11y, cfg);
+        },
+        schema: [
+            { id: 'count', type: 'range', label: 'vfx_e_count', min: 32, max: 256, step: 4, isInt: true },
+            { id: 'ampMult', type: 'range', label: 'vfx_e_amp', min: 0.5, max: 3.0, step: 0.1 },
+            { id: 'colorMult', type: 'range', label: 'vfx_e_color', min: 0, max: 5.0, step: 0.1 },
+            { id: 'gravityMult', type: 'range', label: 'vfx_e_gravity', min: 0.1, max: 3.0, step: 0.1 }
+        ]
+    },
+    waveform: {
+        render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
+            canvas3D.style.display = 'none';
+            const cfg = { ...State.vfx.waveform };
+            if (window.ESG_ECO_MODE) cfg.glowMult = Math.min(cfg.glowMult, 0.3);
+            renderWaveform(ctx, canvas2D, audio.analyser, scale, safePulse, State.ui.isA11y, cfg);
+        },
+        schema: [
+            { id: 'ampMult', type: 'range', label: 'vfx_w_amp', min: 0.5, max: 3.0, step: 0.1 },
+            { id: 'colorMult', type: 'range', label: 'vfx_w_color', min: 0, max: 5.0, step: 0.1 },
+            { id: 'glowMult', type: 'range', label: 'vfx_w_glow', min: 0, max: 3.0, step: 0.1 },
+            { id: 'thick', type: 'range', label: 'vfx_w_thick', min: 1, max: 15, step: 1, isInt: true }
+        ]
+    }
+};
+
+// ==========================================
+// 🎯 核心重構 2：資料驅動 UI (Data-Driven UI) 生成器
+// 自動依據 Registry Schema 長出 UI 滑桿，消除冗長 HTML 依賴
+// ==========================================
+function initDynamicUI() {
+    // 安全隱藏舊版的寫死面板，完美過渡
+    ['panel3D', 'panelNebula', 'panelParticle', 'panelCircular', 'panelEq', 'panelWaveform'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    let container = document.getElementById('dynamicVfxContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'dynamicVfxContainer';
+        container.className = 'flex flex-col gap-3 mt-4';
+        vfxSelector.parentNode.insertBefore(container, vfxSelector.nextSibling);
+    }
+}
+
+function buildDynamicUI(vfxKey) {
+    const container = document.getElementById('dynamicVfxContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    const schema = VFXRegistry[vfxKey]?.schema || [];
+    const chkContainer = document.createElement('div');
+    chkContainer.className = 'flex flex-wrap gap-3 mb-1';
+    
+    schema.forEach(param => {
+        if (param.type === 'checkbox') {
+            const lbl = document.createElement('label');
+            lbl.className = 'flex items-center gap-2 cursor-pointer group';
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.className = 'w-3.5 h-3.5 bg-gray-700 rounded border-gray-600 focus:ring-blue-500';
+            chk.checked = State.vfx[vfxKey][param.id];
+            chk.addEventListener('change', (e) => {
+                State.vfx[vfxKey][param.id] = e.target.checked;
+                forceRenderFrame();
+            });
+            const span = document.createElement('span');
+            span.className = 'text-sm text-gray-300 group-hover:text-white transition-colors';
+            span.setAttribute('data-i18n', param.label);
+            span.textContent = window.t(param.label);
+            
+            lbl.appendChild(chk); lbl.appendChild(span); chkContainer.appendChild(lbl);
+        } else if (param.type === 'range') {
+            const wrap = document.createElement('div');
+            wrap.className = 'flex flex-col gap-1 mb-2';
+            
+            const head = document.createElement('label');
+            head.className = 'text-xs flex justify-between text-gray-400';
+            const spanName = document.createElement('span');
+            spanName.setAttribute('data-i18n', param.label);
+            spanName.textContent = window.t(param.label);
+            const spanVal = document.createElement('span');
+            spanVal.className = 'text-blue-400';
+            
+            const val = State.vfx[vfxKey][param.id];
+            spanVal.textContent = param.isInt ? val : val.toFixed(2) + 'x';
+            
+            head.appendChild(spanName); head.appendChild(spanVal);
+            
+            const range = document.createElement('input');
+            range.type = 'range'; range.className = 'w-full';
+            range.min = param.min; range.max = param.max; range.step = param.step; range.value = val;
+            
+            range.addEventListener('input', (e) => {
+                const newVal = parseFloat(e.target.value);
+                State.vfx[vfxKey][param.id] = newVal;
+                spanVal.textContent = param.isInt ? newVal : newVal.toFixed(2) + 'x';
+                forceRenderFrame();
+            });
+            
+            wrap.appendChild(head); wrap.appendChild(range); container.appendChild(wrap);
+        }
+    });
+    
+    if (chkContainer.childNodes.length > 0) container.insertBefore(chkContainer, container.firstChild);
+    updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW'); // 確保生成的 UI 語系正確
+}
+
+// ==========================================
+// ⚙️ UI DOM 變數與基礎設定
 // ==========================================
 const audioPlayer = document.getElementById('audioPlayer');
 const btnRecord = document.getElementById('btnRecord');
@@ -38,28 +233,18 @@ const pCtx = particleCanvas.getContext('2d');
 
 let rm, vfxManager, aurora, sun, nebulaSystem; 
 
-// 🌟 初始化核心模組
 const videoRecorder = new VideoRecorder(canvas2D);
 const lyricsManager = new LyricsManager();
 
-// ==========================================
 // 🌟 畫面排版與拖曳狀態管理
-// ==========================================
-let layoutOffsets = {
-    channel: { px: 0.04, py: 0.06 }, 
-    titles: { px: 0.50, py: 0.16 },  
-    logo: { px: 0.96, py: 0.06 },    
-    lyrics: { px: 0.50, py: 0.90 }   
-};
+let layoutOffsets = { channel: { px: 0.04, py: 0.06 }, titles: { px: 0.50, py: 0.16 }, logo: { px: 0.96, py: 0.06 }, lyrics: { px: 0.50, py: 0.90 } };
 let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x:0,y:0,w:0,h:0}, lyrics: {x:0,y:0,w:0,h:0} };
 let dragTarget = null, hoverTarget = null, dragOffsetX = 0, dragOffsetY = 0, userHasDragged = false; 
 
 function setup3D() {
     const auroraSystem = initAurora3D(canvas3D);
-    rm = auroraSystem.rm;
-    vfxManager = auroraSystem.vfxManager;
-    aurora = auroraSystem.aurora;
-    sun = auroraSystem.sun;
+    rm = auroraSystem.rm; vfxManager = auroraSystem.vfxManager;
+    aurora = auroraSystem.aurora; sun = auroraSystem.sun;
     nebulaSystem = initNebulaShader(canvas3D);
 }
 
@@ -69,11 +254,7 @@ function applyResolution(width, height) {
     particleCanvas.width = width; particleCanvas.height = height;
     
     pCtx.fillStyle = '#000000'; pCtx.fillRect(0, 0, width, height);
-    if (rm && rm.renderer) {
-        rm.renderer.setSize(width, height, false);
-        rm.camera.aspect = width / height;
-        rm.camera.updateProjectionMatrix();
-    }
+    if (rm && rm.renderer) { rm.renderer.setSize(width, height, false); rm.camera.aspect = width / height; rm.camera.updateProjectionMatrix(); }
     if (nebulaSystem && nebulaSystem.renderer) nebulaSystem.renderer.setSize(width, height, false);
     forceRenderFrame();
 }
@@ -106,79 +287,34 @@ async function initESGMode() {
     }
 }
 
-function getVfxConfig() {
-    const config = {
-        aurora: {
-            rotSpeed: parseFloat(document.getElementById('slRotation')?.value) || 0.2,
-            transmission: parseFloat(document.getElementById('slTransmission')?.value) || 0.9,
-            showAurora: document.getElementById('chkAurora')?.checked ?? true,
-            showSun: document.getElementById('chkSun')?.checked ?? true,
-        },
-        particle: {
-            amountMult: parseFloat(document.getElementById('slParticleAmount')?.value) || 1.0,
-            speedMult: parseFloat(document.getElementById('slParticleSpeed')?.value) || 1.0,
-        },
-        circular: {
-            count: parseInt(document.getElementById('slCircCount')?.value) || 360,
-            ampMult: parseFloat(document.getElementById('slCircAmp')?.value) || 1.0,
-            colorMult: parseFloat(document.getElementById('slCircColor')?.value) || 1.0,
-            spinMult: parseFloat(document.getElementById('slCircSpin')?.value) || 1.0,
-        },
-        eq: {
-            count: parseInt(document.getElementById('slEqCount')?.value) || 128,
-            ampMult: parseFloat(document.getElementById('slEqAmp')?.value) || 1.0,
-            colorMult: parseFloat(document.getElementById('slEqColor')?.value) || 1.0,
-            gravityMult: parseFloat(document.getElementById('slEqGravity')?.value) || 1.0,
-        },
-        waveform: {
-            ampMult: parseFloat(document.getElementById('slWaveAmp')?.value) || 1.0,
-            colorMult: parseFloat(document.getElementById('slWaveColor')?.value) || 1.0,
-            glowMult: parseFloat(document.getElementById('slWaveGlow')?.value) || 1.0,
-            thick: parseFloat(document.getElementById('slWaveThick')?.value) || 5.0,
-        },
-        nebula: { 
-            viscosity: parseFloat(document.getElementById('slNebViscosity')?.value) || 0.2,
-            colorFlow: parseFloat(document.getElementById('slNebColor')?.value) || 1.0,
+// 🎯 優化計算：只有文字輸入時才重算字寬，避免 60fps 重複計算
+function recalculateLayoutCache(ctx, scale) {
+    const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
+    State.cache.lastScale = scale;
+
+    if (State.ui.channelName) {
+        State.cache.cNameLines = State.ui.channelName.split('\n');
+        ctx.font = `bold ${32*scale}px ${font}`;
+        State.cache.cNameMaxWidth = ctx.measureText(State.cache.cNameLines[0]).width;
+        if (State.cache.cNameLines.length > 1) {
+            ctx.font = `${18*scale}px ${font}`;
+            for (let i = 1; i < State.cache.cNameLines.length; i++) {
+                State.cache.cNameMaxWidth = Math.max(State.cache.cNameMaxWidth, ctx.measureText(State.cache.cNameLines[i]).width);
+            }
         }
-    };
-    if (window.ESG_ECO_MODE) {
-        config.particle.amountMult = Math.min(config.particle.amountMult, 0.25); 
-        config.waveform.glowMult = Math.min(config.waveform.glowMult, 0.3); 
-        config.circular.count = Math.min(config.circular.count, 90); 
-        config.eq.count = Math.min(config.eq.count, 64); 
-        config.nebula.viscosity = Math.min(config.nebula.viscosity, 0.1); 
-    }
-    return config;
+    } else { State.cache.cNameMaxWidth = 0; }
+
+    if (State.ui.topicTitle) { ctx.font = `bold ${64 * scale}px ${font}`; State.cache.topicWidth = ctx.measureText(State.ui.topicTitle).width; } 
+    else { State.cache.topicWidth = 0; }
+
+    if (State.ui.speakerInfo) { ctx.font = `${26 * scale}px ${font}`; State.cache.speakerWidth = ctx.measureText(State.ui.speakerInfo).width; } 
+    else { State.cache.speakerWidth = 0; }
 }
 
-function renderScene(activeVfx, dataArray, safePulse, scale, isA11y, config) {
-    switch (activeVfx) {
-        case 'aurora':
-            canvas3D.style.display = 'block';
-            renderAurora3D(ctx2D, canvas2D, canvas3D, rm, vfxManager, aurora, sun, dataArray, safePulse, config.aurora);
-            break;
-        case 'nebula': 
-            canvas3D.style.display = 'block';
-            ctx2D.fillStyle = '#000000'; ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height); 
-            renderNebulaShader(nebulaSystem, canvas2D.width, canvas2D.height, safePulse, config.nebula);
-            ctx2D.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
-            break;
-        case 'particle':
-            canvas3D.style.display = 'none';
-            renderParticles(ctx2D, canvas2D, particleCanvas, pCtx, dataArray, scale, isA11y, config.particle);
-            break;
-        case 'circular':
-            canvas3D.style.display = 'none';
-            renderCircular(ctx2D, canvas2D, dataArray, scale, safePulse, isA11y, config.circular);
-            break;
-        case 'eq':
-            canvas3D.style.display = 'none';
-            renderEq(ctx2D, canvas2D, dataArray, scale, safePulse, isA11y, config.eq);
-            break;
-        case 'waveform':
-            canvas3D.style.display = 'none';
-            renderWaveform(ctx2D, canvas2D, audio.analyser, scale, safePulse, isA11y, config.waveform);
-            break;
+function renderScene(activeVfx, dataArray, safePulse, scale) {
+    const effect = VFXRegistry[activeVfx];
+    if (effect && effect.render) {
+        effect.render(ctx2D, canvas2D, canvas3D, dataArray, safePulse, scale);
     }
 }
 
@@ -189,14 +325,13 @@ function forceRenderFrame() {
         const bufferLength = audio.analyser.frequencyBinCount;
         dataArray = new Uint8Array(bufferLength);
         audio.analyser.getByteFrequencyData(dataArray);
-        const bassSum = dataArray.slice(0, 6).reduce((a, b) => a + b, 0);
+        // 高速運算取代迴圈 reduce
+        const bassSum = dataArray[0] + dataArray[1] + dataArray[2] + dataArray[3] + dataArray[4] + dataArray[5];
         const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
-        const isA11y = document.getElementById('chkA11y')?.checked || false;
-        safePulse = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
+        safePulse = State.ui.isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
     }
-
     ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
-    renderScene(vfxSelector.value, dataArray, safePulse, getScale(), document.getElementById('chkA11y')?.checked || false, getVfxConfig());
+    renderScene(vfxSelector.value, dataArray, safePulse, getScale());
     drawLayout(); drawLyrics(); drawInteractions(); 
 }
 
@@ -207,11 +342,11 @@ function drawMasterLoop() {
 
     const dataArray = new Uint8Array(audio.analyser.frequencyBinCount);
     audio.analyser.getByteFrequencyData(dataArray);
-    const orbPulse = Math.pow((dataArray.slice(0, 6).reduce((a, b) => a + b, 0) / 6) / 255, 3.0); 
-    const isA11y = document.getElementById('chkA11y').checked;
-    const safePulse = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
+    const bassSum = dataArray[0] + dataArray[1] + dataArray[2] + dataArray[3] + dataArray[4] + dataArray[5];
+    const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
+    const safePulse = State.ui.isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
 
-    renderScene(vfxSelector.value, dataArray, safePulse, getScale(), isA11y, getVfxConfig());
+    renderScene(vfxSelector.value, dataArray, safePulse, getScale());
     drawLayout(); drawLyrics(); drawInteractions(); 
 }
 
@@ -230,11 +365,9 @@ function showPrivacyToast() {
 }
 
 function drawLayout() {
-    const cName = document.getElementById('channelName').value.trim();
-    const topic = document.getElementById('topicTitle').value.trim();
-    const speaker = document.getElementById('speakerInfo').value.trim();
-    const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
     const scale = getScale();
+    if (scale !== State.cache.lastScale) recalculateLayoutCache(ctx2D, scale);
+    const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
 
     ctx2D.shadowColor = 'rgba(0, 0, 0, 1)';
     ctx2D.shadowBlur = (vfxSelector.value === 'nebula' ? 30 : 15) * scale;
@@ -253,43 +386,42 @@ function drawLayout() {
     const tx = layoutOffsets.titles.px * canvas2D.width; const ty = layoutOffsets.titles.py * canvas2D.height;
     const lx = layoutOffsets.logo.px * canvas2D.width; const ly = layoutOffsets.logo.py * canvas2D.height;
 
-    if (cName) {
+    // 高效渲染：直接使用 Cache 的寬度計算
+    if (State.ui.channelName && State.cache.cNameLines.length > 0) {
         ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
-        const lines = cName.split('\n');
         ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx2D.font = `bold ${32*scale}px ${font}`;
-        ctx2D.fillText(lines[0], cx, cy);
-        let maxWidth = ctx2D.measureText(lines[0]).width, currentY = cy + 40 * scale;
-        if (lines.length > 1) {
+        ctx2D.fillText(State.cache.cNameLines[0], cx, cy);
+        let currentY = cy + 40 * scale;
+        if (State.cache.cNameLines.length > 1) {
             ctx2D.fillStyle = 'rgba(255, 255, 255, 0.65)'; ctx2D.font = `${18*scale}px ${font}`;
-            for (let i = 1; i < lines.length; i++) {
-                ctx2D.fillText(lines[i], cx, currentY);
-                maxWidth = Math.max(maxWidth, ctx2D.measureText(lines[i]).width);
+            for (let i = 1; i < State.cache.cNameLines.length; i++) {
+                ctx2D.fillText(State.cache.cNameLines[i], cx, currentY);
                 currentY += 26 * scale;
             }
         }
-        hitboxes.channel = { x: cx, y: cy, w: maxWidth, h: currentY - cy };
+        hitboxes.channel = { x: cx, y: cy, w: State.cache.cNameMaxWidth, h: currentY - cy };
     } else hitboxes.channel = { x: 0, y: 0, w: 0, h: 0 };
     
-    if (topic || speaker) {
+    if (State.ui.topicTitle || State.ui.speakerInfo) {
         const align = (layoutOffsets.titles.px < 0.25) ? 'left' : ((layoutOffsets.titles.px > 0.75) ? 'right' : 'center');
         ctx2D.textAlign = align; ctx2D.textBaseline = 'top';
-        let titleBoxW = 0, currentY = ty;
-        if (topic) {
-            ctx2D.fillStyle = '#ffffff'; ctx2D.font = `bold ${64 * scale}px ${font}`; ctx2D.fillText(topic, tx, currentY);
-            titleBoxW = ctx2D.measureText(topic).width; currentY += 76 * scale;
+        let currentY = ty;
+        if (State.ui.topicTitle) {
+            ctx2D.fillStyle = '#ffffff'; ctx2D.font = `bold ${64 * scale}px ${font}`; ctx2D.fillText(State.ui.topicTitle, tx, currentY);
+            currentY += 76 * scale;
         }
-        if (speaker) {
-            ctx2D.fillStyle = '#a0aec0'; ctx2D.font = `${26 * scale}px ${font}`; ctx2D.fillText(speaker, tx, currentY);
-            titleBoxW = Math.max(titleBoxW, ctx2D.measureText(speaker).width); currentY += 32 * scale;
+        if (State.ui.speakerInfo) {
+            ctx2D.fillStyle = '#a0aec0'; ctx2D.font = `${26 * scale}px ${font}`; ctx2D.fillText(State.ui.speakerInfo, tx, currentY);
+            currentY += 32 * scale;
         }
-        let boxX = tx; if (align === 'center') boxX = tx - titleBoxW / 2; if (align === 'right') boxX = tx - titleBoxW;
-        hitboxes.titles = { x: boxX, y: ty, w: titleBoxW, h: currentY - ty };
+        const maxW = Math.max(State.cache.topicWidth, State.cache.speakerWidth);
+        let boxX = tx; if (align === 'center') boxX = tx - maxW / 2; if (align === 'right') boxX = tx - maxW;
+        hitboxes.titles = { x: boxX, y: ty, w: maxW, h: currentY - ty };
     } else hitboxes.titles = { x: 0, y: 0, w: 0, h: 0 };
     
     ctx2D.shadowBlur = 0;
     if (logoImg.src && logoImg.complete) {
-        const userLogoScale = parseFloat(document.getElementById('slLogoScale')?.value) || 1.0;
-        const maxW = 120 * scale * userLogoScale, aspect = logoImg.width / logoImg.height;
+        const maxW = 120 * scale * State.ui.logoScale, aspect = logoImg.width / logoImg.height;
         const dw = aspect < 1 ? maxW * aspect : maxW, dh = aspect < 1 ? maxW : maxW / aspect;
         const drawX = lx - dw, drawY = ly;
         ctx2D.drawImage(logoImg, drawX, drawY, dw, dh);
@@ -361,12 +493,11 @@ canvas2D.addEventListener('touchstart', handlePointerDown); window.addEventListe
 
 canvas2D.addEventListener('wheel', (e) => {
     if (hoverTarget === 'logo' || dragTarget === 'logo') {
-        e.preventDefault(); const slider = document.getElementById('slLogoScale');
+        e.preventDefault(); 
+        const slider = document.getElementById('slLogoScale');
         if (slider) {
             slider.value = Math.max(0.2, Math.min(5.0, parseFloat(slider.value) - e.deltaY * 0.002));
-            const label = document.getElementById('valLogoScale');
-            if (label) label.textContent = parseFloat(slider.value).toFixed(1) + 'x';
-            forceRenderFrame();
+            slider.dispatchEvent(new Event('input')); // 觸發 State 雙向綁定更新
         }
     }
 }, { passive: false });
@@ -434,7 +565,6 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
     if (!result) return;
     
     lyricsInput.value = result.newText;
-    
     if (result.isFinished) {
         document.getElementById('currentSyncLine').innerHTML = `<span class="text-green-400">${window.t('sync_done')}</span>`;
         lyricsManager.stopSync();
@@ -495,7 +625,7 @@ btnStopRecord.addEventListener('click', () => {
 });
 
 // ==========================================
-// 檔案匯入與其他 UI 事件
+// 檔案匯入與 UI 狀態綁定更新
 // ==========================================
 async function handleFileImport(file) {
     if (!file.type.startsWith('audio/') && !file.type.startsWith('video/') && file.type !== "") return alert(window.t('alert_invalid_file'));
@@ -503,9 +633,13 @@ async function handleFileImport(file) {
         const fileName = file.name.replace(/\.[^/.]+$/, "");
         if (fileName.includes(" - ")) {
             const parts = fileName.split(" - ");
-            document.getElementById('topicTitle').value = parts[1].trim();
-            document.getElementById('speakerInfo').value = `Artist: ${parts[0].trim()}`;
-        } else document.getElementById('topicTitle').value = fileName;
+            document.getElementById('topicTitle').value = parts[1].trim(); State.ui.topicTitle = parts[1].trim();
+            document.getElementById('speakerInfo').value = `Artist: ${parts[0].trim()}`; State.ui.speakerInfo = `Artist: ${parts[0].trim()}`;
+        } else {
+            document.getElementById('topicTitle').value = fileName; State.ui.topicTitle = fileName;
+        }
+
+        recalculateLayoutCache(ctx2D, getScale()); // 觸發排版快取
 
         audioPlayer.src = URL.createObjectURL(file); await audio.init(audioPlayer);
         if (!streamDestination) { streamDestination = audio.audioCtx.createMediaStreamDestination(); audio.analyser.connect(streamDestination); }
@@ -536,19 +670,33 @@ document.getElementById('resSelector').addEventListener('change', (e) => { docum
 document.getElementById('resSelectorMobile').addEventListener('change', (e) => { document.getElementById('resSelector').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('btnCloseResult').addEventListener('click', () => { document.getElementById('resultModal').classList.add('hidden'); document.getElementById('resultModal').classList.remove('flex'); });
 
+// 🎯 Data-Driven 觸發點：切換特效時，自動生成 UI
 vfxSelector.addEventListener('change', (e) => {
-    ['panel3D', 'panelNebula', 'panelParticle', 'panelCircular', 'panelEq', 'panelWaveform'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
-    const panel = document.getElementById('panel' + e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1));
-    if (panel) panel.classList.remove('hidden'); else if (e.target.value === 'aurora') document.getElementById('panel3D').classList.remove('hidden');
+    buildDynamicUI(e.target.value);
     if (audio.analyser) audio.analyser.fftSize = (e.target.value === 'waveform' || e.target.value === 'aurora' || e.target.value === 'nebula') ? 2048 : 256;
     forceRenderFrame();
 });
 
-['slCircAmp', 'slCircColor', 'slCircSpin', 'slCircCount', 'slEqCount', 'slEqAmp', 'slEqColor', 'slEqGravity', 'slWaveAmp', 'slWaveColor', 'slWaveGlow', 'slWaveThick', 'slTransmission', 'slRotation', 'slParticleAmount', 'slParticleSpeed', 'slNebViscosity', 'slNebColor'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', (e) => {
-        const label = document.getElementById(id.replace('sl', 'val'));
-        if(label) label.textContent = (id.includes('Count') || id.includes('Thick')) ? e.target.value : parseFloat(e.target.value).toFixed(2) + 'x';
-    });
+// 將排版相關的文字輸入，綁定到中央狀態 State
+['channelName', 'topicTitle', 'speakerInfo'].forEach(id => { 
+    document.getElementById(id).addEventListener('input', (e) => {
+        State.ui[id] = e.target.value;
+        recalculateLayoutCache(ctx2D, getScale());
+        forceRenderFrame();
+    }); 
+});
+
+document.getElementById('slLogoScale')?.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    State.ui.logoScale = val;
+    const label = document.getElementById('valLogoScale');
+    if(label) label.textContent = val.toFixed(1) + 'x';
+    forceRenderFrame();
+});
+
+document.getElementById('chkA11y')?.addEventListener('change', (e) => {
+    State.ui.isA11y = e.target.checked;
+    forceRenderFrame();
 });
 
 document.getElementById('btnMic').addEventListener('click', async () => {
@@ -584,7 +732,6 @@ document.getElementById('channelLogo').addEventListener('change', function(e) {
     }
 });
 
-['channelName', 'topicTitle', 'speakerInfo'].forEach(id => { document.getElementById(id).addEventListener('input', () => forceRenderFrame()); });
 document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
 
 // ==========================================
@@ -607,6 +754,10 @@ function updateLanguage(lang) {
     if (currentMode === 'file') document.getElementById('overlayText').innerText = window.t('msg_audio_loaded');
     else if (currentMode === 'mic') document.getElementById('overlayText').innerText = window.t('msg_mic_ready');
     if (logoImg.src && logoImg.complete) document.getElementById('logoLabel').innerText = window.t('btn_logo_loaded');
+    
+    // 更新動態生成的 UI
+    buildDynamicUI(vfxSelector.value);
+
     const syncLine = document.getElementById('currentSyncLine');
     if (syncLine) {
         if (lyricsManager.isSyncing) document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_pause');
@@ -617,7 +768,10 @@ function updateLanguage(lang) {
     forceRenderFrame();
 }
 
+// 啟動
 setup3D();
+initDynamicUI(); // 初始化資料驅動 UI 的容器
+buildDynamicUI(vfxSelector.value); // 自動生成第一套 UI
 setTimeout(() => applyResolution(1920, 1080), 500);
 initLanguageSelect(); updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
 setTimeout(() => { showPrivacyToast(); }, 1000); initESGMode();

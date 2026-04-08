@@ -37,8 +37,7 @@
         <div class="flex items-center gap-6">
             <span class="text-sm text-gray-500 hidden md:block" data-i18n="creator_label">CS-Founder 2026.04.06</span>
             <select id="langSelect" class="bg-gray-800 text-sm p-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500">
-                <option value="zh-TW">繁體中文</option>
-                <option value="en-US">English</option>
+                <!-- 語言選項將由 main.js 動態生成 -->
             </select>
         </div>
     </nav>
@@ -88,7 +87,6 @@
                 </div>
                 <textarea id="lyricsInput" rows="4" data-i18n-placeholder="ph_lyrics" placeholder="請貼上純文字歌詞，或 LRC 格式..." class="bg-gray-900 text-white w-full px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none resize-y text-sm"></textarea>
                 
-                <!-- 🌟 新增的歌詞匯出按鈕區塊 -->
                 <div class="flex justify-end gap-2 mt-2">
                     <button id="btnExportLRC" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded transition-colors flex items-center gap-1 shadow border border-gray-600" data-i18n="btn_export_lrc">⬇️ .LRC</button>
                     <button id="btnExportSRT" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded transition-colors flex items-center gap-1 shadow border border-gray-600" data-i18n="btn_export_srt">⬇️ .SRT</button>
@@ -119,147 +117,8 @@
                     <option value="waveform" selected data-i18n="vfx_opt_waveform">🌊 霓虹時域波形 (2D 多重殘影版)</option>
                 </select>
 
-                <!-- 🌟 異星流體星雲 Shader 專屬微調選項 -->
-                <div id="panelNebula" class="flex flex-col gap-3 hidden">
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_n_viscosity">🧪 流體黏滯度 (Viscosity)</span><span id="valNebViscosity" class="text-blue-400">0.20x</span>
-                        </label>
-                        <input type="range" id="slNebViscosity" min="0.05" max="1.0" step="0.05" value="0.2" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_n_color">🎨 異星色調偏移 (Color Shift)</span><span id="valNebColor" class="text-blue-400">1.00x</span>
-                        </label>
-                        <input type="range" id="slNebColor" min="0" max="3.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                </div>
-
-                <!-- 3D 模式專屬微調選項 -->
-                <div id="panel3D" class="flex flex-col gap-3 hidden">
-                    <div class="flex flex-wrap gap-3 mb-1">
-                        <label class="flex items-center gap-2 cursor-pointer group">
-                            <input type="checkbox" id="chkAurora" checked class="w-3.5 h-3.5 bg-gray-700 rounded border-gray-600 focus:ring-blue-500">
-                            <span class="text-sm text-gray-300 group-hover:text-white transition-colors" data-i18n="vfx_mod_aurora">極光水晶柱</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer group">
-                            <input type="checkbox" id="chkSun" checked class="w-3.5 h-3.5 bg-gray-700 rounded border-gray-600 focus:ring-orange-500">
-                            <span class="text-sm text-gray-300 group-hover:text-white transition-colors" data-i18n="vfx_mod_sun">核心太陽</span>
-                        </label>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_transmission">💎 透光度</span><span id="valTransmission" class="text-blue-400">0.90</span>
-                        </label>
-                        <input type="range" id="slTransmission" min="0" max="1" step="0.05" value="0.9" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_speed">🔄 旋轉速度</span><span id="valRotation" class="text-blue-400">0.20</span>
-                        </label>
-                        <input type="range" id="slRotation" min="-1" max="5" step="0.05" value="0.2" class="w-full">
-                    </div>
-                </div>
-
-                <!-- 粒子模式專屬微調選項 -->
-                <div id="panelParticle" class="flex flex-col gap-3 hidden">
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_p_amount">☄️ 噴發數量 (Density)</span><span id="valParticleAmount" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slParticleAmount" min="0.1" max="4.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_p_speed">🚀 飛行速度 (Speed)</span><span id="valParticleSpeed" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slParticleSpeed" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                </div>
-
-                <!-- 環形光譜專屬微調選項 -->
-                <div id="panelCircular" class="flex flex-col gap-3 hidden">
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_c_count">📊 能量柱數量 (Bar Count)</span><span id="valCircCount" class="text-blue-400">360</span>
-                        </label>
-                        <input type="range" id="slCircCount" min="60" max="720" step="2" value="360" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_c_amp">💥 光譜爆發力 (Amplitude)</span><span id="valCircAmp" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slCircAmp" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_c_color">🌈 色彩流轉 (Color Flow)</span><span id="valCircColor" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slCircColor" min="0" max="5.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_c_spin">💿 唱盤轉速 (Spin Speed)</span><span id="valCircSpin" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slCircSpin" min="0" max="3.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                </div>
-
-                <!-- EQ 柱狀體專屬微調選項 -->
-                <div id="panelEq" class="flex flex-col gap-3 hidden">
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_e_count">📊 能量柱數量 (Bar Count)</span><span id="valEqCount" class="text-blue-400">128</span>
-                        </label>
-                        <input type="range" id="slEqCount" min="32" max="256" step="4" value="128" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_e_amp">💥 光譜爆發力 (Amplitude)</span><span id="valEqAmp" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slEqAmp" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_e_color">🌈 色彩流轉 (Color Flow)</span><span id="valEqColor" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slEqColor" min="0" max="5.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_e_gravity">☄️ 懸浮重力 (Cap Gravity)</span><span id="valEqGravity" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slEqGravity" min="0.1" max="3.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                </div>
-
-                <!-- 🌊 霓虹時域波形專屬微調選項 -->
-                <div id="panelWaveform" class="flex flex-col gap-3">
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_w_amp">💥 波幅張力 (Amplitude)</span><span id="valWaveAmp" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slWaveAmp" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_w_color">🌈 色彩流轉 (Color Flow)</span><span id="valWaveColor" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slWaveColor" min="0" max="5.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_w_glow">✨ 霓虹殘影 (Neon Trails)</span><span id="valWaveGlow" class="text-blue-400">1.0x</span>
-                        </label>
-                        <input type="range" id="slWaveGlow" min="0" max="3.0" step="0.1" value="1.0" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs flex justify-between text-gray-400">
-                            <span data-i18n="vfx_w_thick">📏 線條粗細 (Line Thickness)</span><span id="valWaveThick" class="text-blue-400">5</span>
-                        </label>
-                        <input type="range" id="slWaveThick" min="1" max="15" step="1" value="5" class="w-full">
-                    </div>
-                </div>
+                <!-- 🌟 所有的 panelXXX 都被移除了！由 main.js 的 Registry Schema 自動生成 -->
+                <div id="dynamicVfxContainer" class="flex flex-col gap-3 mt-4"></div>
 
                 <div class="flex items-center justify-between mt-3 p-2 bg-gray-900/50 rounded-lg">
                     <label class="text-xs text-gray-400 flex items-center gap-2 cursor-pointer">
@@ -273,10 +132,8 @@
 
         <!-- 【右半部：監看器與輸出樞紐】 -->
         <div class="w-full lg:w-8/12 flex flex-col gap-6 order-1 lg:order-2">
-            
             <div class="sticky top-[72px] lg:top-24 z-40 bg-gray-900 lg:bg-transparent pb-4 lg:pb-0 shadow-2xl lg:shadow-none -mx-4 px-4 lg:mx-0 lg:px-0">
                 <div class="bg-gray-800/90 backdrop-blur-md p-4 lg:p-6 rounded-b-2xl lg:rounded-2xl border-b border-gray-700 lg:border-t shadow-2xl">
-                    
                     <div class="flex justify-between items-center mb-4 px-1 hidden lg:flex">
                         <h3 class="text-xl font-bold text-blue-400" data-i18n="step4_title">4️⃣ 即時預覽與錄製 (大視窗)</h3>
                         <div class="flex items-center gap-2">
