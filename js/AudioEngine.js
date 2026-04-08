@@ -1,6 +1,7 @@
 /**
  * CyberSentinel - 音訊解析模組 (Audio Engine)
  * 負責處理 Web Audio API 的初始化、麥克風/檔案音源串接，
+ * 新增功能：靜態波形掃描與預處理
  * 以及廣播級的對數與物理重力音頻演算法。
  */
 
@@ -10,6 +11,7 @@ export class AudioEngine {
         this.analyser = null;
         this.dataArray = null;
         this.source = null;
+        this.currentBuffer = null;
     }
     
     async init(sourceInput) {
@@ -44,6 +46,33 @@ export class AudioEngine {
         let bass = 0;
         for (let i = 0; i < 6; i++) bass += this.dataArray[i];
         return Math.pow((bass / 6) / 255, 3.0); 
+    }
+
+    /**
+     * ⚔️ 秘密武器：靜態波形生成器
+     * 將檔案解碼後取樣，產出 200 個能量點供 UI 繪製進度條
+     */
+    async getStaticWaveform(file) {
+        const arrayBuffer = await file.arrayBuffer();
+        // 為了不干擾播放，我們開一個離線上下文進行解碼
+        const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        const offlineCtx = new OfflineCtx(2, 44100 * 40, 44100); 
+        const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+        
+        const rawData = audioBuffer.getChannelData(0); // 取得左聲道原始數據
+        const samples = 200; // 我們要畫 200 條線
+        const blockSize = Math.floor(rawData.length / samples);
+        const filteredData = [];
+
+        for (let i = 0; i < samples; i++) {
+            let blockStart = blockSize * i;
+            let sum = 0;
+            for (let j = 0; j < blockSize; j++) {
+                sum = sum + Math.abs(rawData[blockStart + j]);
+            }
+            filteredData.push(sum / blockSize); // 取得區塊平均振幅
+        }
+        return filteredData;
     }
 }
 

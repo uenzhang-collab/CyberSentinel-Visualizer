@@ -150,7 +150,6 @@ async function initESGMode() {
         try {
             const battery = await navigator.getBattery();
             const handleBatteryChange = () => {
-                // 如果未充電且電量低於 20%，強制啟動 ESG 節能模式
                 if (battery.level <= 0.20 && !battery.charging) {
                     window.ESG_ECO_MODE = true;
                     const notice = document.getElementById('energyNotice');
@@ -196,7 +195,6 @@ function drawMasterLoop() {
     const isA11y = document.getElementById('chkA11y').checked;
     const safePulse = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
 
-    // 將 UI 數值封裝為 config 物件傳入特效模組
     const config = {
         aurora: {
             rotSpeed: parseFloat(document.getElementById('slRotation').value) || 0.2,
@@ -228,15 +226,13 @@ function drawMasterLoop() {
         }
     };
 
-    // 💡 攔截器：若處於 ESG 節能模式，強制覆蓋設定以降低 GPU/CPU 負載
     if (window.ESG_ECO_MODE) {
-        config.particle.amountMult = Math.min(config.particle.amountMult, 0.25); // 粒子狂砍 75%
-        config.waveform.glowMult = Math.min(config.waveform.glowMult, 0.3); // 波形殘影層數大幅減少
-        config.circular.count = Math.min(config.circular.count, 90); // 環形柱子上限壓在 90 根
-        config.eq.count = Math.min(config.eq.count, 64); // EQ 柱子上限壓在 64 根
+        config.particle.amountMult = Math.min(config.particle.amountMult, 0.25); 
+        config.waveform.glowMult = Math.min(config.waveform.glowMult, 0.3); 
+        config.circular.count = Math.min(config.circular.count, 90); 
+        config.eq.count = Math.min(config.eq.count, 64); 
     }
 
-    // 依照選擇的特效，呼叫對應的渲染引擎
     switch (activeVfx) {
         case 'aurora':
             renderAurora3D(ctx2D, canvas2D, canvas3D, rm, vfxManager, aurora, sun, dataArray, safePulse, config.aurora);
@@ -272,17 +268,12 @@ function showPrivacyToast() {
     `;
     document.body.appendChild(toast);
     
-    // 套用語系
     updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
     
-    // 滑入動畫
     requestAnimationFrame(() => {
-        setTimeout(() => {
-            toast.classList.remove('translate-y-24', 'opacity-0');
-        }, 100);
+        setTimeout(() => { toast.classList.remove('translate-y-24', 'opacity-0'); }, 100);
     });
 
-    // 8秒後自動消失
     setTimeout(() => {
         if(document.body.contains(toast)) {
             toast.classList.add('translate-y-24', 'opacity-0');
@@ -388,6 +379,81 @@ function stopSyncing() {
 }
 
 // ==========================================
+// 🚀 方向一：檔案匯入、拖曳與靜態波形邏輯
+// ==========================================
+async function handleFileImport(file) {
+    if (!file.type.startsWith('audio/')) return;
+
+    // 1. 自動提取元數據 (解析檔名)
+    const fileName = file.name.replace(/\.[^/.]+$/, "");
+    if (fileName.includes(" - ")) {
+        const parts = fileName.split(" - ");
+        document.getElementById('topicTitle').value = parts[1].trim();
+        document.getElementById('speakerInfo').value = `Artist: ${parts[0].trim()}`;
+    } else {
+        document.getElementById('topicTitle').value = fileName;
+    }
+
+    // 2. 生成並繪製靜態波形
+    const waveformData = await audio.getStaticWaveform(file);
+    drawStaticWaveform(waveformData);
+
+    // 3. 載入播放器與初始化 AudioEngine
+    audioPlayer.src = URL.createObjectURL(file);
+    await audio.init(audioPlayer);
+    
+    if (!streamDestination) { 
+        streamDestination = audio.audioCtx.createMediaStreamDestination(); 
+        audio.analyser.connect(streamDestination); 
+    }
+
+    // 4. UI 反饋與開始渲染
+    document.getElementById('canvasOverlay').style.display = 'none';
+    btnRecord.disabled = false;
+    btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
+    btnRecord.classList.replace('text-gray-400', 'text-white');
+    currentMode = 'file';
+    applyResolution(1920, 1080); 
+    if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
+}
+
+function drawStaticWaveform(data) {
+    const container = document.getElementById('waveformPreview');
+    if (!container) return; // 避免 HTML 尚未加上節點時報錯
+    container.innerHTML = ''; 
+    const max = Math.max(...data);
+    
+    data.forEach((val, i) => {
+        const bar = document.createElement('div');
+        const height = (val / max) * 100;
+        bar.className = 'w-1 bg-gray-600 rounded-full transition-all hover:bg-blue-400 cursor-pointer';
+        bar.style.height = `${Math.max(10, height)}%`;
+        bar.onclick = () => {
+            const pct = i / data.length;
+            audioPlayer.currentTime = audioPlayer.duration * pct;
+        };
+        container.appendChild(bar);
+    });
+}
+
+// 監聽全域拖曳事件 (Drag & Drop)
+window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    document.body.classList.add('bg-blue-900/20');
+});
+
+window.addEventListener('dragleave', () => {
+    document.body.classList.remove('bg-blue-900/20');
+});
+
+window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    document.body.classList.remove('bg-blue-900/20');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileImport(file);
+});
+
+// ==========================================
 // UI 事件監聽綁定
 // ==========================================
 document.getElementById('resSelector').addEventListener('change', (e) => {
@@ -402,7 +468,6 @@ document.getElementById('resSelectorMobile').addEventListener('change', (e) => {
     applyResolution(w, h);
 });
 
-// 切換特效面板
 vfxSelector.addEventListener('change', (e) => {
     const v = e.target.value;
     ['panel3D', 'panelParticle', 'panelCircular', 'panelEq', 'panelWaveform'].forEach(id => {
@@ -421,7 +486,6 @@ vfxSelector.addEventListener('change', (e) => {
     if (!isDrawing) drawLayout();
 });
 
-// UI 滑桿數值連動
 ['slCircAmp', 'slCircColor', 'slCircSpin', 'slCircCount', 'slEqCount', 'slEqAmp', 'slEqColor', 'slEqGravity', 'slWaveAmp', 'slWaveColor', 'slWaveGlow', 'slWaveThick', 'slTransmission', 'slRotation', 'slParticleAmount', 'slParticleSpeed'].forEach(id => {
     const el = document.getElementById(id);
     if(el) {
@@ -435,7 +499,6 @@ vfxSelector.addEventListener('change', (e) => {
     }
 });
 
-// 動態歌詞工具展開
 document.getElementById('btnToggleSync').addEventListener('click', () => {
     const panel = document.getElementById('syncToolPanel');
     panel.classList.toggle('hidden');
@@ -444,7 +507,6 @@ document.getElementById('btnToggleSync').addEventListener('click', () => {
     }
 });
 
-// 開始打軸
 document.getElementById('btnStartSync').addEventListener('click', () => {
     if(currentMode !== 'file') return alert('請先上傳音樂！');
     if (isSyncing) { audioPlayer.pause(); stopSyncing(); return; }
@@ -464,7 +526,6 @@ document.getElementById('btnStartSync').addEventListener('click', () => {
     audioPlayer.currentTime = 0; audioPlayer.play();
 });
 
-// 標記時間
 document.getElementById('btnMarkTime').addEventListener('click', () => {
     if(!isSyncing || syncIndex >= rawLines.length) return;
     const ct = audioPlayer.currentTime;
@@ -491,7 +552,6 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
     }
 });
 
-// 空白鍵快捷鍵
 window.addEventListener('keydown', (e) => { 
     if(isSyncing && e.code === 'Space' && document.activeElement !== lyricsInput && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { 
         e.preventDefault(); 
@@ -499,7 +559,6 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// 麥克風與音樂檔上傳
 document.getElementById('btnMic').addEventListener('click', async () => {
     try {
         await audio.init(await navigator.mediaDevices.getUserMedia({ audio: true }));
@@ -519,26 +578,13 @@ document.getElementById('btnMic').addEventListener('click', async () => {
     }
 });
 
+// 結合原本的按鈕上傳與新的檔案匯入邏輯
 document.getElementById('audioUpload').addEventListener('change', (e) => {
     if(e.target.files.length) {
-        audioPlayer.src = URL.createObjectURL(e.target.files[0]);
-        audio.init(audioPlayer).then(() => {
-            if (!streamDestination) { 
-                streamDestination = audio.audioCtx.createMediaStreamDestination(); 
-                audio.analyser.connect(streamDestination); 
-            }
-            document.getElementById('canvasOverlay').style.display = 'none';
-            btnRecord.disabled = false;
-            btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
-            btnRecord.classList.replace('text-gray-400', 'text-white');
-            currentMode = 'file';
-            applyResolution(1920, 1080); 
-            if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
-        });
+        handleFileImport(e.target.files[0]);
     }
 });
 
-// Logo 上傳
 document.getElementById('channelLogo').addEventListener('change', function(e) {
     if(this.files.length) {
         logoImg.onload = () => { 
@@ -549,7 +595,6 @@ document.getElementById('channelLogo').addEventListener('change', function(e) {
     }
 });
 
-// 文字排版即時更新
 ['channelName', 'topicTitle', 'speakerInfo'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
         if (!isDrawing) drawLayout();
@@ -634,15 +679,11 @@ setup3D();
 setTimeout(() => applyResolution(1920, 1080), 500);
 updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
 
-// 顯示隱私保護提示 (SDG 16)
 setTimeout(() => { showPrivacyToast(); }, 1000);
 
-// 啟動電池偵測節能模式 (SDG 7, 13)
 initESGMode();
 
-// 背景分頁節能模式偵測
 document.addEventListener("visibilitychange", () => {
-    // 只有在非 ESG 模式下，才由切換分頁來決定提示字的隱藏
     if (!window.ESG_ECO_MODE) {
         document.getElementById('energyNotice').style.display = document.hidden ? "flex" : "none";
     }
