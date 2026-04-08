@@ -1,5 +1,5 @@
 // ==========================================
-// 核心字典與多國語系模組 (支援 8 國語言全域 100% 覆蓋)
+// 核心字典與多國語系模組 (支援 8 國語言全域 100% 覆蓋 + 字幕匯出)
 // ==========================================
 export const translations = {
     "zh-TW": {
@@ -85,7 +85,9 @@ export const translations = {
         "alert_no_audio": "請先上傳音源檔案！",
         "alert_no_lyrics": "請貼上純文字歌詞！",
         "alert_no_record": "您的瀏覽器不支援錄製此格式影片。",
-        "alert_mic_fail": "音源存取失敗，請確認麥克風權限。"
+        "alert_mic_fail": "音源存取失敗，請確認麥克風權限。",
+        "btn_export_lrc": "⬇️ 下載 .LRC",
+        "btn_export_srt": "⬇️ 下載 .SRT"
     },
     "zh-CN": {
         "nav_brand": "CyberSentinel 黑核核心",
@@ -170,7 +172,9 @@ export const translations = {
         "alert_no_audio": "请先上传音源档案！",
         "alert_no_lyrics": "请贴上纯文字歌词！",
         "alert_no_record": "您的浏览器不支持录制此格式视频。",
-        "alert_mic_fail": "音源存取失败，请确认麦克风权限。"
+        "alert_mic_fail": "音源存取失败，请确认麦克风权限。",
+        "btn_export_lrc": "⬇️ 下载 .LRC",
+        "btn_export_srt": "⬇️ 下载 .SRT"
     },
     "en-US": {
         "nav_brand": "CyberSentinel Core",
@@ -255,7 +259,9 @@ export const translations = {
         "alert_no_audio": "Please upload an audio file first!",
         "alert_no_lyrics": "Please paste plain text lyrics!",
         "alert_no_record": "Your browser does not support recording in this format.",
-        "alert_mic_fail": "Audio access failed, please check microphone permissions."
+        "alert_mic_fail": "Audio access failed, please check microphone permissions.",
+        "btn_export_lrc": "⬇️ Download .LRC",
+        "btn_export_srt": "⬇️ Download .SRT"
     },
     "es-ES": {
         "nav_brand": "CyberSentinel Core",
@@ -340,7 +346,9 @@ export const translations = {
         "alert_no_audio": "¡Sube un archivo de audio primero!",
         "alert_no_lyrics": "¡Por favor pega letras en texto plano!",
         "alert_no_record": "Tu navegador no soporta grabación en este formato.",
-        "alert_mic_fail": "Fallo en acceso a micrófono, revisa los permisos."
+        "alert_mic_fail": "Fallo en acceso a micrófono, revisa los permisos.",
+        "btn_export_lrc": "⬇️ Descargar .LRC",
+        "btn_export_srt": "⬇️ Descargar .SRT"
     },
     "ja-JP": {
         "nav_brand": "CyberSentinel コア",
@@ -425,7 +433,9 @@ export const translations = {
         "alert_no_audio": "最初に音声ファイルをアップロードしてください！",
         "alert_no_lyrics": "プレーンテキストの歌詞を貼り付けてください！",
         "alert_no_record": "お使いのブラウザはこの形式の録画をサポートしていません。",
-        "alert_mic_fail": "マイクへのアクセスに失敗しました。権限を確認してください。"
+        "alert_mic_fail": "マイクへのアクセスに失敗しました。権限を確認してください。",
+        "btn_export_lrc": "⬇️ .LRC ダウンロード",
+        "btn_export_srt": "⬇️ .SRT ダウンロード"
     },
     "de-DE": {
         "nav_brand": "CyberSentinel Core",
@@ -510,7 +520,9 @@ export const translations = {
         "alert_no_audio": "Bitte zuerst Audio hochladen!",
         "alert_no_lyrics": "Bitte reinen Text einfügen!",
         "alert_no_record": "Ihr Browser unterstützt keine Aufnahme in diesem Format.",
-        "alert_mic_fail": "Zugriff auf Mikrofon fehlgeschlagen."
+        "alert_mic_fail": "Zugriff auf Mikrofon fehlgeschlagen.",
+        "btn_export_lrc": "⬇️ .LRC herunterladen",
+        "btn_export_srt": "⬇️ .SRT herunterladen"
     },
     "fr-FR": {
         "nav_brand": "CyberSentinel Core",
@@ -595,7 +607,9 @@ export const translations = {
         "alert_no_audio": "Veuillez d'abord charger un fichier audio !",
         "alert_no_lyrics": "Veuillez coller des paroles !",
         "alert_no_record": "Votre navigateur ne supporte pas l'enregistrement dans ce format.",
-        "alert_mic_fail": "Accès au microphone refusé. Vérifiez vos permissions."
+        "alert_mic_fail": "Accès au microphone refusé. Vérifiez vos permissions.",
+        "btn_export_lrc": "⬇️ Télécharger .LRC",
+        "btn_export_srt": "⬇️ Télécharger .SRT"
     },
     "ko-KR": {
         "nav_brand": "CyberSentinel 코어",
@@ -680,6 +694,8 @@ export const translations = {
         "alert_no_audio": "먼저 오디오 파일을 업로드하세요!",
         "alert_no_lyrics": "텍스트 가사를 붙여넣으세요!",
         "alert_no_record": "브라우저가 이 형식의 녹화를 지원하지 않습니다.",
-        "alert_mic_fail": "마이크 접근에 실패했습니다. 권한을 확인하세요."
+        "alert_mic_fail": "마이크 접근에 실패했습니다. 권한을 확인하세요.",
+        "btn_export_lrc": "⬇️ .LRC 다운로드",
+        "btn_export_srt": "⬇️ .SRT 다운로드"
     }
 };

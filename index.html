@@ -88,6 +88,12 @@
                 </div>
                 <textarea id="lyricsInput" rows="4" data-i18n-placeholder="ph_lyrics" placeholder="請貼上純文字歌詞，或 LRC 格式..." class="bg-gray-900 text-white w-full px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none resize-y text-sm"></textarea>
                 
+                <!-- 🌟 新增的歌詞匯出按鈕區塊 -->
+                <div class="flex justify-end gap-2 mt-2">
+                    <button id="btnExportLRC" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded transition-colors flex items-center gap-1 shadow border border-gray-600" data-i18n="btn_export_lrc">⬇️ .LRC</button>
+                    <button id="btnExportSRT" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded transition-colors flex items-center gap-1 shadow border border-gray-600" data-i18n="btn_export_srt">⬇️ .SRT</button>
+                </div>
+
                 <div id="syncToolPanel" class="hidden mt-3 p-3 bg-gray-950 border border-blue-500 rounded-xl">
                     <div class="flex flex-col gap-2 mb-2">
                         <button id="btnStartSync" class="w-full px-3 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-sm transition-colors" data-i18n="btn_sync_start">▶️ 開始播放</button>

@@ -737,6 +737,65 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
     }
 });
 
+// ==========================================
+// 🌟 歌詞匯出邏輯 (LRC / SRT 轉換引擎)
+// ==========================================
+document.getElementById('btnExportLRC')?.addEventListener('click', () => {
+    const text = lyricsInput.value.trim();
+    if (!text) return alert(window.t('alert_no_lyrics'));
+    
+    // 直接將 LRC 文字打包成 Blob 並觸發下載
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const topic = document.getElementById('topicTitle').value.trim() || 'CyberSentinel_Lyrics';
+    a.download = `${topic}.lrc`;
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+document.getElementById('btnExportSRT')?.addEventListener('click', () => {
+    parseLRC(lyricsInput.value); // 確保擷取到最新狀態
+    if (parsedLyrics.length === 0) {
+        alert(window.t('alert_no_lyrics'));
+        return;
+    }
+
+    let srtContent = '';
+    
+    // SRT 專用時間軸格式轉換 (HH:MM:SS,mmm)
+    const formatTime = (sec) => {
+        const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+        const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+        const s = Math.floor(sec % 60).toString().padStart(2, '0');
+        const ms = Math.floor((sec % 1) * 1000).toString().padStart(3, '0');
+        return `${h}:${m}:${s},${ms}`;
+    };
+
+    for (let i = 0; i < parsedLyrics.length; i++) {
+        const startSec = parsedLyrics[i].time;
+        // 計算結束時間：預設為下一句的開始時間。若是最後一句，則停留顯示 5 秒。
+        // 為了避免單句顯示在畫面上過久，設定最高極限單句為 15 秒。
+        let endSec = (i < parsedLyrics.length - 1) ? parsedLyrics[i+1].time : startSec + 5.0; 
+        if (endSec - startSec > 15.0) endSec = startSec + 15.0; 
+
+        srtContent += `${i + 1}\n`;
+        srtContent += `${formatTime(startSec)} --> ${formatTime(endSec)}\n`;
+        srtContent += `${parsedLyrics[i].text}\n\n`;
+    }
+
+    // 將 SRT 內容打包成 Blob 並觸發下載
+    const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const topic = document.getElementById('topicTitle').value.trim() || 'CyberSentinel_Subtitle';
+    a.download = `${topic}.srt`;
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
 window.addEventListener('keydown', (e) => { 
     if(isSyncing && e.code === 'Space' && document.activeElement !== lyricsInput && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { 
         e.preventDefault(); 
