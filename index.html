@@ -290,8 +290,8 @@
                     
                     <!-- 監看畫布 (16:9) -->
                     <div class="relative w-full aspect-video rounded-xl overflow-hidden border-2 border-gray-900 bg-black mb-5 group shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-                        <canvas id="visualizer3D" width="1920" height="1080" class="hidden"></canvas>
-                        <canvas id="visualizer2D" width="1920" height="1080" class="w-full h-full object-cover"></canvas>
+                        <canvas id="visualizer3D" width="1920" height="1080" class="absolute inset-0 w-full h-full object-cover hidden"></canvas>
+                        <canvas id="visualizer2D" width="1920" height="1080" class="absolute inset-0 w-full h-full object-cover"></canvas>
                         
                         <div id="canvasOverlay" class="absolute inset-0 flex flex-col items-center justify-center text-gray-300 pointer-events-none bg-black/70 z-10 backdrop-blur-md transition-opacity duration-500">
                             <span class="text-6xl mb-4 drop-shadow-lg">🌌</span>

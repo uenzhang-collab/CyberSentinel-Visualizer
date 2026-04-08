@@ -259,9 +259,11 @@ function drawMasterLoop() {
             break;
         case 'nebula': // 🌟 渲染新的 Shader
             canvas3D.style.display = 'block';
-            ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height); // 清空 2D 背景
+            // 🎯 為了所見即所得 (WYSIWYG)，我們給 2D 畫布一個純黑底色
+            ctx2D.fillStyle = '#000000';
+            ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height); 
             renderNebulaShader(nebulaSystem, canvas2D.width, canvas2D.height, safePulse, config.nebula);
-            // 🎯 關鍵修復：將 GPU 渲染的 3D 畫面「印」到 2D 畫布上，這樣內建錄影機才抓得到畫面！
+            // 🎯 將 GPU 渲染的 3D 畫面「印」到 2D 畫布上，這樣內建錄影機才抓得到畫面！
             ctx2D.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
             break;
         case 'particle':
