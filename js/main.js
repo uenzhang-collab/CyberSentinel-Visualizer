@@ -261,9 +261,7 @@ function showPrivacyToast() {
     `;
     document.body.appendChild(toast);
     
-    // 初始化 Toast 語言
-    const lang = localStorage.getItem('preferredLang') || 'zh-TW';
-    toast.querySelector('[data-i18n]').textContent = translations[lang] && translations[lang]['privacy_notice'] ? translations[lang]['privacy_notice'] : 'Privacy Notice';
+    toast.querySelector('[data-i18n]').textContent = window.t('privacy_notice');
     
     requestAnimationFrame(() => {
         setTimeout(() => { toast.classList.remove('translate-y-24', 'opacity-0'); }, 100);
@@ -916,9 +914,40 @@ document.getElementById('btnMic').addEventListener('click', async () => {
 
 document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
 
-// 🌐 多國語系更新函數
+// ==========================================
+// 🌐 語言選單自動生成與更新引擎
+// ==========================================
+const langNames = {
+    "en-US": "English",
+    "zh-TW": "繁體中文",
+    "zh-CN": "简体中文",
+    "es-ES": "Español",
+    "ja-JP": "日本語",
+    "de-DE": "Deutsch",
+    "fr-FR": "Français",
+    "ko-KR": "한국어"
+};
+
+function initLanguageSelect() {
+    const langSelect = document.getElementById('langSelect');
+    if (!langSelect) return;
+    
+    langSelect.innerHTML = '';
+    for (const [code, name] of Object.entries(langNames)) {
+        if (translations[code]) {
+            const opt = document.createElement('option');
+            opt.value = code;
+            opt.textContent = name;
+            langSelect.appendChild(opt);
+        }
+    }
+    
+    const preferredLang = localStorage.getItem('preferredLang') || 'zh-TW';
+    langSelect.value = preferredLang;
+}
+
 function updateLanguage(lang) {
-    const dict = translations[lang];
+    const dict = translations[lang] || translations['en-US'];
     if (!dict) return;
     
     // 1. 替換一般的靜態文字
@@ -963,19 +992,16 @@ function updateLanguage(lang) {
         }
     }
 
-    // 重新渲染畫布以更新畫布內的文字
+    // 重新渲染畫布以更新畫布內的提示與文字
     forceRenderFrame();
 }
 
 // 啟動
 setup3D();
 setTimeout(() => applyResolution(1920, 1080), 500);
-updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
 
-// 確保下拉選單與目前語言狀態一致
-const preferredLang = localStorage.getItem('preferredLang') || 'zh-TW';
-const langSelect = document.getElementById('langSelect');
-if(langSelect) langSelect.value = preferredLang;
+initLanguageSelect();
+updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
 
 setTimeout(() => { showPrivacyToast(); }, 1000);
 initESGMode();
