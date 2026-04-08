@@ -55,9 +55,10 @@
                 
                 <div class="flex flex-wrap gap-2 mb-4">
                     <button id="btnMic" class="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold transition-colors text-sm">🎙️ 麥克風</button>
+                    <!-- 🌟 核心修正：加入 video/* 允許手機使用者上傳螢幕錄影 -->
                     <label class="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold cursor-pointer transition-colors text-center text-sm">
-                        <span data-i18n="btn_upload">🎵 上傳音樂</span>
-                        <input type="file" id="audioUpload" accept="audio/*" class="hidden">
+                        <span data-i18n="btn_upload">🎵 上傳音樂/影片</span>
+                        <input type="file" id="audioUpload" accept="audio/*,video/*,.m4a,.mp4,.mov" class="hidden">
                     </label>
                     <audio id="audioPlayer" class="hidden"></audio>
                 </div>
@@ -99,7 +100,7 @@
                 
                 <select id="vfxSelector" class="w-full bg-gray-900 text-white p-2.5 rounded-lg border border-gray-600 focus:border-blue-500 outline-none font-bold text-sm mb-4">
                     <option value="aurora">🌌 3D 極光水晶柱 (3D WebGL)</option>
-                    <option value="nebula">🧬 異星流體星雲 (GPU GLSL Shader)</option> <!-- 🌟 新增的 Shader 選項 -->
+                    <option value="nebula">🧬 異星流體星雲 (GPU GLSL Shader)</option>
                     <option value="particle">☄️ 粒子與星雲流體 (2D 深空軌跡)</option>
                     <option value="circular">💿 對稱環形光譜 (2D 廣播級美學引擎)</option>
                     <option value="eq">🎚️ 柱狀均衡器 (2D 廣播級美學引擎)</option>
@@ -284,7 +285,7 @@
                             <span id="currentTimeDisplay" class="font-mono text-gray-400">00:00 / 00:00</span>
                         </p>
                         <div id="waveformPreview" class="h-16 w-full flex items-center gap-[2px] px-2 overflow-hidden bg-black/50 rounded-lg cursor-pointer hover:bg-black/70 transition-colors">
-                            <p class="text-gray-600 text-xs w-full text-center pointer-events-none">直接把電腦裡的 MP3 拖曳進來吧！</p>
+                            <p class="text-gray-600 text-xs w-full text-center pointer-events-none">直接把電腦裡的 MP3 或手機上的螢幕錄影拖曳進來吧！</p>
                         </div>
                     </div>
                     
@@ -368,7 +369,6 @@
         </div>
     </div>
 
-    <!-- 將龐大的 JavaScript 替換為 Module 引入 -->
     <script type="module" src="./js/main.js"></script>
   
 </body>

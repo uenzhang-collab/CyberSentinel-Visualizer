@@ -34,17 +34,17 @@ let nebulaSystem;
 // 🌟 畫面排版與拖曳狀態管理 (Layout & Dragging)
 // ==========================================
 let layoutOffsets = {
-    channel: { px: 0.04, py: 0.06 }, // 黃金比例：左上角 4%, 6%
-    titles: { px: 0.50, py: 0.16 },  // 黃金比例：頂部中心 16% 下沉
-    logo: { px: 0.96, py: 0.06 },    // 黃金比例：右上角
-    lyrics: { px: 0.50, py: 0.90 }   // 🌟 歌詞預設黃金比例：底部中央
+    channel: { px: 0.04, py: 0.06 }, 
+    titles: { px: 0.50, py: 0.16 },  
+    logo: { px: 0.96, py: 0.06 },    
+    lyrics: { px: 0.50, py: 0.90 }   
 };
 let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x:0,y:0,w:0,h:0}, lyrics: {x:0,y:0,w:0,h:0} };
 let dragTarget = null;
 let hoverTarget = null;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
-let userHasDragged = false; // 紀錄使用者是否已自訂位置
+let userHasDragged = false; 
 
 // --- 初始化 3D 與 Shader 引擎 ---
 function setup3D() {
@@ -199,7 +199,7 @@ function renderScene(activeVfx, dataArray, safePulse, scale, isA11y, config) {
 }
 
 function forceRenderFrame() {
-    if (isDrawing) return; // 播放中由主迴圈接管
+    if (isDrawing) return; 
 
     let dataArray = new Uint8Array(256);
     let safePulse = 0;
@@ -223,7 +223,7 @@ function forceRenderFrame() {
     renderScene(activeVfx, dataArray, safePulse, scale, isA11y, config);
     drawLayout();
     drawLyrics();
-    drawInteractions(); // 🌟 確保虛線框畫在最上層
+    drawInteractions(); 
 }
 
 function drawMasterLoop() {
@@ -249,7 +249,7 @@ function drawMasterLoop() {
     renderScene(activeVfx, dataArray, safePulse, scale, isA11y, config);
     drawLayout();
     drawLyrics();
-    drawInteractions(); // 🌟 確保虛線框畫在最上層
+    drawInteractions(); 
 }
 
 // ==========================================
@@ -287,17 +287,16 @@ function drawLayout() {
     ctx2D.shadowColor = 'rgba(0, 0, 0, 1)';
     ctx2D.shadowBlur = shadowIntensity * scale;
 
-    // --- 自動適應排版：若使用者尚未自訂，自動閃避視覺核心 ---
     if (!userHasDragged) {
         const isLeftAlign = (vfxSelector.value === 'circular');
-        layoutOffsets.titles.px = isLeftAlign ? 0.08 : 0.50; // 圓形模式閃避至左側
-        layoutOffsets.titles.py = isLeftAlign ? 0.35 : 0.16; // 預設黃金比例高度
+        layoutOffsets.titles.px = isLeftAlign ? 0.08 : 0.50; 
+        layoutOffsets.titles.py = isLeftAlign ? 0.35 : 0.16; 
         layoutOffsets.channel.px = 0.04;
         layoutOffsets.channel.py = 0.06;
         layoutOffsets.logo.px = 0.96;
         layoutOffsets.logo.py = 0.06;
-        layoutOffsets.lyrics.px = isLeftAlign ? 0.08 : 0.50; // 🌟 歌詞閃避至左側
-        layoutOffsets.lyrics.py = isLeftAlign ? 0.88 : 0.90; // 🌟 預設底部
+        layoutOffsets.lyrics.px = isLeftAlign ? 0.08 : 0.50; 
+        layoutOffsets.lyrics.py = isLeftAlign ? 0.88 : 0.90; 
     }
 
     const cx = layoutOffsets.channel.px * canvas2D.width;
@@ -386,7 +385,6 @@ function drawLayout() {
     }
 }
 
-// 🌟 獨立出互動虛線框繪製函數 (確保畫在最後一層)
 function drawInteractions() {
     if (hoverTarget || dragTarget) {
         const target = dragTarget || hoverTarget;
@@ -395,7 +393,7 @@ function drawInteractions() {
             const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
             const scale = getScale();
             ctx2D.save();
-            ctx2D.strokeStyle = 'rgba(59, 130, 246, 0.9)'; // Blue 500
+            ctx2D.strokeStyle = 'rgba(59, 130, 246, 0.9)'; 
             ctx2D.lineWidth = 2 * scale;
             ctx2D.setLineDash([8, 6]);
             ctx2D.strokeRect(box.x - 12*scale, box.y - 12*scale, box.w + 24*scale, box.h + 24*scale);
@@ -415,29 +413,34 @@ function drawInteractions() {
 // ==========================================
 function getMousePos(canvas, evt) {
     const rect = canvas.getBoundingClientRect();
+    let clientX = evt.clientX;
+    let clientY = evt.clientY;
+    if (evt.touches && evt.touches.length > 0) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+    }
     return {
-        x: (evt.clientX - rect.left) * (canvas.width / rect.width),
-        y: (evt.clientY - rect.top) * (canvas.height / rect.height)
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
     };
 }
 
-canvas2D.addEventListener('mousemove', (e) => {
+function handlePointerMove(e) {
     const pos = getMousePos(canvas2D, e);
     
-    // 正在拖曳
     if (dragTarget) {
         layoutOffsets[dragTarget].px = (pos.x - dragOffsetX) / canvas2D.width;
         layoutOffsets[dragTarget].py = (pos.y - dragOffsetY) / canvas2D.height;
         userHasDragged = true;
         forceRenderFrame();
         canvas2D.style.cursor = 'grabbing';
+        if(e.cancelable) e.preventDefault(); // 阻止手機版網頁上下捲動
         return;
     }
     
-    // 偵測懸停 (Hover)
     hoverTarget = null;
     const pad = 15 * getScale();
-    for (const key of ['channel', 'titles', 'logo', 'lyrics']) { // 🌟 增加 lyrics 的偵測
+    for (const key of ['channel', 'titles', 'logo', 'lyrics']) {
         const box = hitboxes[key];
         if (box && box.w > 0 && 
             pos.x >= box.x - pad && pos.x <= box.x + box.w + pad &&
@@ -446,12 +449,11 @@ canvas2D.addEventListener('mousemove', (e) => {
             break;
         }
     }
-    
     canvas2D.style.cursor = hoverTarget ? 'grab' : 'default';
     if (!isDrawing) forceRenderFrame();
-});
+}
 
-canvas2D.addEventListener('mousedown', (e) => {
+function handlePointerDown(e) {
     if (hoverTarget) {
         dragTarget = hoverTarget;
         const pos = getMousePos(canvas2D, e);
@@ -462,16 +464,22 @@ canvas2D.addEventListener('mousedown', (e) => {
         canvas2D.style.cursor = 'grabbing';
         if (!isDrawing) forceRenderFrame();
     }
-});
+}
 
-window.addEventListener('mouseup', () => {
+function handlePointerUp() {
     if (dragTarget) {
         dragTarget = null;
         canvas2D.style.cursor = hoverTarget ? 'grab' : 'default';
         if (!isDrawing) forceRenderFrame();
     }
-});
+}
 
+canvas2D.addEventListener('mousemove', handlePointerMove);
+canvas2D.addEventListener('mousedown', handlePointerDown);
+window.addEventListener('mouseup', handlePointerUp);
+canvas2D.addEventListener('touchmove', handlePointerMove, { passive: false });
+canvas2D.addEventListener('touchstart', handlePointerDown);
+window.addEventListener('touchend', handlePointerUp);
 
 let parsedLyrics = [], rawLines = [], syncIndex = 0, isSyncing = false;
 
@@ -494,7 +502,6 @@ function drawLyrics() {
     let active = "";
     let hasLyrics = parsedLyrics && parsedLyrics.length > 0;
 
-    // 若正在播放且有歌詞，擷取當前進度的歌詞
     if (currentMode === 'file' && audioPlayer && !audioPlayer.paused && hasLyrics) {
         const ct = audioPlayer.currentTime;
         for (let i = 0; i < parsedLyrics.length; i++) {
@@ -503,7 +510,6 @@ function drawLyrics() {
         }
     }
 
-    // 🌟 神奇體驗：就算沒播放，只要滑鼠去互動，就會亮出預覽！
     if (!active && (dragTarget === 'lyrics' || hoverTarget === 'lyrics' || isSyncing)) {
         active = hasLyrics ? "（歌詞顯示預覽）" : "（新增歌詞後顯示於此）";
     }
@@ -511,7 +517,6 @@ function drawLyrics() {
     const scale = getScale();
     const lx = layoutOffsets.lyrics.px * canvas2D.width;
     const ly = layoutOffsets.lyrics.py * canvas2D.height;
-    // 智慧對齊：在左側靠左，在右側靠右，在中間置中
     const align = (layoutOffsets.lyrics.px < 0.25) ? 'left' : ((layoutOffsets.lyrics.px > 0.75) ? 'right' : 'center');
 
     if (active) {
@@ -525,7 +530,6 @@ function drawLyrics() {
         ctx2D.fillText(active, lx, ly);
         ctx2D.shadowBlur = 0;
 
-        // 計算 Hitbox，使藍色虛線能完美框住這句歌詞
         const metrics = ctx2D.measureText(active);
         const w = metrics.width;
         const h = 46 * scale;
@@ -535,7 +539,6 @@ function drawLyrics() {
         
         hitboxes.lyrics = { x: hx, y: ly - h/2, w: w, h: h };
     } else {
-        // 為了讓使用者「探索」到可拖曳，我們在背後塞一個寬寬的隱形判定框
         const w = 400 * scale; 
         const h = 60 * scale;
         let hx = lx;
@@ -553,13 +556,15 @@ function stopSyncing() {
 }
 
 // ==========================================
-// 檔案匯入邏輯
+// 檔案匯入邏輯 (🚀 核心修復：允許影片上傳)
 // ==========================================
 async function handleFileImport(file) {
-    if (!file.type.startsWith('audio/')) {
-        alert('請匯入有效的音訊檔案！');
+    // 🌟 手機相容性更新：放寬限制。允許 audio、video(螢幕錄影)，或 iOS 系統常給出的空型別 ""
+    if (!file.type.startsWith('audio/') && !file.type.startsWith('video/') && file.type !== "") {
+        alert('請匯入有效的音訊或影片(螢幕錄影)檔案！');
         return;
     }
+
     try {
         const fileName = file.name.replace(/\.[^/.]+$/, "");
         if (fileName.includes(" - ")) {
@@ -569,25 +574,36 @@ async function handleFileImport(file) {
         } else {
             document.getElementById('topicTitle').value = fileName;
         }
+
         audioPlayer.src = URL.createObjectURL(file);
         await audio.init(audioPlayer);
+        
         if (!streamDestination) { 
             streamDestination = audio.audioCtx.createMediaStreamDestination(); 
             audio.analyser.connect(streamDestination); 
         }
+
         const waveformData = await audio.getStaticWaveform(file);
         drawStaticWaveform(waveformData);
+
         const overlayText = document.getElementById('overlayText');
-        if(overlayText) overlayText.innerText = '🎵 音樂已載入，請點選「開始錄影」';
+        if(overlayText) overlayText.innerText = '🎵 音源已載入，請點選「開始錄影」';
+        
         const overlay = document.getElementById('canvasOverlay');
-        if(overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
+        if(overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+        }
+
         btnRecord.disabled = false;
         btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
         btnRecord.classList.replace('text-gray-400', 'text-white');
         currentMode = 'file';
+        
         applyResolution(1920, 1080); 
     } catch (e) {
-        alert("載入失敗！");
+        console.error("載入失敗:", e);
+        alert("載入失敗，無法解析此檔案的音訊軌道！");
     }
 }
 
@@ -596,6 +612,7 @@ function drawStaticWaveform(data) {
     if (!container) return; 
     container.innerHTML = ''; 
     const max = Math.max(...data);
+    
     data.forEach((val, i) => {
         const bar = document.createElement('div');
         const height = (val / max) * 100;
@@ -649,7 +666,7 @@ document.getElementById('btnToggleSync').addEventListener('click', () => {
 });
 
 document.getElementById('btnStartSync').addEventListener('click', () => {
-    if(currentMode !== 'file') return alert('請先上傳音樂！');
+    if(currentMode !== 'file') return alert('請先上傳音源檔案！');
     if (isSyncing) { audioPlayer.pause(); stopSyncing(); return; }
     
     const text = lyricsInput.value.trim();
@@ -781,11 +798,8 @@ btnRecord.addEventListener('click', () => {
     }
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
     
-    // --- 優化：錄影停止後的 IndexedDB 自動暫存邏輯 ---
     mediaRecorder.onstop = async () => {
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
-        
-        // 核心改進：等待影片暫存至本地資料庫，防止瀏覽器崩潰丟失檔案
         await cacheVideoRecord(blob); 
 
         const videoUrl = URL.createObjectURL(blob);
@@ -810,9 +824,6 @@ btnRecord.addEventListener('click', () => {
     btnStopRecord.disabled = false;
 });
 
-// ==========================================
-// 其餘事件監聽
-// ==========================================
 btnStopRecord.addEventListener('click', () => {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     if (currentMode === 'file') audioPlayer.pause();

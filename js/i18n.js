@@ -1,5 +1,5 @@
 // ==========================================
-// 核心字典與多國語系模組
+// 核心字典與多國語系模組 (支援影片上傳提示與全特效 UI)
 // ==========================================
 export const translations = {
     "zh-TW": {
@@ -7,7 +7,7 @@ export const translations = {
         "creator_label": "CS-Founder 2026.04.06",
         "step1_title": "1️⃣ 匯入素材 (音源與排版)",
         "btn_mic": "🎙️ 啟用麥克風",
-        "btn_upload": "🎵 上傳音樂",
+        "btn_upload": "🎵 上傳音源 (含影片)",
         "step2_title": "2️⃣ 動態歌詞 (LRC 打軸)",
         "step3_title": "3️⃣ 視覺特效與微調",
         "step4_title": "4️⃣ 即時預覽與錄製 (大視窗)",
@@ -46,7 +46,7 @@ export const translations = {
         "creator_label": "CS-Founder 2026.04.06",
         "step1_title": "1️⃣ Import Materials",
         "btn_mic": "🎙️ Enable Mic",
-        "btn_upload": "🎵 Upload Audio",
+        "btn_upload": "🎵 Upload Audio/Video",
         "step2_title": "2️⃣ Dynamic Lyrics",
         "step3_title": "3️⃣ Visual Effects",
         "step4_title": "4️⃣ Preview & Record",
