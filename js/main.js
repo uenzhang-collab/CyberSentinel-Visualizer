@@ -42,8 +42,6 @@ let State = {
     }
 };
 
-// 🎯 效能修復 1：引入「防抖動 (Debounce)」機制
-// 解決密集拖曳拉桿時，瘋狂寫入硬碟導致的嚴重卡頓 (Storage Thrashing)
 let _saveTimeout = null;
 function saveState() {
     clearTimeout(_saveTimeout);
@@ -52,7 +50,7 @@ function saveState() {
         localStorage.setItem('CS_State_UI', JSON.stringify(State.ui));
         localStorage.setItem('CS_State_Layout', JSON.stringify(State.layoutOffsets));
         localStorage.setItem('CS_ActiveVFX', document.getElementById('vfxSelector').value);
-    }, 500); // 使用者停下操作 500 毫秒後，才在背景安靜寫入
+    }, 500); 
 }
 
 function loadState() {
@@ -84,6 +82,28 @@ function loadState() {
     
     const chkA11y = document.getElementById('chkA11y');
     if (chkA11y) chkA11y.checked = State.ui.isA11y;
+}
+
+// ==========================================
+// 🎨 介面更新：按鈕狀態發光回饋 (解決載入前後無區別)
+// ==========================================
+function updateButtonVisualState(labelId, isLoaded) {
+    const labelSpan = document.getElementById(labelId);
+    if (!labelSpan) return;
+    const container = labelSpan.closest('label');
+    if (!container) return;
+
+    if (isLoaded) {
+        container.classList.replace('bg-gray-900', 'bg-green-900/60');
+        container.classList.replace('hover:bg-gray-700', 'hover:bg-green-800/60');
+        container.classList.replace('text-gray-300', 'text-green-400');
+        container.classList.replace('border-gray-600', 'border-green-500');
+    } else {
+        container.classList.replace('bg-green-900/60', 'bg-gray-900');
+        container.classList.replace('hover:bg-green-800/60', 'hover:bg-gray-700');
+        container.classList.replace('text-green-400', 'text-gray-300');
+        container.classList.replace('border-green-500', 'border-gray-600');
+    }
 }
 
 // ==========================================
@@ -142,6 +162,8 @@ const VFXRegistry = {
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
             canvas3D.style.display = 'block';
             renderAurora3D(ctx, canvas2D, canvas3D, rm, vfxManager, aurora, sun, dataArray, safePulse, State.vfx.aurora);
+            // 確保 3D 畫面印到緩衝區，支援背景混合與錄影
+            ctx.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
         },
         schema: [
             { id: 'showAurora', type: 'checkbox', label: 'vfx_mod_aurora' },
@@ -155,6 +177,10 @@ const VFXRegistry = {
             canvas3D.style.display = 'block';
             const cfg = { ...State.vfx.nebula };
             if (window.ESG_ECO_MODE) cfg.viscosity = Math.min(cfg.viscosity, 0.1);
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas2D.width, canvas2D.height);
+            
             renderNebulaShader(nebulaSystem, canvas2D.width, canvas2D.height, safePulse, cfg);
             ctx.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
         },
@@ -269,9 +295,6 @@ function buildDynamicUI(vfxKey) {
         }
     });
     if (chkContainer.childNodes.length > 0) container.insertBefore(chkContainer, container.firstChild);
-    
-    // 🎯 效能修復 2：移除此處的 updateLanguage 呼叫，切斷導致 CPU 暴衝的無限遞迴死結！
-    // （因為生成 UI 時已經使用了 window.t()，無需再次全域掃描翻譯）
 }
 
 // ==========================================
@@ -285,7 +308,7 @@ const lyricsInput = document.getElementById('lyricsInput');
 
 let audio = new AudioEngine();
 let isDrawing = false;
-let currentMode = null; // 'file', 'mic', or 'dual'
+let currentMode = null; 
 
 let logoImg = new Image();
 const canvas2D = document.getElementById('visualizer2D');
@@ -293,6 +316,10 @@ const ctx2D = canvas2D.getContext('2d');
 const canvas3D = document.getElementById('visualizer3D'); 
 const particleCanvas = document.createElement('canvas');
 const pCtx = particleCanvas.getContext('2d');
+
+// 🎨 核心技術：建立特效獨立緩衝區，保護背景不被殘影黑底蓋掉！
+const vfxCanvas = document.createElement('canvas');
+const vfxCtx = vfxCanvas.getContext('2d');
 
 let rm, vfxManager, aurora, sun, nebulaSystem; 
 const videoRecorder = new VideoRecorder(canvas2D);
@@ -313,6 +340,10 @@ function applyResolution(width, height) {
     canvas2D.width = width; canvas2D.height = height;
     canvas3D.width = width; canvas3D.height = height;
     particleCanvas.width = width; particleCanvas.height = height;
+    
+    // 緩衝區同步調整解析度
+    vfxCanvas.width = width; vfxCanvas.height = height;
+
     if (rm && rm.renderer) { rm.renderer.setSize(width, height, false); rm.camera.aspect = width / height; rm.camera.updateProjectionMatrix(); }
     if (nebulaSystem && nebulaSystem.renderer) nebulaSystem.renderer.setSize(width, height, false);
     forceRenderFrame();
@@ -372,8 +403,36 @@ function formatTime(seconds) {
 }
 
 // ==========================================
-// 🎨 主渲染迴圈 (極速版)
+// 🎨 完美渲染迴圈 (解決背景黑屏遮擋問題)
 // ==========================================
+function renderCore(dataArray, safePulse) {
+    // 1. 底層：清除主畫布並處理背景
+    ctx2D.globalCompositeOperation = 'source-over';
+    ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
+    
+    const hasBg = bgManager && bgManager.media;
+    if (hasBg) {
+        bgManager.draw(ctx2D, canvas2D.width, canvas2D.height);
+    }
+
+    // 2. 特效層：將光譜與殘影先畫在獨立的 vfxCanvas 緩衝區
+    const effect = VFXRegistry[vfxSelector.value];
+    if (effect) {
+        // 許多光譜為了殘影會鋪上黑底，讓它們在 vfxCanvas 盡情揮灑
+        effect.render(vfxCtx, vfxCanvas, canvas3D, dataArray, safePulse, getScale());
+        
+        // 3. 疊加層：如果是自訂背景，使用 screen 模式濾掉黑色殘影底，保留發光線條
+        ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
+        ctx2D.drawImage(vfxCanvas, 0, 0);
+    }
+    
+    // 4. UI 介面層：恢復一般疊加模式，繪製字體與框線
+    ctx2D.globalCompositeOperation = 'source-over';
+    drawLayout(); 
+    drawLyrics(); 
+    drawInteractions(); 
+}
+
 function forceRenderFrame() {
     if (isDrawing) return; 
     let dataArray = new Uint8Array(256), safePulse = 0;
@@ -384,14 +443,7 @@ function forceRenderFrame() {
         const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
         safePulse = State.ui.isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
     }
-    
-    ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
-    bgManager.draw(ctx2D, canvas2D.width, canvas2D.height);
-    
-    const effect = VFXRegistry[vfxSelector.value];
-    if (effect) effect.render(ctx2D, canvas2D, canvas3D, dataArray, safePulse, getScale());
-    
-    drawLayout(); drawLyrics(); drawInteractions(); 
+    renderCore(dataArray, safePulse);
 }
 
 function drawMasterLoop() {
@@ -403,14 +455,8 @@ function drawMasterLoop() {
     audio.analyser.getByteFrequencyData(dataArray);
     const bassSum = dataArray[0] + dataArray[1] + dataArray[2] + dataArray[3] + dataArray[4] + dataArray[5];
     const safePulse = State.ui.isA11y ? Math.min(Math.pow((bassSum / 6) / 255, 3.0), 0.15) : Math.pow((bassSum / 6) / 255, 3.0); 
-
-    ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
-    bgManager.draw(ctx2D, canvas2D.width, canvas2D.height); 
     
-    const effect = VFXRegistry[vfxSelector.value];
-    if (effect) effect.render(ctx2D, canvas2D, canvas3D, dataArray, safePulse, getScale());
-    
-    drawLayout(); drawLyrics(); drawInteractions(); 
+    renderCore(dataArray, safePulse);
 }
 
 function drawLayout() {
@@ -756,7 +802,9 @@ document.getElementById('slVolMic').addEventListener('input', (e) => {
 document.getElementById('bgUpload').addEventListener('change', function(e) {
     if(this.files.length) {
         bgManager.load(this.files[0], () => {
-            const bgLabel = document.getElementById('bgLabel'); if (bgLabel) bgLabel.innerText = window.t('btn_bg_loaded'); 
+            const bgLabel = document.getElementById('bgLabel'); 
+            if (bgLabel) bgLabel.innerText = window.t('btn_bg_loaded'); 
+            updateButtonVisualState('bgLabel', true);
             forceRenderFrame();
         });
     }
@@ -798,8 +846,12 @@ document.getElementById('audioUpload').addEventListener('change', (e) => { if(e.
 document.getElementById('channelLogo').addEventListener('change', function(e) {
     if(this.files.length) {
         logoImg.onload = () => { 
-            const logoLabel = document.getElementById('logoLabel'); if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
-            const scaleWrapper = document.getElementById('logoScaleWrapper'); if (scaleWrapper) scaleWrapper.classList.remove('hidden');
+            const logoLabel = document.getElementById('logoLabel'); 
+            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
+            updateButtonVisualState('logoLabel', true);
+            
+            const scaleWrapper = document.getElementById('logoScaleWrapper'); 
+            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
             forceRenderFrame(); 
         };
         logoImg.src = URL.createObjectURL(this.files[0]);
@@ -882,8 +934,17 @@ function updateLanguage(lang) {
     
     if (currentMode === 'file') document.getElementById('overlayText').innerText = window.t('msg_audio_loaded');
     else if (currentMode === 'mic') document.getElementById('overlayText').innerText = window.t('msg_mic_ready');
-    if (logoImg.src && logoImg.complete) document.getElementById('logoLabel').innerText = window.t('btn_logo_loaded');
-    if (bgManager.media) { const bgLabel = document.getElementById('bgLabel'); if(bgLabel) bgLabel.innerText = window.t('btn_bg_loaded'); }
+    
+    if (logoImg.src && logoImg.complete) { 
+        const logoLabel = document.getElementById('logoLabel');
+        if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded');
+        updateButtonVisualState('logoLabel', true);
+    }
+    if (bgManager && bgManager.media) { 
+        const bgLabel = document.getElementById('bgLabel');
+        if(bgLabel) bgLabel.innerText = window.t('btn_bg_loaded'); 
+        updateButtonVisualState('bgLabel', true);
+    }
     
     buildDynamicUI(vfxSelector.value);
     
