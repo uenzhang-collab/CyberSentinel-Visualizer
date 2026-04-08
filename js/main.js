@@ -30,6 +30,21 @@ const pCtx = particleCanvas.getContext('2d');
 let rm, vfxManager, aurora, sun; 
 let nebulaSystem; 
 
+// ==========================================
+// 🌟 畫面排版與拖曳狀態管理 (Layout & Dragging)
+// ==========================================
+let layoutOffsets = {
+    channel: { px: 0.04, py: 0.06 }, // 黃金比例：左上角 4%, 6%
+    titles: { px: 0.50, py: 0.16 },  // 黃金比例：頂部中心 16% 下沉
+    logo: { px: 0.96, py: 0.06 }     // 黃金比例：右上角
+};
+let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x:0,y:0,w:0,h:0} };
+let dragTarget = null;
+let hoverTarget = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let userHasDragged = false; // 紀錄使用者是否已自訂位置
+
 // --- 初始化 3D 與 Shader 引擎 ---
 function setup3D() {
     const auroraSystem = initAurora3D(canvas3D);
@@ -61,7 +76,7 @@ function applyResolution(width, height) {
     if (nebulaSystem && nebulaSystem.renderer) {
         nebulaSystem.renderer.setSize(width, height, false);
     }
-    if (!isDrawing) drawLayout();
+    forceRenderFrame();
 }
 
 function getScale() { 
@@ -102,26 +117,9 @@ async function initESGMode() {
 }
 
 // ==========================================
-// 總渲染迴圈
+// 渲染核心抽取 (支援凍結幀預覽)
 // ==========================================
-function drawMasterLoop() {
-    if (!isDrawing) return;
-    requestAnimationFrame(drawMasterLoop);
-    
-    if (!audio.analyser) return;
-
-    const bufferLength = audio.analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    audio.analyser.getByteFrequencyData(dataArray);
-    
-    const activeVfx = vfxSelector.value;
-    const scale = getScale(); 
-
-    const bassSum = dataArray.slice(0, 6).reduce((a, b) => a + b, 0);
-    const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
-    const isA11y = document.getElementById('chkA11y').checked;
-    const safePulse = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
-
+function getVfxConfig() {
     const config = {
         aurora: {
             rotSpeed: parseFloat(document.getElementById('slRotation')?.value) || 0.2,
@@ -164,7 +162,10 @@ function drawMasterLoop() {
         config.eq.count = Math.min(config.eq.count, 64); 
         config.nebula.viscosity = Math.min(config.nebula.viscosity, 0.1); 
     }
+    return config;
+}
 
+function renderScene(activeVfx, dataArray, safePulse, scale, isA11y, config) {
     switch (activeVfx) {
         case 'aurora':
             canvas3D.style.display = 'block';
@@ -194,13 +195,62 @@ function drawMasterLoop() {
             renderWaveform(ctx2D, canvas2D, audio.analyser, scale, safePulse, isA11y, config.waveform);
             break;
     }
+}
 
+function forceRenderFrame() {
+    if (isDrawing) return; // 播放中由主迴圈接管
+
+    let dataArray = new Uint8Array(256);
+    let safePulse = 0;
+    
+    if (audio.analyser) {
+        const bufferLength = audio.analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+        audio.analyser.getByteFrequencyData(dataArray);
+        const bassSum = dataArray.slice(0, 6).reduce((a, b) => a + b, 0);
+        const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
+        const isA11y = document.getElementById('chkA11y')?.checked || false;
+        safePulse = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
+    }
+
+    const activeVfx = vfxSelector.value;
+    const scale = getScale(); 
+    const config = getVfxConfig();
+    const isA11y = document.getElementById('chkA11y')?.checked || false;
+
+    ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
+    renderScene(activeVfx, dataArray, safePulse, scale, isA11y, config);
+    drawLayout();
+    drawLyrics();
+}
+
+function drawMasterLoop() {
+    if (!isDrawing) return;
+    requestAnimationFrame(drawMasterLoop);
+    
+    if (!audio.analyser) return;
+
+    const bufferLength = audio.analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    audio.analyser.getByteFrequencyData(dataArray);
+    
+    const activeVfx = vfxSelector.value;
+    const scale = getScale(); 
+
+    const bassSum = dataArray.slice(0, 6).reduce((a, b) => a + b, 0);
+    const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
+    const isA11y = document.getElementById('chkA11y').checked;
+    const safePulse = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
+
+    const config = getVfxConfig();
+
+    renderScene(activeVfx, dataArray, safePulse, scale, isA11y, config);
     drawLayout();
     drawLyrics();
 }
 
 // ==========================================
-// 隱私權與排版 UI 系統
+// 隱私權與黃金比例排版系統
 // ==========================================
 function showPrivacyToast() {
     const toast = document.createElement('div');
@@ -229,49 +279,190 @@ function drawLayout() {
     const speaker = document.getElementById('speakerInfo').value.trim();
     const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
     const scale = getScale();
-    const shadowIntensity = (vfxSelector.value === 'nebula') ? 30 : 12;
+    const shadowIntensity = (vfxSelector.value === 'nebula') ? 30 : 15;
 
     ctx2D.shadowColor = 'rgba(0, 0, 0, 1)';
     ctx2D.shadowBlur = shadowIntensity * scale;
-    
-    const isLeftAlign = (vfxSelector.value === 'circular');
-    const align = isLeftAlign ? 'left' : 'center';
-    const tx = isLeftAlign ? 80 * scale : canvas2D.width / 2;
-    const ty = isLeftAlign ? canvas2D.height * 0.40 : canvas2D.height * 0.15;
-    const sx = isLeftAlign ? 80 * scale : canvas2D.width / 2;
-    const sy = isLeftAlign ? canvas2D.height * 0.50 : canvas2D.height * 0.23;
 
+    // --- 自動適應排版：若使用者尚未自訂，自動閃避視覺核心 ---
+    if (!userHasDragged) {
+        const isLeftAlign = (vfxSelector.value === 'circular');
+        layoutOffsets.titles.px = isLeftAlign ? 0.08 : 0.50; // 圓形模式閃避至左側
+        layoutOffsets.titles.py = isLeftAlign ? 0.35 : 0.16; // 預設黃金比例高度
+        layoutOffsets.channel.px = 0.04;
+        layoutOffsets.channel.py = 0.06;
+        layoutOffsets.logo.px = 0.96;
+        layoutOffsets.logo.py = 0.06;
+    }
+
+    const cx = layoutOffsets.channel.px * canvas2D.width;
+    const cy = layoutOffsets.channel.py * canvas2D.height;
+    const tx = layoutOffsets.titles.px * canvas2D.width;
+    const ty = layoutOffsets.titles.py * canvas2D.height;
+    const lx = layoutOffsets.logo.px * canvas2D.width;
+    const ly = layoutOffsets.logo.py * canvas2D.height;
+
+    // 1. 繪製左上角頻道資訊
     if (cName) {
-        ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
+        ctx2D.textAlign = 'left';
+        ctx2D.textBaseline = 'top';
         const lines = cName.split('\n');
-        ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx2D.font = `bold ${42*scale}px ${font}`;
-        ctx2D.fillText(lines[0], 60*scale, 60*scale);
+        
+        ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx2D.font = `bold ${32*scale}px ${font}`;
+        ctx2D.fillText(lines[0], cx, cy);
+        
+        let maxWidth = ctx2D.measureText(lines[0]).width;
+        let currentY = cy + 40 * scale;
+        
         if (lines.length > 1) {
-            ctx2D.fillStyle = 'rgba(255, 255, 255, 0.7)'; ctx2D.font = `${24*scale}px ${font}`;
-            for (let i = 1; i < lines.length; i++) ctx2D.fillText(lines[i], 60*scale, (60 + 48 + (i-1)*32)*scale);
+            ctx2D.fillStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx2D.font = `${18*scale}px ${font}`;
+            for (let i = 1; i < lines.length; i++) {
+                ctx2D.fillText(lines[i], cx, currentY);
+                maxWidth = Math.max(maxWidth, ctx2D.measureText(lines[i]).width);
+                currentY += 26 * scale;
+            }
+        }
+        hitboxes.channel = { x: cx, y: cy, w: maxWidth, h: currentY - cy };
+    } else {
+        hitboxes.channel = { x: 0, y: 0, w: 0, h: 0 };
+    }
+    
+    // 2. 繪製中央主標題與副標題
+    if (topic || speaker) {
+        const align = (layoutOffsets.titles.px < 0.25) ? 'left' : ((layoutOffsets.titles.px > 0.75) ? 'right' : 'center');
+        ctx2D.textAlign = align;
+        ctx2D.textBaseline = 'top';
+        
+        let titleBoxW = 0;
+        let currentY = ty;
+        
+        if (topic) {
+            ctx2D.fillStyle = '#ffffff';
+            ctx2D.font = `bold ${64 * scale}px ${font}`;
+            ctx2D.fillText(topic, tx, currentY);
+            const metrics = ctx2D.measureText(topic);
+            titleBoxW = metrics.width;
+            currentY += 76 * scale;
+        }
+        
+        if (speaker) {
+            ctx2D.fillStyle = '#a0aec0';
+            ctx2D.font = `${26 * scale}px ${font}`;
+            ctx2D.fillText(speaker, tx, currentY);
+            const metrics = ctx2D.measureText(speaker);
+            titleBoxW = Math.max(titleBoxW, metrics.width);
+            currentY += 32 * scale;
+        }
+        
+        let boxX = tx;
+        if (align === 'center') boxX = tx - titleBoxW / 2;
+        if (align === 'right') boxX = tx - titleBoxW;
+        hitboxes.titles = { x: boxX, y: ty, w: titleBoxW, h: currentY - ty };
+    } else {
+        hitboxes.titles = { x: 0, y: 0, w: 0, h: 0 };
+    }
+    
+    // 3. 繪製右上角 Logo
+    ctx2D.shadowBlur = 0;
+    if (logoImg.src && logoImg.complete) {
+        const maxW = 120 * scale;
+        const aspect = logoImg.width / logoImg.height;
+        const dw = aspect < 1 ? maxW * aspect : maxW;
+        const dh = aspect < 1 ? maxW : maxW / aspect;
+        
+        const drawX = lx - dw; // Logo 錨點在右上
+        const drawY = ly;
+        ctx2D.drawImage(logoImg, drawX, drawY, dw, dh);
+        hitboxes.logo = { x: drawX, y: drawY, w: dw, h: dh };
+    } else {
+        hitboxes.logo = { x: 0, y: 0, w: 0, h: 0 };
+    }
+
+    // 4. 繪製懸停與拖曳虛線外框 (UI 互動提示)
+    if (hoverTarget || dragTarget) {
+        const target = dragTarget || hoverTarget;
+        const box = hitboxes[target];
+        if (box && box.w > 0) {
+            ctx2D.save();
+            ctx2D.strokeStyle = 'rgba(59, 130, 246, 0.9)'; // Blue 500
+            ctx2D.lineWidth = 2 * scale;
+            ctx2D.setLineDash([8, 6]);
+            ctx2D.strokeRect(box.x - 12*scale, box.y - 12*scale, box.w + 24*scale, box.h + 24*scale);
+            
+            ctx2D.fillStyle = 'rgba(59, 130, 246, 1.0)';
+            ctx2D.font = `bold ${15*scale}px ${font}`;
+            ctx2D.textAlign = 'left';
+            ctx2D.textBaseline = 'bottom';
+            ctx2D.fillText("⤡ 拖曳自訂位置", box.x - 10*scale, box.y - 16*scale);
+            ctx2D.restore();
+        }
+    }
+}
+
+// ==========================================
+// 👆 畫布拖曳監聽器 (Canvas Drag-and-Drop)
+// ==========================================
+function getMousePos(canvas, evt) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+        y: (evt.clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
+canvas2D.addEventListener('mousemove', (e) => {
+    const pos = getMousePos(canvas2D, e);
+    
+    // 正在拖曳
+    if (dragTarget) {
+        layoutOffsets[dragTarget].px = (pos.x - dragOffsetX) / canvas2D.width;
+        layoutOffsets[dragTarget].py = (pos.y - dragOffsetY) / canvas2D.height;
+        userHasDragged = true;
+        forceRenderFrame();
+        canvas2D.style.cursor = 'grabbing';
+        return;
+    }
+    
+    // 偵測懸停 (Hover)
+    hoverTarget = null;
+    const pad = 15 * getScale();
+    for (const key of ['channel', 'titles', 'logo']) {
+        const box = hitboxes[key];
+        if (box && box.w > 0 && 
+            pos.x >= box.x - pad && pos.x <= box.x + box.w + pad &&
+            pos.y >= box.y - pad && pos.y <= box.y + box.h + pad) {
+            hoverTarget = key;
+            break;
         }
     }
     
-    if (topic) {
-        ctx2D.textAlign = align; ctx2D.textBaseline = 'middle';
-        ctx2D.fillStyle = '#ffffff'; ctx2D.font = `bold ${(align === 'center' ? 64 : 72) * scale}px ${font}`;
-        ctx2D.shadowBlur = (shadowIntensity * 1.5) * scale; ctx2D.fillText(topic, tx, ty); ctx2D.shadowBlur = shadowIntensity * scale; 
+    canvas2D.style.cursor = hoverTarget ? 'grab' : 'default';
+    if (!isDrawing) forceRenderFrame();
+});
+
+canvas2D.addEventListener('mousedown', (e) => {
+    if (hoverTarget) {
+        dragTarget = hoverTarget;
+        const pos = getMousePos(canvas2D, e);
+        const anchorX = layoutOffsets[dragTarget].px * canvas2D.width;
+        const anchorY = layoutOffsets[dragTarget].py * canvas2D.height;
+        dragOffsetX = pos.x - anchorX;
+        dragOffsetY = pos.y - anchorY;
+        canvas2D.style.cursor = 'grabbing';
+        if (!isDrawing) forceRenderFrame();
     }
-    
-    if (speaker) {
-        ctx2D.textAlign = align; ctx2D.textBaseline = 'middle';
-        ctx2D.fillStyle = '#a0aec0'; ctx2D.font = `${26*scale}px ${font}`;
-        ctx2D.fillText(speaker, sx, sy);
+});
+
+window.addEventListener('mouseup', () => {
+    if (dragTarget) {
+        dragTarget = null;
+        canvas2D.style.cursor = hoverTarget ? 'grab' : 'default';
+        if (!isDrawing) forceRenderFrame();
     }
-    
-    ctx2D.shadowBlur = 0;
-    if (logoImg.src && logoImg.complete) {
-        const maxW = 120 * scale; const aspect = logoImg.width / logoImg.height;
-        const dw = aspect < 1 ? maxW * aspect : maxW;
-        const dh = aspect < 1 ? maxW : maxW / aspect;
-        ctx2D.drawImage(logoImg, canvas2D.width - dw - 60*scale, 60*scale, dw, dh);
-    }
-}
+});
+
 
 let parsedLyrics = [], rawLines = [], syncIndex = 0, isSyncing = false;
 
@@ -354,7 +545,6 @@ async function handleFileImport(file) {
         btnRecord.classList.replace('text-gray-400', 'text-white');
         currentMode = 'file';
         applyResolution(1920, 1080); 
-        if (!isDrawing) drawLayout();
     } catch (e) {
         alert("載入失敗！");
     }
@@ -491,7 +681,7 @@ document.getElementById('channelLogo').addEventListener('change', function(e) {
     if(this.files.length) {
         logoImg.onload = () => { 
             document.getElementById('logoLabel').innerText = "✅ 已載入 Logo"; 
-            if (!isDrawing) drawLayout(); 
+            forceRenderFrame(); 
         };
         logoImg.src = URL.createObjectURL(this.files[0]);
     }
@@ -499,7 +689,7 @@ document.getElementById('channelLogo').addEventListener('change', function(e) {
 
 ['channelName', 'topicTitle', 'speakerInfo'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
-        if (!isDrawing) drawLayout();
+        forceRenderFrame();
     });
 });
 
@@ -605,7 +795,7 @@ vfxSelector.addEventListener('change', (e) => {
     if (audio.analyser) {
         audio.analyser.fftSize = (v === 'waveform' || v === 'aurora' || v === 'nebula') ? 2048 : 256;
     }
-    if (!isDrawing) drawLayout();
+    forceRenderFrame();
 });
 
 ['slCircAmp', 'slCircColor', 'slCircSpin', 'slCircCount', 'slEqCount', 'slEqAmp', 'slEqColor', 'slEqGravity', 'slWaveAmp', 'slWaveColor', 'slWaveGlow', 'slWaveThick', 'slTransmission', 'slRotation', 'slParticleAmount', 'slParticleSpeed', 'slNebViscosity', 'slNebColor'].forEach(id => {
@@ -623,7 +813,7 @@ document.getElementById('btnMic').addEventListener('click', async () => {
         if (!streamDestination) { streamDestination = audio.audioCtx.createMediaStreamDestination(); audio.analyser.connect(streamDestination); }
         btnRecord.disabled = false;
         currentMode = 'mic';
-        applyResolution(1920, 1080); if (!isDrawing) drawLayout();
+        applyResolution(1920, 1080); 
     } catch(e) { alert("存取失敗！"); }
 });
 
