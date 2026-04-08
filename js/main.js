@@ -6,6 +6,14 @@ import { initNebulaShader, renderNebulaShader } from './vfx/NebulaShader.js';
 import { translations } from './i18n.js';
 
 // ==========================================
+// 🌐 全域翻譯引擎 (動態文字處理)
+// ==========================================
+window.t = function(key) {
+    const lang = localStorage.getItem('preferredLang') || 'zh-TW';
+    return translations[lang] && translations[lang][key] ? translations[lang][key] : key;
+};
+
+// ==========================================
 // UI DOM 變數與基礎設定
 // ==========================================
 const audioPlayer = document.getElementById('audioPlayer');
@@ -46,7 +54,6 @@ let dragOffsetX = 0;
 let dragOffsetY = 0;
 let userHasDragged = false; 
 
-// --- 初始化 3D 與 Shader 引擎 ---
 function setup3D() {
     const auroraSystem = initAurora3D(canvas3D);
     rm = auroraSystem.rm;
@@ -56,7 +63,6 @@ function setup3D() {
     nebulaSystem = initNebulaShader(canvas3D);
 }
 
-// --- 畫布解析度同步 ---
 function applyResolution(width, height) {
     canvas2D.width = width;
     canvas2D.height = height;
@@ -84,9 +90,6 @@ function getScale() {
     return canvas2D.width / 1920; 
 }
 
-// ==========================================
-// ESG 節能引擎與電池偵測
-// ==========================================
 window.ESG_ECO_MODE = false;
 
 async function initESGMode() {
@@ -98,9 +101,8 @@ async function initESGMode() {
                     window.ESG_ECO_MODE = true;
                     const notice = document.getElementById('energyNotice');
                     if(notice) {
-                        notice.innerHTML = '<span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> <span data-i18n="esg_eco_mode">🌱 ESG 節能模式啟動</span>';
+                        notice.innerHTML = '<span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> <span>' + window.t('esg_eco_mode') + '</span>';
                         notice.style.display = 'flex';
-                        updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
                     }
                 } else {
                     window.ESG_ECO_MODE = false;
@@ -117,9 +119,6 @@ async function initESGMode() {
     }
 }
 
-// ==========================================
-// 渲染核心抽取 (支援凍結幀預覽)
-// ==========================================
 function getVfxConfig() {
     const config = {
         aurora: {
@@ -252,19 +251,20 @@ function drawMasterLoop() {
     drawInteractions(); 
 }
 
-// ==========================================
-// 隱私權與黃金比例排版系統
-// ==========================================
 function showPrivacyToast() {
     const toast = document.createElement('div');
     toast.className = 'fixed bottom-6 right-6 bg-gray-900/95 backdrop-blur-md border border-blue-500/50 text-blue-300 px-5 py-4 rounded-xl text-sm shadow-2xl z-[100] flex items-center gap-4 transform transition-all duration-700 translate-y-24 opacity-0 max-w-sm';
     toast.innerHTML = `
         <span class="text-2xl drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]">🛡️</span> 
-        <p data-i18n="privacy_notice" class="leading-relaxed">隱私主權承諾：本系統採 100% 本地端邊緣運算，您的音訊絕不上傳雲端，完美保障資料安全。</p> 
+        <p data-i18n="privacy_notice" class="leading-relaxed"></p> 
         <button class="text-gray-500 hover:text-white text-xl leading-none transition-colors" onclick="this.parentElement.remove()">&times;</button>
     `;
     document.body.appendChild(toast);
-    updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
+    
+    // 初始化 Toast 語言
+    const lang = localStorage.getItem('preferredLang') || 'zh-TW';
+    toast.querySelector('[data-i18n]').textContent = translations[lang] && translations[lang]['privacy_notice'] ? translations[lang]['privacy_notice'] : 'Privacy Notice';
+    
     requestAnimationFrame(() => {
         setTimeout(() => { toast.classList.remove('translate-y-24', 'opacity-0'); }, 100);
     });
@@ -371,12 +371,13 @@ function drawLayout() {
     // 3. 繪製右上角 Logo
     ctx2D.shadowBlur = 0;
     if (logoImg.src && logoImg.complete) {
-        const maxW = 120 * scale;
+        const userLogoScale = parseFloat(document.getElementById('slLogoScale')?.value) || 1.0;
+        const maxW = 120 * scale * userLogoScale; 
         const aspect = logoImg.width / logoImg.height;
         const dw = aspect < 1 ? maxW * aspect : maxW;
         const dh = aspect < 1 ? maxW : maxW / aspect;
         
-        const drawX = lx - dw; // Logo 錨點在右上
+        const drawX = lx - dw; 
         const drawY = ly;
         ctx2D.drawImage(logoImg, drawX, drawY, dw, dh);
         hitboxes.logo = { x: drawX, y: drawY, w: dw, h: dh };
@@ -402,14 +403,15 @@ function drawInteractions() {
             ctx2D.font = `bold ${15*scale}px ${font}`;
             ctx2D.textAlign = 'left';
             ctx2D.textBaseline = 'bottom';
-            ctx2D.fillText("⤡ 拖曳自訂位置", box.x - 10*scale, box.y - 16*scale);
+            const hintText = target === 'logo' ? window.t('drag_hint_logo') : window.t('drag_hint');
+            ctx2D.fillText(hintText, box.x - 10*scale, box.y - 16*scale);
             ctx2D.restore();
         }
     }
 }
 
 // ==========================================
-// 👆 畫布拖曳監聽器 (Canvas Drag-and-Drop)
+// 👆 畫布拖曳與滾輪監聽器 (Canvas Interactions)
 // ==========================================
 function getMousePos(canvas, evt) {
     const rect = canvas.getBoundingClientRect();
@@ -434,7 +436,7 @@ function handlePointerMove(e) {
         userHasDragged = true;
         forceRenderFrame();
         canvas2D.style.cursor = 'grabbing';
-        if(e.cancelable) e.preventDefault(); // 阻止手機版網頁上下捲動
+        if(e.cancelable) e.preventDefault(); 
         return;
     }
     
@@ -481,6 +483,22 @@ canvas2D.addEventListener('touchmove', handlePointerMove, { passive: false });
 canvas2D.addEventListener('touchstart', handlePointerDown);
 window.addEventListener('touchend', handlePointerUp);
 
+canvas2D.addEventListener('wheel', (e) => {
+    if (hoverTarget === 'logo' || dragTarget === 'logo') {
+        e.preventDefault(); 
+        const slider = document.getElementById('slLogoScale');
+        if (slider) {
+            let val = parseFloat(slider.value);
+            val -= e.deltaY * 0.002; 
+            val = Math.max(0.2, Math.min(5.0, val));
+            slider.value = val;
+            const label = document.getElementById('valLogoScale');
+            if (label) label.textContent = val.toFixed(1) + 'x';
+            forceRenderFrame();
+        }
+    }
+}, { passive: false });
+
 let parsedLyrics = [], rawLines = [], syncIndex = 0, isSyncing = false;
 
 function parseLRC(text) {
@@ -511,7 +529,7 @@ function drawLyrics() {
     }
 
     if (!active && (dragTarget === 'lyrics' || hoverTarget === 'lyrics' || isSyncing)) {
-        active = hasLyrics ? "（歌詞顯示預覽）" : "（新增歌詞後顯示於此）";
+        active = hasLyrics ? window.t('lyric_preview') : window.t('lyric_placeholder');
     }
 
     const scale = getScale();
@@ -550,18 +568,17 @@ function drawLyrics() {
 
 function stopSyncing() {
     isSyncing = false;
-    document.getElementById('btnStartSync').innerHTML = '▶️ 開始播放';
+    document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_start');
     document.getElementById('btnMarkTime').disabled = true;
-    document.getElementById('currentSyncLine').innerText = '-- 已結束或取消 --';
+    document.getElementById('currentSyncLine').innerText = window.t('sync_end');
 }
 
 // ==========================================
-// 檔案匯入邏輯 (🚀 核心修復：允許影片上傳)
+// 檔案匯入邏輯 
 // ==========================================
 async function handleFileImport(file) {
-    // 🌟 手機相容性更新：放寬限制。允許 audio、video(螢幕錄影)，或 iOS 系統常給出的空型別 ""
     if (!file.type.startsWith('audio/') && !file.type.startsWith('video/') && file.type !== "") {
-        alert('請匯入有效的音訊或影片(螢幕錄影)檔案！');
+        alert(window.t('alert_invalid_file'));
         return;
     }
 
@@ -587,7 +604,7 @@ async function handleFileImport(file) {
         drawStaticWaveform(waveformData);
 
         const overlayText = document.getElementById('overlayText');
-        if(overlayText) overlayText.innerText = '🎵 音源已載入，請點選「開始錄影」';
+        if(overlayText) overlayText.innerText = window.t('msg_audio_loaded');
         
         const overlay = document.getElementById('canvasOverlay');
         if(overlay) {
@@ -603,7 +620,7 @@ async function handleFileImport(file) {
         applyResolution(1920, 1080); 
     } catch (e) {
         console.error("載入失敗:", e);
-        alert("載入失敗，無法解析此檔案的音訊軌道！");
+        alert(window.t('alert_load_fail'));
     }
 }
 
@@ -666,17 +683,17 @@ document.getElementById('btnToggleSync').addEventListener('click', () => {
 });
 
 document.getElementById('btnStartSync').addEventListener('click', () => {
-    if(currentMode !== 'file') return alert('請先上傳音源檔案！');
+    if(currentMode !== 'file') return alert(window.t('alert_no_audio'));
     if (isSyncing) { audioPlayer.pause(); stopSyncing(); return; }
     
     const text = lyricsInput.value.trim();
-    if (!text) return alert('請貼上純文字歌詞！');
+    if (!text) return alert(window.t('alert_no_lyrics'));
 
     rawLines = text.split('\n').map(l=>l.trim()).filter(l=>l);
     syncIndex = 0; isSyncing = true;
     lyricsInput.value = rawLines.join('\n');
 
-    document.getElementById('btnStartSync').innerHTML = '⏸️ 停止打軸';
+    document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_pause');
     const btnMarkTime = document.getElementById('btnMarkTime');
     btnMarkTime.disabled = false;
     document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
@@ -713,9 +730,9 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
     
     syncIndex++;
     if (syncIndex >= rawLines.length) {
-        document.getElementById('currentSyncLine').innerHTML = '<span class="text-green-400">🎉 全部標記完成！</span>';
+        document.getElementById('currentSyncLine').innerHTML = `<span class="text-green-400">${window.t('sync_done')}</span>`;
         isSyncing = false;
-        document.getElementById('btnStartSync').innerHTML = '▶️ 重新開始';
+        document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_restart');
         document.getElementById('btnMarkTime').disabled = true;
     } else {
         document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
@@ -738,11 +755,23 @@ document.getElementById('audioUpload').addEventListener('change', (e) => {
 document.getElementById('channelLogo').addEventListener('change', function(e) {
     if(this.files.length) {
         logoImg.onload = () => { 
-            document.getElementById('logoLabel').innerText = "✅ 已載入 Logo"; 
+            const logoLabel = document.getElementById('logoLabel');
+            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
+            
+            const scaleWrapper = document.getElementById('logoScaleWrapper');
+            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
+            
             forceRenderFrame(); 
         };
         logoImg.src = URL.createObjectURL(this.files[0]);
     }
+});
+
+document.getElementById('slLogoScale')?.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    const label = document.getElementById('valLogoScale');
+    if(label) label.textContent = val.toFixed(1) + 'x';
+    forceRenderFrame();
 });
 
 ['channelName', 'topicTitle', 'speakerInfo'].forEach(id => {
@@ -794,7 +823,7 @@ btnRecord.addEventListener('click', () => {
     try {
         mediaRecorder = new MediaRecorder(combinedStream, options);
     } catch (e) {
-        alert('不支援此格式。'); return; 
+        alert(window.t('alert_no_record')); return; 
     }
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
     
@@ -863,27 +892,91 @@ document.getElementById('btnMic').addEventListener('click', async () => {
     try {
         await audio.init(await navigator.mediaDevices.getUserMedia({ audio: true }));
         if (!streamDestination) { streamDestination = audio.audioCtx.createMediaStreamDestination(); audio.analyser.connect(streamDestination); }
+        
+        const overlayText = document.getElementById('overlayText');
+        if(overlayText) overlayText.innerText = window.t('msg_mic_ready');
+        
+        const overlay = document.getElementById('canvasOverlay');
+        if(overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+        }
+
         btnRecord.disabled = false;
+        btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
+        btnRecord.classList.replace('text-gray-400', 'text-white');
         currentMode = 'mic';
+        
         applyResolution(1920, 1080); 
-    } catch(e) { alert("存取失敗！"); }
+        if (!isDrawing) drawLayout();
+    } catch(e) { 
+        alert(window.t('alert_mic_fail')); 
+    }
 });
 
 document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
 
+// 🌐 多國語系更新函數
 function updateLanguage(lang) {
     const dict = translations[lang];
     if (!dict) return;
+    
+    // 1. 替換一般的靜態文字
     document.querySelectorAll('[data-i18n]').forEach(el => {
-        el.textContent = dict[el.getAttribute('data-i18n')] || el.textContent;
+        el.innerHTML = dict[el.getAttribute('data-i18n')] || el.innerHTML;
     });
+
+    // 2. 替換輸入框的 Placeholder 提示文字
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.placeholder = dict[el.getAttribute('data-i18n-placeholder')] || el.placeholder;
+    });
+
     localStorage.setItem('preferredLang', lang);
+
+    // 3. 處理因為 JS 狀態而動態改變的文字，確保切換時立刻生效
+    if (currentMode === 'file') {
+        const overlayText = document.getElementById('overlayText');
+        if (overlayText) overlayText.innerText = window.t('msg_audio_loaded');
+    } else if (currentMode === 'mic') {
+        const overlayText = document.getElementById('overlayText');
+        if (overlayText) overlayText.innerText = window.t('msg_mic_ready');
+    }
+
+    const logoLabel = document.getElementById('logoLabel');
+    if (logoImg.src && logoImg.complete && logoLabel) {
+        logoLabel.innerText = window.t('btn_logo_loaded');
+    }
+
+    const btnStartSync = document.getElementById('btnStartSync');
+    const syncLine = document.getElementById('currentSyncLine');
+    if (btnStartSync && syncLine) {
+        if (isSyncing) {
+            btnStartSync.innerHTML = window.t('btn_sync_pause');
+        } else if (syncIndex > 0 && syncIndex < rawLines.length) {
+            btnStartSync.innerHTML = window.t('btn_sync_restart');
+            syncLine.innerText = rawLines[syncIndex];
+        } else if (syncIndex >= rawLines.length && rawLines.length > 0) {
+            syncLine.innerHTML = `<span class="text-green-400">${window.t('sync_done')}</span>`;
+        } else {
+            btnStartSync.innerHTML = window.t('btn_sync_start');
+            syncLine.innerText = window.t('sync_init');
+        }
+    }
+
+    // 重新渲染畫布以更新畫布內的文字
+    forceRenderFrame();
 }
 
 // 啟動
 setup3D();
 setTimeout(() => applyResolution(1920, 1080), 500);
 updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
+
+// 確保下拉選單與目前語言狀態一致
+const preferredLang = localStorage.getItem('preferredLang') || 'zh-TW';
+const langSelect = document.getElementById('langSelect');
+if(langSelect) langSelect.value = preferredLang;
+
 setTimeout(() => { showPrivacyToast(); }, 1000);
 initESGMode();
 
