@@ -2,6 +2,8 @@ import { AudioEngine } from './AudioEngine.js';
 import { initAurora3D, renderAurora3D } from './vfx/Aurora3D.js';
 import { renderParticles } from './vfx/Particles.js';
 import { renderCircular, renderEq, renderWaveform } from './vfx/AudioSpectrums.js';
+// 🌟 匯入我們全新的 Shader 模組
+import { initNebulaShader, renderNebulaShader } from './vfx/NebulaShader.js';
 
 // ==========================================
 // 核心字典與多國語系
@@ -37,6 +39,8 @@ const translations = {
         "vfx_w_color": "🌈 色彩流轉 (Color Flow)",
         "vfx_w_glow": "✨ 霓虹殘影 (Neon Trails)",
         "vfx_w_thick": "📏 線條粗細 (Line Thickness)",
+        "vfx_n_viscosity": "🧪 流體黏滯度 (Viscosity)",
+        "vfx_n_color": "🎨 異星色調偏移 (Color Shift)",
         "convert_title": "進階：需要轉檔為 MP4 嗎？",
         "convert_desc": "由於瀏覽器技術限制，錄影原生輸出為 WebM 格式。若您需要傳送至 iPhone、LINE 或 Instagram 等平台，建議使用以下安全免費的線上轉檔工具：",
         "convert_free": "🌐 前往 FreeConvert 轉檔",
@@ -74,6 +78,8 @@ const translations = {
         "vfx_w_color": "🌈 Color Flow",
         "vfx_w_glow": "✨ Neon Trails",
         "vfx_w_thick": "📏 Line Thickness",
+        "vfx_n_viscosity": "🧪 Fluid Viscosity",
+        "vfx_n_color": "🎨 Alien Color Shift",
         "convert_title": "Need MP4 Format?",
         "convert_desc": "Native output is WebM. If you need to share to iPhone, LINE, or Instagram, use these free tools:",
         "convert_free": "🌐 Convert via FreeConvert",
@@ -106,14 +112,18 @@ const particleCanvas = document.createElement('canvas');
 const pCtx = particleCanvas.getContext('2d');
 
 let rm, vfxManager, aurora, sun; 
+let nebulaSystem; // 🌟 儲存 Shader 系統
 
-// --- 初始化 3D 引擎 ---
+// --- 初始化 3D 與 Shader 引擎 ---
 function setup3D() {
     const auroraSystem = initAurora3D(canvas3D);
     rm = auroraSystem.rm;
     vfxManager = auroraSystem.vfxManager;
     aurora = auroraSystem.aurora;
     sun = auroraSystem.sun;
+    
+    // 🌟 初始化 Shader，與 Aurora 共用一個 3D 畫布，靠切換決定誰渲染
+    nebulaSystem = initNebulaShader(canvas3D);
 }
 
 // --- 畫布解析度同步 ---
@@ -132,6 +142,10 @@ function applyResolution(width, height) {
         rm.renderer.setSize(width, height, false);
         rm.camera.aspect = width / height;
         rm.camera.updateProjectionMatrix();
+    }
+    
+    if (nebulaSystem && nebulaSystem.renderer) {
+        nebulaSystem.renderer.setSize(width, height, false);
     }
     if (!isDrawing) drawLayout();
 }
@@ -197,32 +211,36 @@ function drawMasterLoop() {
 
     const config = {
         aurora: {
-            rotSpeed: parseFloat(document.getElementById('slRotation').value) || 0.2,
-            transmission: parseFloat(document.getElementById('slTransmission').value) || 0.9,
-            showAurora: document.getElementById('chkAurora').checked,
-            showSun: document.getElementById('chkSun').checked,
+            rotSpeed: parseFloat(document.getElementById('slRotation')?.value) || 0.2,
+            transmission: parseFloat(document.getElementById('slTransmission')?.value) || 0.9,
+            showAurora: document.getElementById('chkAurora')?.checked ?? true,
+            showSun: document.getElementById('chkSun')?.checked ?? true,
         },
         particle: {
-            amountMult: parseFloat(document.getElementById('slParticleAmount').value) || 1.0,
-            speedMult: parseFloat(document.getElementById('slParticleSpeed').value) || 1.0,
+            amountMult: parseFloat(document.getElementById('slParticleAmount')?.value) || 1.0,
+            speedMult: parseFloat(document.getElementById('slParticleSpeed')?.value) || 1.0,
         },
         circular: {
-            count: parseInt(document.getElementById('slCircCount').value) || 360,
-            ampMult: parseFloat(document.getElementById('slCircAmp').value) || 1.0,
-            colorMult: parseFloat(document.getElementById('slCircColor').value) || 1.0,
-            spinMult: parseFloat(document.getElementById('slCircSpin').value) || 1.0,
+            count: parseInt(document.getElementById('slCircCount')?.value) || 360,
+            ampMult: parseFloat(document.getElementById('slCircAmp')?.value) || 1.0,
+            colorMult: parseFloat(document.getElementById('slCircColor')?.value) || 1.0,
+            spinMult: parseFloat(document.getElementById('slCircSpin')?.value) || 1.0,
         },
         eq: {
-            count: parseInt(document.getElementById('slEqCount').value) || 128,
-            ampMult: parseFloat(document.getElementById('slEqAmp').value) || 1.0,
-            colorMult: parseFloat(document.getElementById('slEqColor').value) || 1.0,
-            gravityMult: parseFloat(document.getElementById('slEqGravity').value) || 1.0,
+            count: parseInt(document.getElementById('slEqCount')?.value) || 128,
+            ampMult: parseFloat(document.getElementById('slEqAmp')?.value) || 1.0,
+            colorMult: parseFloat(document.getElementById('slEqColor')?.value) || 1.0,
+            gravityMult: parseFloat(document.getElementById('slEqGravity')?.value) || 1.0,
         },
         waveform: {
-            ampMult: parseFloat(document.getElementById('slWaveAmp').value) || 1.0,
-            colorMult: parseFloat(document.getElementById('slWaveColor').value) || 1.0,
-            glowMult: parseFloat(document.getElementById('slWaveGlow').value) || 1.0,
-            thick: parseFloat(document.getElementById('slWaveThick').value) || 5.0,
+            ampMult: parseFloat(document.getElementById('slWaveAmp')?.value) || 1.0,
+            colorMult: parseFloat(document.getElementById('slWaveColor')?.value) || 1.0,
+            glowMult: parseFloat(document.getElementById('slWaveGlow')?.value) || 1.0,
+            thick: parseFloat(document.getElementById('slWaveThick')?.value) || 5.0,
+        },
+        nebula: { // 🌟 Shader 的控制參數
+            viscosity: parseFloat(document.getElementById('slNebViscosity')?.value) || 0.2,
+            colorFlow: parseFloat(document.getElementById('slNebColor')?.value) || 1.0,
         }
     };
 
@@ -231,22 +249,33 @@ function drawMasterLoop() {
         config.waveform.glowMult = Math.min(config.waveform.glowMult, 0.3); 
         config.circular.count = Math.min(config.circular.count, 90); 
         config.eq.count = Math.min(config.eq.count, 64); 
+        config.nebula.viscosity = Math.min(config.nebula.viscosity, 0.1); // 降低流速省電
     }
 
     switch (activeVfx) {
         case 'aurora':
+            canvas3D.style.display = 'block';
             renderAurora3D(ctx2D, canvas2D, canvas3D, rm, vfxManager, aurora, sun, dataArray, safePulse, config.aurora);
             break;
+        case 'nebula': // 🌟 渲染新的 Shader
+            canvas3D.style.display = 'block';
+            ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height); // 清空 2D 背景
+            renderNebulaShader(nebulaSystem, canvas2D.width, canvas2D.height, safePulse, config.nebula);
+            break;
         case 'particle':
+            canvas3D.style.display = 'none';
             renderParticles(ctx2D, canvas2D, particleCanvas, pCtx, dataArray, scale, isA11y, config.particle);
             break;
         case 'circular':
+            canvas3D.style.display = 'none';
             renderCircular(ctx2D, canvas2D, dataArray, scale, safePulse, isA11y, config.circular);
             break;
         case 'eq':
+            canvas3D.style.display = 'none';
             renderEq(ctx2D, canvas2D, dataArray, scale, safePulse, isA11y, config.eq);
             break;
         case 'waveform':
+            canvas3D.style.display = 'none';
             renderWaveform(ctx2D, canvas2D, audio.analyser, scale, safePulse, isA11y, config.waveform);
             break;
     }
@@ -289,8 +318,11 @@ function drawLayout() {
     const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
     const scale = getScale();
 
+    // 在 Shader 模式下，文字加深陰影確保可讀性
+    const shadowIntensity = (vfxSelector.value === 'nebula') ? 30 : 12;
+
     ctx2D.shadowColor = 'rgba(0, 0, 0, 1)';
-    ctx2D.shadowBlur = 12 * scale;
+    ctx2D.shadowBlur = shadowIntensity * scale;
     
     const isLeftAlign = (vfxSelector.value === 'circular');
     const align = isLeftAlign ? 'left' : 'center';
@@ -313,7 +345,7 @@ function drawLayout() {
     if (topic) {
         ctx2D.textAlign = align; ctx2D.textBaseline = 'middle';
         ctx2D.fillStyle = '#ffffff'; ctx2D.font = `bold ${(align === 'center' ? 64 : 72) * scale}px ${font}`;
-        ctx2D.shadowBlur = 20 * scale; ctx2D.fillText(topic, tx, ty); ctx2D.shadowBlur = 12 * scale; 
+        ctx2D.shadowBlur = (shadowIntensity * 1.5) * scale; ctx2D.fillText(topic, tx, ty); ctx2D.shadowBlur = shadowIntensity * scale; 
     }
     
     if (speaker) {
@@ -388,7 +420,6 @@ async function handleFileImport(file) {
     }
 
     try {
-        // 1. 自動提取元數據 (解析檔名)
         const fileName = file.name.replace(/\.[^/.]+$/, "");
         if (fileName.includes(" - ")) {
             const parts = fileName.split(" - ");
@@ -398,7 +429,6 @@ async function handleFileImport(file) {
             document.getElementById('topicTitle').value = fileName;
         }
 
-        // 2. 先載入播放器並初始化 AudioEngine (這會建立 audioCtx)
         audioPlayer.src = URL.createObjectURL(file);
         await audio.init(audioPlayer);
         
@@ -407,11 +437,9 @@ async function handleFileImport(file) {
             audio.analyser.connect(streamDestination); 
         }
 
-        // 3. 生成並繪製靜態波形 (確保 audioCtx 已存在後才執行)
         const waveformData = await audio.getStaticWaveform(file);
         drawStaticWaveform(waveformData);
 
-        // 4. UI 反饋：明確顯示已載入
         const overlayText = document.getElementById('overlayText');
         if(overlayText) overlayText.innerText = '🎵 音樂已載入，請點選「開始錄影」';
         
@@ -427,7 +455,7 @@ async function handleFileImport(file) {
         currentMode = 'file';
         
         applyResolution(1920, 1080); 
-        if (!isDrawing) drawLayout(); // 僅更新排版，等待點擊才開始迴圈
+        if (!isDrawing) drawLayout();
 
     } catch (e) {
         console.error("載入失敗:", e);
@@ -454,7 +482,6 @@ function drawStaticWaveform(data) {
     });
 }
 
-// 監聽全域拖曳事件 (Drag & Drop)
 window.addEventListener('dragover', (e) => {
     e.preventDefault();
     document.body.classList.add('bg-blue-900/20');
@@ -488,23 +515,26 @@ document.getElementById('resSelectorMobile').addEventListener('change', (e) => {
 
 vfxSelector.addEventListener('change', (e) => {
     const v = e.target.value;
-    ['panel3D', 'panelParticle', 'panelCircular', 'panelEq', 'panelWaveform'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
+    ['panel3D', 'panelNebula', 'panelParticle', 'panelCircular', 'panelEq', 'panelWaveform'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.classList.add('hidden');
     });
 
     if (v === 'aurora') document.getElementById('panel3D').classList.remove('hidden');
+    else if (v === 'nebula') document.getElementById('panelNebula').classList.remove('hidden'); // 🌟 顯示 Shader 面板
     else if (v === 'particle') document.getElementById('panelParticle').classList.remove('hidden');
     else if (v === 'circular') document.getElementById('panelCircular').classList.remove('hidden');
     else if (v === 'eq') document.getElementById('panelEq').classList.remove('hidden');
     else if (v === 'waveform') document.getElementById('panelWaveform').classList.remove('hidden');
 
     if (audio.analyser) {
-        audio.analyser.fftSize = (v === 'waveform' || v === 'aurora') ? 2048 : 256;
+        audio.analyser.fftSize = (v === 'waveform' || v === 'aurora' || v === 'nebula') ? 2048 : 256;
     }
     if (!isDrawing) drawLayout();
 });
 
-['slCircAmp', 'slCircColor', 'slCircSpin', 'slCircCount', 'slEqCount', 'slEqAmp', 'slEqColor', 'slEqGravity', 'slWaveAmp', 'slWaveColor', 'slWaveGlow', 'slWaveThick', 'slTransmission', 'slRotation', 'slParticleAmount', 'slParticleSpeed'].forEach(id => {
+// 🌟 新增了 slNebViscosity 與 slNebColor 的監聽
+['slCircAmp', 'slCircColor', 'slCircSpin', 'slCircCount', 'slEqCount', 'slEqAmp', 'slEqColor', 'slEqGravity', 'slWaveAmp', 'slWaveColor', 'slWaveGlow', 'slWaveThick', 'slTransmission', 'slRotation', 'slParticleAmount', 'slParticleSpeed', 'slNebViscosity', 'slNebColor'].forEach(id => {
     const el = document.getElementById(id);
     if(el) {
         el.addEventListener('input', (e) => {
@@ -541,7 +571,6 @@ document.getElementById('btnStartSync').addEventListener('click', () => {
     btnMarkTime.disabled = false;
     document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
     
-    // 為了讓打軸時也能看到特效，隱藏遮罩並啟動渲染
     const overlay = document.getElementById('canvasOverlay');
     if (overlay && overlay.style.display !== 'none') {
         overlay.style.opacity = '0';
@@ -619,7 +648,6 @@ document.getElementById('btnMic').addEventListener('click', async () => {
     }
 });
 
-// 結合原本的按鈕上傳與新的檔案匯入邏輯
 document.getElementById('audioUpload').addEventListener('change', (e) => {
     if(e.target.files.length) {
         handleFileImport(e.target.files[0]);
@@ -679,7 +707,6 @@ btnRecord.addEventListener('click', () => {
 
     mediaRecorder.start();
     
-    // 按下錄影時，隱藏遮罩並啟動渲染迴圈
     const overlay = document.getElementById('canvasOverlay');
     if (overlay && overlay.style.display !== 'none') {
         overlay.style.opacity = '0';
@@ -739,7 +766,8 @@ initESGMode();
 
 document.addEventListener("visibilitychange", () => {
     if (!window.ESG_ECO_MODE) {
-        document.getElementById('energyNotice').style.display = document.hidden ? "flex" : "none";
+        const notice = document.getElementById('energyNotice');
+        if (notice) notice.style.display = document.hidden ? "flex" : "none";
     }
     if (rm) rm.isActive = !document.hidden;
 });
