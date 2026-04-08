@@ -42,11 +42,17 @@ let State = {
     }
 };
 
+// 🎯 效能修復 1：引入「防抖動 (Debounce)」機制
+// 解決密集拖曳拉桿時，瘋狂寫入硬碟導致的嚴重卡頓 (Storage Thrashing)
+let _saveTimeout = null;
 function saveState() {
-    localStorage.setItem('CS_State_VFX', JSON.stringify(State.vfx));
-    localStorage.setItem('CS_State_UI', JSON.stringify(State.ui));
-    localStorage.setItem('CS_State_Layout', JSON.stringify(State.layoutOffsets));
-    localStorage.setItem('CS_ActiveVFX', document.getElementById('vfxSelector').value);
+    clearTimeout(_saveTimeout);
+    _saveTimeout = setTimeout(() => {
+        localStorage.setItem('CS_State_VFX', JSON.stringify(State.vfx));
+        localStorage.setItem('CS_State_UI', JSON.stringify(State.ui));
+        localStorage.setItem('CS_State_Layout', JSON.stringify(State.layoutOffsets));
+        localStorage.setItem('CS_ActiveVFX', document.getElementById('vfxSelector').value);
+    }, 500); // 使用者停下操作 500 毫秒後，才在背景安靜寫入
 }
 
 function loadState() {
@@ -263,7 +269,9 @@ function buildDynamicUI(vfxKey) {
         }
     });
     if (chkContainer.childNodes.length > 0) container.insertBefore(chkContainer, container.firstChild);
-    updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW'); 
+    
+    // 🎯 效能修復 2：移除此處的 updateLanguage 呼叫，切斷導致 CPU 暴衝的無限遞迴死結！
+    // （因為生成 UI 時已經使用了 window.t()，無需再次全域掃描翻譯）
 }
 
 // ==========================================
@@ -338,7 +346,6 @@ async function initESGMode() {
     }
 }
 
-// 🎯 高效文字排版快取
 function recalculateLayoutCache(ctx, scale) {
     const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
     State.cache.lastScale = scale;
@@ -357,7 +364,6 @@ function recalculateLayoutCache(ctx, scale) {
     if (State.ui.speakerInfo) { ctx.font = `${26 * scale}px ${font}`; State.cache.speakerWidth = ctx.measureText(State.ui.speakerInfo).width; } else State.cache.speakerWidth = 0;
 }
 
-// 🎯 格式化時間 (MM:SS) - 解決 Bug 1
 function formatTime(seconds) {
     if (isNaN(seconds) || !isFinite(seconds)) return "00:00";
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -540,7 +546,6 @@ canvas2D.addEventListener('wheel', (e) => {
 // ==========================================
 lyricsInput.addEventListener('input', () => lyricsManager.parse(lyricsInput.value));
 
-// 🎯 Bug 1 修復：綁定時間軸與 UI 顯示
 audioPlayer.addEventListener('timeupdate', () => {
     const timeDisplay = document.getElementById('currentTimeDisplay');
     if (timeDisplay) {
@@ -548,7 +553,6 @@ audioPlayer.addEventListener('timeupdate', () => {
     }
 });
 
-// 🎯 Bug 3 修復：音樂結束時重置打軸狀態
 audioPlayer.addEventListener('ended', () => {
     if (lyricsManager.isSyncing) {
         lyricsManager.stopSync();
@@ -588,7 +592,6 @@ function drawLyrics() {
 
 // 歌詞打軸控制
 document.getElementById('btnStartSync').addEventListener('click', async () => {
-    // 🎯 Bug 4 修復：純麥克風模式沒有時間軸，不允許打軸
     if(currentMode !== 'file' && currentMode !== 'dual') return alert(window.t('alert_no_audio'));
     
     await audio.resumeContext();
@@ -656,7 +659,6 @@ document.getElementById('btnExportSRT')?.addEventListener('click', () => {
 btnRecord.addEventListener('click', async () => {
     await audio.resumeContext();
 
-    // 錄影時將 AudioEngine 混合後的音軌交給 VideoRecorder
     const success = videoRecorder.start(audio.streamDestination, (videoUrl) => {
         document.getElementById('recordedVideo').src = videoUrl;
         document.getElementById('downloadLink').href = videoUrl;
@@ -772,7 +774,6 @@ function drawStaticWaveform(data) {
             audioPlayer.currentTime = audioPlayer.duration * (i / data.length);
             if (audioPlayer.paused) audioPlayer.play().catch(e => console.warn(e));
             
-            // 🎯 Bug 2 修復：點擊波形時喚醒視覺特效引擎
             if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
             const overlay = document.getElementById('canvasOverlay');
             if (overlay && overlay.style.display !== 'none') {
@@ -808,7 +809,6 @@ document.getElementById('resSelector').addEventListener('change', (e) => { docum
 document.getElementById('resSelectorMobile').addEventListener('change', (e) => { document.getElementById('resSelector').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('btnCloseResult').addEventListener('click', () => { document.getElementById('resultModal').classList.add('hidden'); document.getElementById('resultModal').classList.remove('flex'); });
 
-// 一鍵大師與自動記憶
 vfxSelector.addEventListener('change', (e) => {
     document.getElementById('presetSelector').value = 'custom';
     saveState(); buildDynamicUI(e.target.value);
@@ -901,7 +901,7 @@ function initSystem() {
     setup3D();
     initLanguageSelect(); 
     updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
-    loadState(); // 🧠 載入記憶體中的上次使用設定
+    loadState(); 
     buildDynamicUI(vfxSelector.value); 
     setTimeout(() => applyResolution(1920, 1080), 500);
     setTimeout(() => { showPrivacyToast(); }, 1000); 
