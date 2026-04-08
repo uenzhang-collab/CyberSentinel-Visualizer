@@ -34,8 +34,18 @@
             <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">CS</div>
             <span class="text-xl font-bold tracking-tight text-blue-400" data-i18n="nav_brand">CyberSentinel 黑核核心</span>
         </div>
-        <div class="flex items-center gap-6">
+        <div class="flex items-center gap-4">
             <span class="text-sm text-gray-500 hidden md:block" data-i18n="creator_label">CS-Founder 2026.04.06</span>
+            
+            <!-- 🌟 一鍵大師風格庫 (Presets) -->
+            <select id="presetSelector" class="bg-indigo-900/60 text-indigo-300 font-bold text-sm p-1.5 rounded border border-indigo-700 focus:outline-none focus:border-indigo-500 shadow-md transition-colors hover:bg-indigo-800/60">
+                <option value="custom" data-i18n="preset_custom">🔧 自訂 (Custom)</option>
+                <option value="lofi" data-i18n="preset_lofi">☕ Lo-Fi 經典套房</option>
+                <option value="cyberpunk" data-i18n="preset_cyberpunk">🌆 賽博龐克之夜</option>
+                <option value="podcast" data-i18n="preset_podcast">🎙️ 專業 Podcast</option>
+                <option value="minimal" data-i18n="preset_minimal">⚪ 極簡純粹</option>
+            </select>
+            
             <select id="langSelect" class="bg-gray-800 text-sm p-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500">
                 <!-- 語言選項將由 main.js 動態生成 -->
             </select>
@@ -66,15 +76,39 @@
                     <input type="text" id="speakerInfo" data-i18n-placeholder="ph_speaker" placeholder="副標題 (講者資訊)" class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full text-sm">
                     <textarea id="channelName" rows="2" data-i18n-placeholder="ph_channel" placeholder="左上角頻道資訊..." class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full resize-none text-sm"></textarea>
                     
-                    <label class="bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm">
-                        <span id="logoLabel" data-i18n="btn_logo">🖼️ 上傳頻道 Logo</span>
-                        <input type="file" id="channelLogo" accept="image/*" class="hidden">
-                    </label>
+                    <div class="flex gap-2">
+                        <label class="flex-1 bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm">
+                            <span id="logoLabel" data-i18n="btn_logo">🖼️ 上傳頻道 Logo</span>
+                            <input type="file" id="channelLogo" accept="image/*" class="hidden">
+                        </label>
+                        <!-- 🌟 自訂沈浸式背景上傳 -->
+                        <label class="flex-1 bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm truncate">
+                            <span id="bgLabel" data-i18n="btn_bg">🌌 上傳沉浸式背景</span>
+                            <input type="file" id="bgUpload" accept="image/*,video/*" class="hidden">
+                        </label>
+                    </div>
                     
                     <div id="logoScaleWrapper" class="hidden flex items-center justify-between gap-3 px-3 py-2 bg-gray-900/50 rounded-lg border border-gray-700 mt-[-4px]">
                         <span class="text-xs text-gray-400 whitespace-nowrap" data-i18n="logo_scale">📏 Logo 縮放</span>
                         <input type="range" id="slLogoScale" min="0.2" max="5.0" step="0.1" value="1.0" class="w-full">
                         <span id="valLogoScale" class="text-xs text-blue-400 w-8 text-right font-mono">1.0x</span>
+                    </div>
+
+                    <!-- 🌟 雙軌混音器 UI -->
+                    <div class="mt-2 p-3 bg-gray-950 rounded-lg border border-gray-700">
+                        <h4 class="text-xs font-bold text-blue-400 mb-3" data-i18n="lbl_mixer">🎚️ 雙軌混音器</h4>
+                        <div class="flex flex-col gap-3">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-gray-400 w-16" data-i18n="lbl_vol_bgm">🎵 音樂</span>
+                                <input type="range" id="slVolBGM" min="0" max="2" step="0.05" value="1.0" class="w-full">
+                                <span id="valVolBGM" class="text-xs text-gray-400 w-8 text-right font-mono">1.0</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-gray-400 w-16" data-i18n="lbl_vol_mic">🎙️ 麥克風</span>
+                                <input type="range" id="slVolMic" min="0" max="2" step="0.05" value="1.0" class="w-full">
+                                <span id="valVolMic" class="text-xs text-gray-400 w-8 text-right font-mono">1.0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -87,6 +121,7 @@
                 </div>
                 <textarea id="lyricsInput" rows="4" data-i18n-placeholder="ph_lyrics" placeholder="請貼上純文字歌詞，或 LRC 格式..." class="bg-gray-900 text-white w-full px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none resize-y text-sm"></textarea>
                 
+                <!-- 🌟 歌詞匯出按鈕 -->
                 <div class="flex justify-end gap-2 mt-2">
                     <button id="btnExportLRC" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded transition-colors flex items-center gap-1 shadow border border-gray-600" data-i18n="btn_export_lrc">⬇️ .LRC</button>
                     <button id="btnExportSRT" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded transition-colors flex items-center gap-1 shadow border border-gray-600" data-i18n="btn_export_srt">⬇️ .SRT</button>
@@ -117,7 +152,7 @@
                     <option value="waveform" selected data-i18n="vfx_opt_waveform">🌊 霓虹時域波形 (2D 多重殘影版)</option>
                 </select>
 
-                <!-- 🌟 所有的 panelXXX 都被移除了！由 main.js 的 Registry Schema 自動生成 -->
+                <!-- 🌟 所有的 panelXXX 都被移除了！由 main.js 的 Registry Schema 自動生成資料驅動 UI -->
                 <div id="dynamicVfxContainer" class="flex flex-col gap-3 mt-4"></div>
 
                 <div class="flex items-center justify-between mt-3 p-2 bg-gray-900/50 rounded-lg">
@@ -147,7 +182,6 @@
                         </div>
                     </div>
 
-                    <!-- 🎯 全局波形預覽區塊 -->
                     <div class="bg-gray-900/80 p-3 rounded-xl mb-4 border border-gray-700 shadow-inner">
                         <p class="text-xs text-gray-500 mb-2 flex justify-between items-center">
                             <span class="flex items-center gap-1" data-i18n="lbl_waveform_preview">📍 全局波形預覽 <span class="hidden sm:inline">(點擊波形可跳轉時間)</span></span>
@@ -158,7 +192,6 @@
                         </div>
                     </div>
                     
-                    <!-- 監看畫布 (16:9) -->
                     <div class="relative w-full aspect-video rounded-xl overflow-hidden border-2 border-gray-900 bg-black mb-5 group shadow-[0_0_40px_rgba(0,0,0,0.8)]">
                         <canvas id="visualizer3D" width="1920" height="1080" class="absolute inset-0 w-full h-full object-cover hidden"></canvas>
                         <canvas id="visualizer2D" width="1920" height="1080" class="absolute inset-0 w-full h-full object-cover"></canvas>
@@ -174,7 +207,6 @@
                         </div>
                     </div>
 
-                    <!-- 錄影控制台 -->
                     <div class="flex items-center gap-3 lg:gap-4 bg-gray-900 p-3 lg:p-4 rounded-xl border border-gray-700">
                         <button id="btnRecord" disabled class="flex-1 py-3 text-lg lg:text-xl bg-gray-700 text-gray-400 rounded-xl font-bold transition-all flex justify-center items-center gap-3 shadow-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
                             <div class="w-4 h-4 rounded-full bg-red-500"></div> <span data-i18n="btn_record">🔴 開始錄影</span>
@@ -190,7 +222,6 @@
                         </div>
                     </div>
 
-                    <!-- 手機版的畫質選擇 -->
                     <div class="flex justify-end items-center mt-3 lg:hidden px-2">
                         <span class="text-xs text-gray-400 mr-2" data-i18n="lbl_quality">畫質:</span>
                         <select id="resSelectorMobile" class="bg-gray-900 text-white text-xs p-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none">
@@ -208,20 +239,15 @@
     <!-- 【滿版彈跳視窗 (Modal)】：錄影結果與轉檔區塊 -->
     <div id="resultModal" class="hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm items-center justify-center p-4 lg:p-8">
         <div class="bg-gray-800 w-full max-w-4xl rounded-2xl shadow-2xl border border-green-600 flex flex-col gap-5 relative overflow-hidden max-h-[95vh] overflow-y-auto p-6 lg:p-8">
-            
             <button id="btnCloseResult" class="absolute top-4 right-5 text-gray-400 hover:text-white text-4xl leading-none transition-colors">&times;</button>
             <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-blue-500"></div>
-            
             <h3 class="text-2xl font-bold text-green-400 text-center flex items-center justify-center gap-2 mt-2">
                 <span>✅</span> <span data-i18n="msg_record_done">錄製完成！</span>
             </h3>
-            
             <div class="w-full border-2 border-gray-700 rounded-xl overflow-hidden bg-black shadow-inner shrink-0">
                 <video id="recordedVideo" controls class="w-full max-h-[45vh] object-contain"></video>
             </div>
-            
             <a id="downloadLink" class="px-6 py-4 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold text-xl transition-colors w-full text-center shadow-lg transform hover:scale-[1.01] shrink-0" data-i18n="btn_download_video">⬇️ 下載影片檔 (WebM 格式)</a>
-            
             <div class="w-full mt-2 bg-gray-900 border border-gray-700 rounded-xl p-5 shadow-inner shrink-0">
                 <div class="flex items-center gap-2 mb-3">
                     <span class="text-2xl">🔄</span>

@@ -1,78 +1,83 @@
 /**
- * CyberSentinel - 音訊解析模組 (Audio Engine) 
- * 升級版：整合 A-Weighting 響度修正與專業級動態演算
+ * CyberSentinel - Advanced Audio Engine (終極完全體)
+ * 整合雙軌混音 (BGM + Mic)、獨立音量控制、錄音防回音 (Anti-Howling) 路由架構，
+ * 並內建廣播級 A-Weighting 響度修正與專業級動態演算 (ADSR) 引擎。
  */
-
 export class AudioEngine {
     constructor() {
-        this.audioCtx = null;
-        this.analyser = null;
-        this.dataArray = null;
-        this.source = null;
-        this.currentBuffer = null;
-    }
-    
-    async init(sourceInput) {
-        if (!this.audioCtx) {
-            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            this.analyser = this.audioCtx.createAnalyser();
-            // 統一使用高解析度 2048，供我們的新解譯引擎重採樣
-            this.analyser.fftSize = 2048; 
-            // 將原生平滑度調低，把物理重力計算交給我們自己寫的 ADSR 引擎
-            this.analyser.smoothingTimeConstant = 0.75; 
-            this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-        }
-        if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
-        if (this.source) this.source.disconnect();
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.analyser = this.audioCtx.createAnalyser();
+        
+        // 統一使用高解析度 2048，供我們的新解譯引擎重採樣
+        this.analyser.fftSize = 2048; 
+        // 將原生平滑度調低，把物理重力計算交給我們自己寫的 ADSR 引擎 (getPremiumAudioAmps)
+        this.analyser.smoothingTimeConstant = 0.75; 
 
-        if (sourceInput instanceof HTMLMediaElement) {
-            if (!sourceInput.audioSourceNode) {
-                sourceInput.audioSourceNode = this.audioCtx.createMediaElementSource(sourceInput);
-            }
-            this.source = sourceInput.audioSourceNode;
-            this.source.connect(this.analyser);
-            this.analyser.connect(this.audioCtx.destination);
-        } else if (sourceInput instanceof MediaStream) {
-            this.source = this.audioCtx.createMediaStreamSource(sourceInput);
-            this.source.connect(this.analyser);
+        // 錄影輸出的終點
+        this.streamDestination = this.audioCtx.createMediaStreamDestination();
+
+        // 雙軌獨立控制節點 (Gain Nodes)
+        this.bgmGain = this.audioCtx.createGain();
+        this.micGain = this.audioCtx.createGain();
+
+        // 🎚️ 核心路由 (Routing)
+        // 1. 背景音樂 (BGM) -> 喇叭(自己聽) + 錄影軌道 + 視覺分析器
+        this.bgmGain.connect(this.audioCtx.destination);
+        this.bgmGain.connect(this.streamDestination);
+        this.bgmGain.connect(this.analyser);
+
+        // 2. 麥克風 (Mic) -> 錄影軌道 + 視覺分析器 
+        // 🛡️ (故意不連接到 audioCtx.destination，防止喇叭發出麥克風的聲音造成無限回音 Howling)
+        this.micGain.connect(this.streamDestination);
+        this.micGain.connect(this.analyser);
+
+        this.bgmSource = null;
+        this.micSource = null;
+    }
+
+    async initBGM(mediaElement) {
+        if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+        if (!this.bgmSource) {
+            this.bgmSource = this.audioCtx.createMediaElementSource(mediaElement);
+            this.bgmSource.connect(this.bgmGain);
         }
     }
-    
-    getBassData() {
-        if (!this.analyser) return 0;
-        this.analyser.getByteFrequencyData(this.dataArray);
-        let bass = 0;
-        for (let i = 0; i < 6; i++) bass += this.dataArray[i];
-        return Math.pow((bass / 6) / 255, 3.0); 
+
+    async initMic(stream) {
+        if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+        if (this.micSource) this.micSource.disconnect();
+        this.micSource = this.audioCtx.createMediaStreamSource(stream);
+        this.micSource.connect(this.micGain);
     }
+
+    setBGMVolume(val) { this.bgmGain.gain.value = val; }
+    setMicVolume(val) { this.micGain.gain.value = val; }
 
     /**
-     * ⚔️ 秘密武器：靜態波形生成器
+     * ⚔️ 秘密武器：靜態波形生成器 (用於產生上方預覽波形圖)
      */
     async getStaticWaveform(file) {
-        if (!this.audioCtx) {
-            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-
         const arrayBuffer = await file.arrayBuffer();
         const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
-        
-        const rawData = audioBuffer.getChannelData(0); 
+        const rawData = audioBuffer.getChannelData(0);
         const samples = 200; 
         const blockSize = Math.floor(rawData.length / samples);
         const filteredData = [];
-
         for (let i = 0; i < samples; i++) {
             let blockStart = blockSize * i;
             let sum = 0;
             for (let j = 0; j < blockSize; j++) {
-                sum = sum + Math.abs(rawData[blockStart + j]);
+                sum += Math.abs(rawData[blockStart + j]);
             }
-            filteredData.push(sum / blockSize); 
+            filteredData.push(sum / blockSize);
         }
         return filteredData;
     }
 }
+
+// ==========================================
+// 🎛️ 數位訊號處理 (DSP) 核心演算法
+// ==========================================
 
 /**
  * 🛠️ 廣播級 A-Weighting 曲線修正函數
@@ -137,7 +142,7 @@ export function getPremiumAudioAmps(dataArray, stateArrayName, numBins, vfxType 
         
         const targetAmp = (vfxType === 'circular') ? Math.pow(val, 2.0) : Math.pow(val, 1.4); 
         
-        // 物理 Attack / Release 控制
+        // 物理 Attack / Release 控制 (ADSR)
         const attack = (vfxType === 'circular') ? 0.90 : 0.75; 
         const release = (vfxType === 'circular') ? 0.15 : 0.12; 
         
