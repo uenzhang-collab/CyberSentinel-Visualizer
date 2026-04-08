@@ -310,6 +310,34 @@ function applyResolution(width, height) {
     forceRenderFrame();
 }
 
+function getScale() { return canvas2D.width / 1920; }
+
+window.ESG_ECO_MODE = false;
+async function initESGMode() {
+    if ('getBattery' in navigator) {
+        try {
+            const battery = await navigator.getBattery();
+            const handleBatteryChange = () => {
+                if (battery.level <= 0.20 && !battery.charging) {
+                    window.ESG_ECO_MODE = true;
+                    const notice = document.getElementById('energyNotice');
+                    if(notice) {
+                        notice.innerHTML = '<span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> <span>' + window.t('esg_eco_mode') + '</span>';
+                        notice.style.display = 'flex';
+                    }
+                } else {
+                    window.ESG_ECO_MODE = false;
+                    const notice = document.getElementById('energyNotice');
+                    if(notice && !document.hidden) notice.style.display = 'none';
+                }
+            };
+            battery.addEventListener('levelchange', handleBatteryChange);
+            battery.addEventListener('chargingchange', handleBatteryChange);
+            handleBatteryChange();
+        } catch(e) {}
+    }
+}
+
 // 🎯 高效文字排版快取
 function recalculateLayoutCache(ctx, scale) {
     const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
@@ -327,6 +355,14 @@ function recalculateLayoutCache(ctx, scale) {
 
     if (State.ui.topicTitle) { ctx.font = `bold ${64 * scale}px ${font}`; State.cache.topicWidth = ctx.measureText(State.ui.topicTitle).width; } else State.cache.topicWidth = 0;
     if (State.ui.speakerInfo) { ctx.font = `${26 * scale}px ${font}`; State.cache.speakerWidth = ctx.measureText(State.ui.speakerInfo).width; } else State.cache.speakerWidth = 0;
+}
+
+// 🎯 格式化時間 (MM:SS) - 解決 Bug 1
+function formatTime(seconds) {
+    if (isNaN(seconds) || !isFinite(seconds)) return "00:00";
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
 }
 
 // ==========================================
@@ -383,6 +419,7 @@ function drawLayout() {
     const tx = State.layoutOffsets.titles.px * canvas2D.width; const ty = State.layoutOffsets.titles.py * canvas2D.height;
     const lx = State.layoutOffsets.logo.px * canvas2D.width; const ly = State.layoutOffsets.logo.py * canvas2D.height;
 
+    // 高效渲染：直接使用 Cache 的寬度計算
     if (State.ui.channelName && State.cache.cNameLines.length > 0) {
         ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
         ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx2D.font = `bold ${32*scale}px ${font}`;
@@ -499,9 +536,27 @@ canvas2D.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 // ==========================================
-// 🎵 歌詞渲染
+// 🎵 歌詞渲染與音訊狀態連動
 // ==========================================
 lyricsInput.addEventListener('input', () => lyricsManager.parse(lyricsInput.value));
+
+// 🎯 Bug 1 修復：綁定時間軸與 UI 顯示
+audioPlayer.addEventListener('timeupdate', () => {
+    const timeDisplay = document.getElementById('currentTimeDisplay');
+    if (timeDisplay) {
+        timeDisplay.innerText = `${formatTime(audioPlayer.currentTime)} / ${formatTime(audioPlayer.duration)}`;
+    }
+});
+
+// 🎯 Bug 3 修復：音樂結束時重置打軸狀態
+audioPlayer.addEventListener('ended', () => {
+    if (lyricsManager.isSyncing) {
+        lyricsManager.stopSync();
+        document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_start');
+        document.getElementById('btnMarkTime').disabled = true;
+        document.getElementById('currentSyncLine').innerText = window.t('sync_end');
+    }
+});
 
 function drawLyrics() {
     let active = "";
@@ -533,9 +588,9 @@ function drawLyrics() {
 
 // 歌詞打軸控制
 document.getElementById('btnStartSync').addEventListener('click', async () => {
-    if(!currentMode) return alert(window.t('alert_no_audio'));
+    // 🎯 Bug 4 修復：純麥克風模式沒有時間軸，不允許打軸
+    if(currentMode !== 'file' && currentMode !== 'dual') return alert(window.t('alert_no_audio'));
     
-    // 🛡️ 合法的互動：趁機安全解鎖 AudioContext
     await audio.resumeContext();
 
     if (lyricsManager.isSyncing) { 
@@ -599,7 +654,6 @@ document.getElementById('btnExportSRT')?.addEventListener('click', () => {
 // 🎥 錄影引擎事件
 // ==========================================
 btnRecord.addEventListener('click', async () => {
-    // 🛡️ 合法的互動：趁機安全解鎖 AudioContext
     await audio.resumeContext();
 
     // 錄影時將 AudioEngine 混合後的音軌交給 VideoRecorder
@@ -634,7 +688,6 @@ btnStopRecord.addEventListener('click', () => {
 // ==========================================
 async function handleFileImport(file) {
     if (!file) return;
-    // 稍微放寬副檔名檢查以防拖放事件異常 (保留空字串放行，依賴後續 try-catch 處理錯誤)
     if (!file.type.startsWith('audio/') && !file.type.startsWith('video/') && file.type !== "") {
         return alert(window.t('alert_invalid_file'));
     }
@@ -651,9 +704,8 @@ async function handleFileImport(file) {
         recalculateLayoutCache(ctx2D, getScale()); saveState();
 
         audioPlayer.src = URL.createObjectURL(file); 
-        await audio.initBGM(audioPlayer); // 🎵 新版雙軌架構
+        await audio.initBGM(audioPlayer); 
         
-        // 生成波形圖 (包裝於 try-catch，避免特殊音檔無法解碼中斷主要流程)
         try {
             const waveData = await audio.getStaticWaveform(file);
             drawStaticWaveform(waveData);
@@ -669,7 +721,6 @@ async function handleFileImport(file) {
         applyResolution(1920, 1080); 
     } catch (e) { 
         console.error("載入失敗詳細錯誤:", e);
-        // ⚠️ 彈出視窗附帶實際錯誤訊息，方便除錯
         alert(window.t('alert_load_fail') + "\n" + (e.message || "請確認檔案格式是否受支援")); 
     }
 }
@@ -677,7 +728,7 @@ async function handleFileImport(file) {
 document.getElementById('btnMic').addEventListener('click', async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        await audio.initMic(stream); // 🎙️ 新版雙軌架構
+        await audio.initMic(stream); 
         currentMode = (currentMode === 'file') ? 'dual' : 'mic';
 
         const overlayText = document.getElementById('overlayText'); if(overlayText) overlayText.innerText = window.t('msg_mic_ready');
@@ -687,7 +738,6 @@ document.getElementById('btnMic').addEventListener('click', async () => {
     } catch(e) { alert(window.t('alert_mic_fail')); }
 });
 
-// 🎚️ 混音器滑桿事件
 document.getElementById('slVolBGM').addEventListener('input', (e) => {
     const val = parseFloat(e.target.value);
     audio.setBGMVolume(val); State.ui.volBGM = val;
@@ -701,7 +751,6 @@ document.getElementById('slVolMic').addEventListener('input', (e) => {
     saveState();
 });
 
-// 🌌 背景上傳事件
 document.getElementById('bgUpload').addEventListener('change', function(e) {
     if(this.files.length) {
         bgManager.load(this.files[0], () => {
@@ -719,9 +768,16 @@ function drawStaticWaveform(data) {
         bar.className = 'w-1 bg-gray-600 rounded-full transition-all hover:bg-blue-400 cursor-pointer';
         bar.style.height = `${Math.max(10, (val / max) * 100)}%`;
         bar.onclick = async () => {
-            await audio.resumeContext(); // 🛡️ 解鎖
+            await audio.resumeContext(); 
             audioPlayer.currentTime = audioPlayer.duration * (i / data.length);
             if (audioPlayer.paused) audioPlayer.play().catch(e => console.warn(e));
+            
+            // 🎯 Bug 2 修復：點擊波形時喚醒視覺特效引擎
+            if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
+            const overlay = document.getElementById('canvasOverlay');
+            if (overlay && overlay.style.display !== 'none') {
+                overlay.style.opacity = '0'; setTimeout(() => { overlay.style.display = 'none'; }, 300);
+            }
         };
         container.appendChild(bar);
     });
