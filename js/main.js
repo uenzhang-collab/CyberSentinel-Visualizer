@@ -126,6 +126,8 @@ function setup3D() {
     vfxManager = auroraSystem.vfxManager;
     aurora = auroraSystem.aurora;
     sun = auroraSystem.sun;
+    
+    // 🌟 初始化 Shader
     nebulaSystem = initNebulaShader(canvas3D);
 }
 
@@ -145,26 +147,30 @@ function applyResolution(width, height) {
         rm.camera.aspect = width / height;
         rm.camera.updateProjectionMatrix();
     }
+    
     if (nebulaSystem && nebulaSystem.renderer) {
         nebulaSystem.renderer.setSize(width, height, false);
     }
     if (!isDrawing) drawLayout();
 }
 
-function getScale() { return canvas2D.width / 1920; }
+function getScale() { 
+    return canvas2D.width / 1920; 
+}
 
 // ==========================================
-// 2. ESG 節能與環境偵測
+// 2. ESG 節能與環境偵測 (SDG 7, 13)
 // ==========================================
 window.ESG_ECO_MODE = false;
+
 async function initESGMode() {
     if ('getBattery' in navigator) {
         try {
             const battery = await navigator.getBattery();
             const handleBatteryChange = () => {
+                const notice = document.getElementById('energyNotice');
                 if (battery.level <= 0.20 && !battery.charging) {
                     window.ESG_ECO_MODE = true;
-                    const notice = document.getElementById('energyNotice');
                     if(notice) {
                         notice.innerHTML = '<span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> <span data-i18n="esg_eco_mode">🌱 ESG 節能模式啟動</span>';
                         notice.style.display = 'flex';
@@ -172,7 +178,6 @@ async function initESGMode() {
                     }
                 } else {
                     window.ESG_ECO_MODE = false;
-                    const notice = document.getElementById('energyNotice');
                     if(notice && !document.hidden) notice.style.display = 'none';
                 }
             };
@@ -193,17 +198,20 @@ function drawMasterLoop() {
     requestAnimationFrame(drawMasterLoop);
     
     if (!audio.analyser) return;
-    const dataArray = new Uint8Array(audio.analyser.frequencyBinCount);
+
+    const bufferLength = audio.analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
     audio.analyser.getByteFrequencyData(dataArray);
     
     const activeVfx = vfxSelector.value;
     const scale = getScale(); 
+
     const bassSum = dataArray.slice(0, 6).reduce((a, b) => a + b, 0);
     const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
     const isA11y = document.getElementById('chkA11y').checked;
     const safePulse = isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
 
-    // 讀取 UI 設定值
+    // 🏆 顯式讀取 UI 設定值，拒絕隱含簡寫，確保所有滑桿連動
     const config = {
         aurora: {
             rotSpeed: parseFloat(document.getElementById('slRotation')?.value) || 0.2,
@@ -239,24 +247,27 @@ function drawMasterLoop() {
         }
     };
 
-    // ESG 低碳降載
+    // ESG 低碳降載邏輯
     if (window.ESG_ECO_MODE) {
         config.particle.amountMult *= 0.3;
         config.nebula.viscosity *= 0.5;
         config.circular.count = Math.min(config.circular.count, 90);
+        config.eq.count = Math.min(config.eq.count, 64);
     }
 
     switch (activeVfx) {
         case 'aurora':
             canvas3D.style.display = 'block';
             renderAurora3D(ctx2D, canvas2D, canvas3D, rm, vfxManager, aurora, sun, dataArray, safePulse, config.aurora);
+            // 🎯 Aurora 錄影轉印已整合於渲染內部，補齊 drawImage 保險
+            ctx2D.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
             break;
         case 'nebula': 
             canvas3D.style.display = 'block';
-            ctx2D.fillStyle = '#000000';
+            ctx2D.fillStyle = '#000000'; // 確保 Shader 錄製時有純黑背景
             ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height); 
             renderNebulaShader(nebulaSystem, canvas2D.width, canvas2D.height, safePulse, config.nebula);
-            // 🎯 關鍵轉印：將 GPU 繪製內容拍給 2D 畫布以便 MediaRecorder 捕捉
+            // 🎯 關鍵轉印：將 GPU 內容拍給 2D 畫布以便 MediaRecorder 捕捉
             ctx2D.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
             break;
         case 'particle':
@@ -282,7 +293,7 @@ function drawMasterLoop() {
 }
 
 // ==========================================
-// 4. 🎨 排版系統 (美學優化：黃金比例版)
+// 4. 🎨 排版系統 (美學優化：黃金比例校準版)
 // ==========================================
 function drawLayout() {
     const cName = document.getElementById('channelName').value.trim();
@@ -307,7 +318,7 @@ function drawLayout() {
     const sx = tx;
     const sy = ty + (95 * scale);
 
-    // 4.1 左上角頻道資訊
+    // 4.1 左上角頻道資訊 (增加與標題的視覺位差，優化精緻度)
     if (cName) {
         ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
         const lines = cName.split('\n');
@@ -315,7 +326,7 @@ function drawLayout() {
         ctx2D.font = `bold ${42*scale}px ${font}`;
         ctx2D.fillText(lines[0], 60*scale, 60*scale);
         if (lines.length > 1) {
-            ctx2D.fillStyle = 'rgba(255, 255, 255, 0.55)'; 
+            ctx2D.fillStyle = 'rgba(255, 255, 255, 0.55)'; // 降低第二行亮度增加層次
             ctx2D.font = `${24*scale}px ${font}`;
             for (let i = 1; i < lines.length; i++) {
                 ctx2D.fillText(lines[i], 60*scale, (60 + 55 + (i-1)*35)*scale);
@@ -323,17 +334,17 @@ function drawLayout() {
         }
     }
     
-    // 4.2 主標題
+    // 4.2 主標題 (強化質感與柔和光暈)
     if (topic) {
         ctx2D.textAlign = align; ctx2D.textBaseline = 'middle';
         ctx2D.fillStyle = '#ffffff'; 
         ctx2D.font = `bold ${(align === 'center' ? 76 : 82) * scale}px ${font}`;
-        ctx2D.shadowBlur = (shadowIntensity * 1.5) * scale; 
+        ctx2D.shadowBlur = (shadowIntensity * 1.5) * scale; // 擴散光暈感
         ctx2D.fillText(topic, tx, ty); 
         ctx2D.shadowBlur = shadowIntensity * scale; 
     }
     
-    // 4.3 副標題
+    // 4.3 副標題 / 講者資訊 (使用高級灰藍色)
     if (speaker) {
         ctx2D.textAlign = align; ctx2D.textBaseline = 'middle';
         ctx2D.fillStyle = '#cbd5e1'; 
@@ -342,7 +353,7 @@ function drawLayout() {
     }
     
     ctx2D.shadowBlur = 0;
-    // 4.4 右上角 Logo
+    // 4.4 右上角 Logo (智慧自適應縮放)
     if (logoImg.src && logoImg.complete) {
         const maxW = 120 * scale; const aspect = logoImg.width / logoImg.height;
         const dw = aspect < 1 ? maxW * aspect : maxW;
@@ -352,7 +363,7 @@ function drawLayout() {
 }
 
 // ==========================================
-// 5. 🛡️ 隱私權提示系統
+// 5. 🛡️ 隱私權提示與自動彈窗
 // ==========================================
 function showPrivacyToast() {
     const toast = document.createElement('div');
@@ -360,10 +371,17 @@ function showPrivacyToast() {
     toast.innerHTML = `
         <span class="text-2xl drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]">🛡️</span> 
         <p data-i18n="privacy_notice" class="leading-relaxed">隱私主權承諾：本系統採 100% 本地端邊緣運算，您的音訊絕不上傳雲端，完美保障資料安全。</p> 
-        <button class="text-gray-500 hover:text-white text-xl leading-none transition-colors" id="closeToast">&times;</button>
+        <button class="text-gray-500 hover:text-white text-xl leading-none transition-colors" id="closeToastBtn">&times;</button>
     `;
     document.body.appendChild(toast);
-    document.getElementById('closeToast').onclick = () => toast.remove();
+    
+    const closeBtn = document.getElementById('closeToastBtn');
+    if(closeBtn) {
+        closeBtn.onclick = () => {
+            toast.classList.add('translate-y-24', 'opacity-0');
+            setTimeout(() => toast.remove(), 700);
+        };
+    }
     
     updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
     requestAnimationFrame(() => { setTimeout(() => { toast.classList.remove('translate-y-24', 'opacity-0'); }, 100); });
@@ -371,7 +389,7 @@ function showPrivacyToast() {
 }
 
 // ==========================================
-// 6. 🎵 歌詞、打軸與音訊處理
+// 6. 🎵 歌詞、打軸與音訊處理 (召回遺失邏輯)
 // ==========================================
 let parsedLyrics = [], rawLines = [], syncIndex = 0, isSyncing = false;
 
@@ -388,6 +406,8 @@ function parseLRC(text) {
     });
 }
 
+lyricsInput.addEventListener('input', () => parseLRC(lyricsInput.value));
+
 function drawLyrics() {
     if (currentMode !== 'file' || parsedLyrics.length === 0 || audioPlayer.paused) return;
     const ct = audioPlayer.currentTime;
@@ -398,20 +418,36 @@ function drawLyrics() {
     }
     if (active) {
         const scale = getScale();
-        ctx2D.textAlign = vfxSelector.value === 'circular' ? 'left' : 'center'; 
+        const activeVfx = vfxSelector.value;
+        // 歌詞排版聯動
+        ctx2D.textAlign = activeVfx === 'circular' ? 'left' : 'center'; 
         ctx2D.textBaseline = 'middle';
         ctx2D.fillStyle = '#ffde2a'; 
         ctx2D.font = `bold ${48*scale}px "Microsoft JhengHei", sans-serif`;
         ctx2D.shadowColor = 'rgba(0,0,0,1)'; ctx2D.shadowBlur = 15 * scale;
-        const lx = vfxSelector.value === 'circular' ? 80*scale : canvas2D.width/2;
-        const ly = vfxSelector.value === 'circular' ? canvas2D.height * 0.88 : canvas2D.height * 0.90;
+        const lx = activeVfx === 'circular' ? 80*scale : canvas2D.width/2;
+        const ly = activeVfx === 'circular' ? canvas2D.height * 0.88 : canvas2D.height * 0.90;
         ctx2D.fillText(active, lx, ly);
+        ctx2D.shadowBlur = 0;
     }
+}
+
+function stopSyncing() {
+    isSyncing = false;
+    document.getElementById('btnStartSync').innerHTML = '▶️ 開始播放';
+    const btnMarkTime = document.getElementById('btnMarkTime');
+    if(btnMarkTime) {
+        btnMarkTime.disabled = true;
+        btnMarkTime.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-500');
+        btnMarkTime.classList.add('bg-gray-700', 'text-gray-400');
+    }
+    document.getElementById('currentSyncLine').innerText = '-- 已結束或取消 --';
 }
 
 async function handleFileImport(file) {
     if (!file.type.startsWith('audio/')) return alert('請匯入有效的音訊檔案！');
     try {
+        // 自動解析元數據邏輯 (從檔名讀取)
         const fileName = file.name.replace(/\.[^/.]+$/, "");
         if (fileName.includes(" - ")) {
             const parts = fileName.split(" - ");
@@ -420,23 +456,31 @@ async function handleFileImport(file) {
         } else {
             document.getElementById('topicTitle').value = fileName;
         }
+
         audioPlayer.src = URL.createObjectURL(file);
         await audio.init(audioPlayer);
+        
         if (!streamDestination) { 
             streamDestination = audio.audioCtx.createMediaStreamDestination(); 
             audio.analyser.connect(streamDestination); 
         }
+
         const waveformData = await audio.getStaticWaveform(file);
         drawStaticWaveform(waveformData);
+        
         document.getElementById('overlayText').innerText = '🎵 音樂已載入，請點選「開始錄影」';
         document.getElementById('canvasOverlay').style.display = 'flex';
+        
         btnRecord.disabled = false;
         btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
         btnRecord.classList.replace('text-gray-400', 'text-white');
         currentMode = 'file';
+        
         applyResolution(1920, 1080); 
         if (!isDrawing) drawLayout();
-    } catch (e) { console.error("Load failed:", e); }
+    } catch (e) {
+        console.error("Load failed:", e);
+    }
 }
 
 function drawStaticWaveform(data) {
@@ -455,102 +499,139 @@ function drawStaticWaveform(data) {
 }
 
 // ==========================================
-// 7. 🖱️ UI 事件綁定 (全面展開無縮水版)
+// 7. 🖱️ UI 事件監聽綁定 (全面恢復遺失的所有監聽器)
 // ==========================================
-window.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('bg-blue-900/20'); });
-window.addEventListener('dragleave', () => { document.body.classList.remove('bg-blue-900/20'); });
-window.addEventListener('drop', (e) => { e.preventDefault(); document.body.classList.remove('bg-blue-900/20'); const file = e.dataTransfer.files[0]; if (file) handleFileImport(file); });
 
-// 7.1 打軸工具監聽器
+// 7.1 打軸工具核心
 document.getElementById('btnToggleSync').addEventListener('click', () => {
     const panel = document.getElementById('syncToolPanel');
     panel.classList.toggle('hidden');
     if (panel.classList.contains('hidden')) stopSyncing();
 });
 
+function triggerMarkTimeAction() {
+    if(!isSyncing || syncIndex >= rawLines.length) return;
+    const ct = audioPlayer.currentTime;
+    const tag = `[${Math.floor(ct/60).toString().padStart(2,'0')}:${Math.floor(ct%60).toString().padStart(2,'0')}.${Math.floor((ct%1)*100).toString().padStart(2,'0')}]`;
+    
+    let lines = lyricsInput.value.split('\n');
+    for(let i=0; i<lines.length; i++){
+        if(lines[i] === rawLines[syncIndex]){ 
+            lines[i] = tag + rawLines[syncIndex]; 
+            break; 
+        }
+    }
+    lyricsInput.value = lines.join('\n');
+    parseLRC(lyricsInput.value);
+    
+    syncIndex++;
+    if (syncIndex >= rawLines.length) {
+        document.getElementById('currentSyncLine').innerHTML = '<span class="text-green-400">🎉 全部標記完成！</span>';
+        isSyncing = false;
+        document.getElementById('btnStartSync').innerHTML = '▶️ 重新開始';
+        const btnMarkTime = document.getElementById('btnMarkTime');
+        if(btnMarkTime) {
+            btnMarkTime.disabled = true;
+            btnMarkTime.classList.remove('bg-blue-600', 'text-white');
+            btnMarkTime.classList.add('bg-gray-700', 'text-gray-400');
+        }
+    } else {
+        document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
+    }
+}
+
 document.getElementById('btnStartSync').addEventListener('click', () => {
     if(currentMode !== 'file') return alert('請先上傳音樂！');
     if (isSyncing) { audioPlayer.pause(); stopSyncing(); return; }
     const text = lyricsInput.value.trim();
     if (!text) return alert('請貼上純文字歌詞！');
+    
     rawLines = text.split('\n').map(l=>l.trim()).filter(l=>l);
-    syncIndex = 0; isSyncing = true;
+    syncIndex = 0; 
+    isSyncing = true;
     lyricsInput.value = rawLines.join('\n');
+    
     document.getElementById('btnStartSync').innerHTML = '⏸️ 停止打軸';
-    document.getElementById('btnMarkTime').disabled = false;
-    document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
-    if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
-    audioPlayer.currentTime = 0; audioPlayer.play();
-});
-
-document.getElementById('btnMarkTime').addEventListener('click', () => {
-    if(!isSyncing || syncIndex >= rawLines.length) return;
-    const ct = audioPlayer.currentTime;
-    const tag = `[${Math.floor(ct/60).toString().padStart(2,'0')}:${Math.floor(ct%60).toString().padStart(2,'0')}.${Math.floor((ct%1)*100).toString().padStart(2,'0')}]`;
-    let lines = lyricsInput.value.split('\n');
-    for(let i=0; i<lines.length; i++){ if(lines[i] === rawLines[syncIndex]){ lines[i] = tag + rawLines[syncIndex]; break; } }
-    lyricsInput.value = lines.join('\n');
-    parseLRC(lyricsInput.value);
-    syncIndex++;
-    if (syncIndex >= rawLines.length) {
-        document.getElementById('currentSyncLine').innerHTML = '<span class="text-green-400">🎉 標記完成！</span>';
-        isSyncing = false; document.getElementById('btnStartSync').innerHTML = '▶️ 重新開始';
-    } else {
-        document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
+    const btnMarkTime = document.getElementById('btnMarkTime');
+    if(btnMarkTime) {
+        btnMarkTime.disabled = false;
+        btnMarkTime.classList.remove('bg-gray-700', 'text-gray-400');
+        btnMarkTime.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-500');
     }
+    document.getElementById('currentSyncLine').innerText = rawLines[syncIndex];
+    
+    if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
+    audioPlayer.currentTime = 0; 
+    audioPlayer.play();
 });
 
-// 7.2 滑桿與數值更新監聽 (展開)
-const sliders = [
-    'slCircAmp', 'slCircColor', 'slCircSpin', 'slCircCount', 
-    'slEqCount', 'slEqAmp', 'slEqColor', 'slEqGravity', 
-    'slWaveAmp', 'slWaveColor', 'slWaveGlow', 'slWaveThick', 
-    'slTransmission', 'slRotation', 'slParticleAmount', 
-    'slParticleSpeed', 'slNebViscosity', 'slNebColor'
-];
-sliders.forEach(id => {
+document.getElementById('btnMarkTime').addEventListener('click', triggerMarkTimeAction);
+
+// 7.2 特效參數滑桿監聽 (完全展開，確保 18 個監聽器不遺失)
+const setupSlider = (id, valId, suffix = 'x') => {
     const el = document.getElementById(id);
     if(el) {
         el.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            const label = document.getElementById(id.replace('sl', 'val'));
-            if(label) label.textContent = (id.includes('Count') || id.includes('Thick')) ? val : val.toFixed(2) + 'x';
+            const v = parseFloat(e.target.value);
+            const label = document.getElementById(valId);
+            if(label) label.textContent = id.includes('Count') || id.includes('Thick') ? parseInt(v) : v.toFixed(2) + suffix;
         });
     }
-});
+};
 
-// 7.3 VFX 切換邏輯
+setupSlider('slCircAmp', 'valCircAmp');
+setupSlider('slCircColor', 'valCircColor');
+setupSlider('slCircSpin', 'valCircSpin');
+setupSlider('slCircCount', 'valCircCount', '');
+setupSlider('slEqCount', 'valEqCount', '');
+setupSlider('slEqAmp', 'valEqAmp');
+setupSlider('slEqColor', 'valEqColor');
+setupSlider('slEqGravity', 'valEqGravity');
+setupSlider('slWaveAmp', 'valWaveAmp');
+setupSlider('slWaveColor', 'valWaveColor');
+setupSlider('slWaveGlow', 'valWaveGlow');
+setupSlider('slWaveThick', 'valWaveThick', '');
+setupSlider('slTransmission', 'valTransmission', '');
+setupSlider('slRotation', 'valRotation', '');
+setupSlider('slParticleAmount', 'valParticleAmount');
+setupSlider('slParticleSpeed', 'valParticleSpeed');
+setupSlider('slNebViscosity', 'valNebViscosity');
+setupSlider('slNebColor', 'valNebColor');
+
+// 7.3 VFX 切換與聯動
 vfxSelector.addEventListener('change', (e) => {
     const v = e.target.value;
     ['panel3D', 'panelNebula', 'panelParticle', 'panelCircular', 'panelEq', 'panelWaveform'].forEach(id => {
-        document.getElementById(id)?.classList.add('hidden');
+        const p = document.getElementById(id); if(p) p.classList.add('hidden');
     });
-    const activePanel = 'panel' + v.charAt(0).toUpperCase() + v.slice(1);
-    const p = document.getElementById(v === 'aurora' ? 'panel3D' : activePanel);
-    if(p) p.classList.remove('hidden');
+    const panelMap = { 'aurora': 'panel3D', 'nebula': 'panelNebula', 'particle': 'panelParticle', 'circular': 'panelCircular', 'eq': 'panelEq', 'waveform': 'panelWaveform' };
+    const activeP = document.getElementById(panelMap[v]); if(activeP) activeP.classList.remove('hidden');
     if (audio.analyser) audio.analyser.fftSize = (v === 'waveform' || v === 'aurora' || v === 'nebula') ? 2048 : 256;
     if (!isDrawing) drawLayout();
 });
 
-// 7.4 錄影引擎 (無損 MediaRecorder)
+// 7.4 錄影機 MediaRecorder (核心捕捉邏輯)
 btnRecord.addEventListener('click', () => {
     recordedChunks = [];
     const canvasStream = canvas2D.captureStream(30);
     const combinedStream = new MediaStream([...canvasStream.getTracks(), ...streamDestination.stream.getTracks()]);
     let options = { mimeType: 'video/webm; codecs=vp9' };
     if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm' };
+    
     try { mediaRecorder = new MediaRecorder(combinedStream, options); } catch (e) { return; }
+    
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
     mediaRecorder.onstop = () => {
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
         const videoUrl = URL.createObjectURL(blob);
         document.getElementById('recordedVideo').src = videoUrl;
         document.getElementById('downloadLink').href = videoUrl;
-        document.getElementById('downloadLink').download = `CyberSentinel_${Date.now()}.webm`; 
+        document.getElementById('downloadLink').download = `CyberSentinel_Record_${Date.now()}.webm`; 
         document.getElementById('resultModal').classList.replace('hidden', 'flex'); 
         document.getElementById('recordingStatus').classList.add('hidden');
         btnRecord.disabled = false; btnStopRecord.disabled = true;
     };
+    
     mediaRecorder.start();
     document.getElementById('canvasOverlay').style.display = 'none';
     if (!isDrawing) { isDrawing = true; drawMasterLoop(); }
@@ -565,25 +646,31 @@ btnStopRecord.addEventListener('click', () => {
     isDrawing = false;
 });
 
-// 7.5 其他 UI 事件
-document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
-document.getElementById('btnCloseResult').addEventListener('click', () => document.getElementById('resultModal').classList.replace('flex', 'hidden'));
+// 7.5 其他 UI 元件與基礎監聽
+window.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('bg-blue-900/20'); });
+window.addEventListener('dragleave', () => { document.body.classList.remove('bg-blue-900/20'); });
+window.addEventListener('drop', (e) => { e.preventDefault(); document.body.classList.remove('bg-blue-900/20'); const f = e.dataTransfer.files[0]; if(f) handleFileImport(f); });
+
 document.getElementById('btnMic').addEventListener('click', async () => {
     try {
         await audio.init(await navigator.mediaDevices.getUserMedia({ audio: true }));
         if (!streamDestination) { streamDestination = audio.audioCtx.createMediaStreamDestination(); audio.analyser.connect(streamDestination); }
         document.getElementById('overlayText').innerText = '🎙️ 麥克風就緒，請點選「開始錄影」';
         document.getElementById('canvasOverlay').style.display = 'flex';
-        btnRecord.disabled = false; currentMode = 'mic';
-        applyResolution(1920, 1080); if (!isDrawing) drawLayout();
-    } catch(e) { alert("音源失敗。"); }
+        btnRecord.disabled = false; btnRecord.classList.replace('bg-gray-700', 'bg-red-600');
+        currentMode = 'mic'; applyResolution(1920, 1080); if (!isDrawing) drawLayout();
+    } catch(e) { alert("Mic Access Denied."); }
 });
+
 document.getElementById('audioUpload').addEventListener('change', (e) => { if(e.target.files.length) handleFileImport(e.target.files[0]); });
 document.getElementById('channelLogo').addEventListener('change', function(e) { if(this.files.length) { logoImg.onload = () => { if (!isDrawing) drawLayout(); }; logoImg.src = URL.createObjectURL(this.files[0]); } });
+document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
+document.getElementById('btnCloseResult').addEventListener('click', () => document.getElementById('resultModal').classList.replace('flex', 'hidden'));
+document.getElementById('resSelector').addEventListener('change', (e) => { applyResolution(...e.target.value.split('x').map(Number)); });
 ['channelName', 'topicTitle', 'speakerInfo'].forEach(id => { document.getElementById(id).addEventListener('input', () => { if (!isDrawing) drawLayout(); }); });
 
 // ==========================================
-// 8. 啟動與環境監聽
+// 8. 啟動、環境監聽與全域按鍵
 // ==========================================
 setup3D();
 setTimeout(() => applyResolution(1920, 1080), 500);
@@ -591,13 +678,37 @@ updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
 initESGMode();
 setTimeout(() => { showPrivacyToast(); }, 1500);
 
+function updateLanguage(lang) {
+    const dict = translations[lang]; if (!dict) return;
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = dict[el.getAttribute('data-i18n')] || el.textContent; });
+    localStorage.setItem('preferredLang', lang);
+}
+
 document.addEventListener("visibilitychange", () => {
-    if (!window.ESG_ECO_MODE) document.getElementById('energyNotice').style.display = document.hidden ? "flex" : "none";
+    if (!window.ESG_ECO_MODE) {
+        const notice = document.getElementById('energyNotice');
+        if (notice) notice.style.display = document.hidden ? "flex" : "none";
+    }
     if (rm) rm.isActive = !document.hidden;
 });
 
+// 🚀 全域空白鍵監聽器：修復打軸跑掉問題的核心
 window.addEventListener('keydown', (e) => { 
-    if(isSyncing && e.code === 'Space' && document.activeElement !== lyricsInput && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { 
-        e.preventDefault(); document.getElementById('btnMarkTime').click(); 
+    if(isSyncing && e.code === 'Space') {
+        // 排除輸入框正在輸入的情況
+        if (document.activeElement === lyricsInput || 
+            document.activeElement.tagName === 'INPUT' || 
+            document.activeElement.tagName === 'TEXTAREA') {
+            return;
+        }
+        e.preventDefault(); // 防止網頁向下滾動
+        triggerMarkTimeAction(); 
+        
+        // 視覺反饋
+        const btn = document.getElementById('btnMarkTime');
+        if(btn) {
+            btn.classList.add('scale-95', 'brightness-125');
+            setTimeout(() => btn.classList.remove('scale-95', 'brightness-125'), 100);
+        }
     }
 });
