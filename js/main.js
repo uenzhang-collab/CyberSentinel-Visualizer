@@ -261,6 +261,8 @@ function drawMasterLoop() {
             canvas3D.style.display = 'block';
             ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height); // 清空 2D 背景
             renderNebulaShader(nebulaSystem, canvas2D.width, canvas2D.height, safePulse, config.nebula);
+            // 🎯 關鍵修復：將 GPU 渲染的 3D 畫面「印」到 2D 畫布上，這樣內建錄影機才抓得到畫面！
+            ctx2D.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
             break;
         case 'particle':
             canvas3D.style.display = 'none';
