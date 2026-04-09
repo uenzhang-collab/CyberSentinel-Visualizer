@@ -50,7 +50,6 @@ let State = {
 
 let _saveTimeout = null;
 
-// 🛡️ 架構升級 3：強健的狀態同步機制，支援強制立即寫入
 function saveState(force = false) {
     const executeSave = () => {
         try {
@@ -72,7 +71,6 @@ function saveState(force = false) {
     }
 }
 
-// 🛡️ 架構升級 3：生命週期終點守護，防止視窗關閉時遺失最後幾毫秒的設定
 window.addEventListener('beforeunload', () => saveState(true));
 
 function loadState() {
@@ -84,10 +82,20 @@ function loadState() {
         
         if (savedVfx) State.vfx = { ...State.vfx, ...JSON.parse(savedVfx) };
         if (savedUi) State.ui = { ...State.ui, ...JSON.parse(savedUi) };
+        
+        // 🛡️ 修復 1：加入極度嚴謹的 NaN 預設值保護機制
         if (savedLayout) {
-            State.layoutOffsets = { ...State.layoutOffsets, ...JSON.parse(savedLayout) };
+            const parsedLayout = JSON.parse(savedLayout);
+            const safeFloat = (val, fallback) => (isNaN(parseFloat(val)) ? fallback : parseFloat(val));
+            for (let key in parsedLayout) {
+                if (State.layoutOffsets[key]) {
+                    State.layoutOffsets[key].px = safeFloat(parsedLayout[key].px, State.layoutOffsets[key].px);
+                    State.layoutOffsets[key].py = safeFloat(parsedLayout[key].py, State.layoutOffsets[key].py);
+                }
+            }
             userHasDragged = true; 
         }
+
         if (savedActive) {
             let parsed = JSON.parse(savedActive);
             State.activeVFX = Array.isArray(parsed) ? parsed : [savedActive]; 
@@ -96,7 +104,6 @@ function loadState() {
         console.warn("[CyberSentinel] 讀取本機狀態失敗，使用系統預設值", e);
     }
 
-    // 安全綁定 UI 數值
     const bindVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     const bindText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     const bindChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
@@ -130,17 +137,22 @@ function updateButtonVisualState(labelId, isLoaded) {
     const container = labelSpan.closest('label');
     if (!container) return;
 
+    // 🛡️ 修復 2：改用原生 Style，徹底根除 Tailwind 編譯打包後遺失 Class 的 Bug
     if (isLoaded) {
-        container.classList.replace('bg-gray-900', 'bg-green-900/60');
-        container.classList.replace('hover:bg-gray-700', 'hover:bg-green-800/60');
-        container.classList.replace('text-gray-300', 'text-green-400');
-        container.classList.replace('border-gray-600', 'border-green-500');
+        container.style.backgroundColor = 'rgba(20, 83, 45, 0.6)'; // 對應 bg-green-900/60
+        container.style.borderColor = '#22c55e'; // 對應 border-green-500
+        labelSpan.style.color = '#4ade80'; // 對應 text-green-400
     } else {
-        container.classList.replace('bg-green-900/60', 'bg-gray-900');
-        container.classList.replace('hover:bg-green-800/60', 'hover:bg-gray-700');
-        container.classList.replace('text-green-400', 'text-gray-300');
-        container.classList.replace('border-green-500', 'border-gray-600');
+        container.style.backgroundColor = '';
+        container.style.borderColor = '';
+        labelSpan.style.color = '';
     }
+}
+
+// 🛡️ 新增：防禦蘋果 HEIC 格式的輔助函式
+function isUnsupportedFormat(file) {
+    const fileName = file.name.toLowerCase();
+    return fileName.endsWith('.heic') || fileName.endsWith('.heif');
 }
 
 // ==========================================
@@ -534,7 +546,7 @@ function formatTime(seconds) {
 
 // ==========================================
 // 🎨 完美渲染迴圈 (多層疊加 + 音頻呼吸 + 電影級運鏡)
-// 🛡️ 架構升級 1：錯誤邊界防護 (Error Boundary)
+// 🛡️ 修復 3：實作電影級色散運鏡 (Chromatic Aberration)
 // ==========================================
 function renderCore(dataArray, safePulse) {
     try {
@@ -586,6 +598,8 @@ function renderCore(dataArray, safePulse) {
 
         let camOffsetX = 0;
         let camOffsetY = 0;
+        let chromaticOffset = 0; // 💥 負責儲存色散偏移量
+
         if (renderCameraShake) {
             const time = Date.now() * 0.001;
             camOffsetX = Math.sin(time * 0.5) * 0.01 * canvas2D.width;
@@ -593,14 +607,37 @@ function renderCore(dataArray, safePulse) {
             if (vfxPulse > 0.05) {
                 camOffsetX += (Math.random() - 0.5) * vfxPulse * 60;
                 camOffsetY += (Math.random() - 0.5) * vfxPulse * 60;
+                chromaticOffset = vfxPulse * 25 * getScale(); // 重低音時觸發色散
             }
         }
 
         const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width + camOffsetX;
         const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height + camOffsetY;
         
-        ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
-        ctx2D.drawImage(vfxCanvas, dx, dy);
+        // --- 核心更新：電影級色散 (Chromatic Aberration) 疊加邏輯 ---
+        if (chromaticOffset > 2) {
+            ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'lighter';
+            
+            // 向左偏移 (模擬紅色通道撕裂)
+            ctx2D.save();
+            ctx2D.globalAlpha = 0.6;
+            ctx2D.drawImage(vfxCanvas, dx - chromaticOffset, dy);
+            ctx2D.restore();
+            
+            // 向右偏移 (模擬藍綠通道撕裂)
+            ctx2D.save();
+            ctx2D.globalAlpha = 0.6;
+            ctx2D.drawImage(vfxCanvas, dx + chromaticOffset, dy);
+            ctx2D.restore();
+            
+            // 主視覺 (置中本體)
+            ctx2D.globalAlpha = 1.0;
+            ctx2D.drawImage(vfxCanvas, dx, dy);
+        } else {
+            // 平常無色散狀態，正常繪製
+            ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
+            ctx2D.drawImage(vfxCanvas, dx, dy);
+        }
         
         ctx2D.globalCompositeOperation = 'source-over';
         drawLayout(); 
@@ -609,7 +646,7 @@ function renderCore(dataArray, safePulse) {
         if (!State.ui.obsMode) drawInteractions(); 
     } catch (e) {
         console.error("[CyberSentinel] Render Core 崩潰:", e);
-        throw e; // 拋出給上層捕捉
+        throw e;
     }
 }
 
@@ -627,7 +664,6 @@ function extractAudioPulse() {
     return safePulse;
 }
 
-// 🛡️ 架構升級 2：防抖動幀同步 (Debounced rendering)
 let renderPending = false;
 function forceRenderFrame() {
     if (isDrawing || renderPending) return; 
@@ -758,9 +794,6 @@ function drawInteractions() {
     }
 }
 
-// ==========================================
-// 👆 畫布拖曳與滾輪監聽器
-// ==========================================
 function getMousePos(canvas, evt) {
     const rect = canvas.getBoundingClientRect();
     let cx = evt.touches?.length ? evt.touches[0].clientX : evt.clientX;
@@ -824,9 +857,6 @@ canvas2D.addEventListener('wheel', (e) => {
     }
 }, { passive: false });
 
-// ==========================================
-// 🎵 歌詞渲染與音訊狀態連動 
-// ==========================================
 lyricsInput.addEventListener('input', () => {
     lyricsManager.parse(lyricsInput.value);
     updateWaveformMarkers(); 
@@ -946,9 +976,6 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
     }
 });
 
-// ==========================================
-// 🌟 3. 鍵盤防呆快速鍵 (Shift+F) 與 OBS 廣播模式切換
-// ==========================================
 window.addEventListener('keydown', (e) => { 
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
@@ -1058,9 +1085,6 @@ document.getElementById('btnExportSRT')?.addEventListener('click', () => {
     if (!success) alert(window.t('alert_no_lyrics'));
 });
 
-// ==========================================
-// 🎥 錄影引擎事件
-// ==========================================
 btnRecord.addEventListener('click', async () => {
     await audio.resumeContext();
 
@@ -1090,9 +1114,6 @@ btnStopRecord.addEventListener('click', () => {
     isDrawing = false;
 });
 
-// ==========================================
-// 🎚️ 檔案匯入與雙軌混音 UI
-// ==========================================
 async function handleFileImport(file) {
     if (!file) return;
     if (!file.type.startsWith('audio/') && !file.type.startsWith('video/') && file.type !== "") {
@@ -1168,9 +1189,44 @@ document.getElementById('slVolMic')?.addEventListener('input', (e) => {
     saveState();
 });
 
+// 🛡️ 新增：防禦 HEIC 格式與阻擋機制
+document.getElementById('channelLogo')?.addEventListener('change', function(e) {
+    if(this.files.length) {
+        const file = this.files[0];
+        
+        if (isUnsupportedFormat(file)) {
+            alert(window.t('alert_heic_unsupported'));
+            this.value = ''; 
+            return;
+        }
+
+        if (currentLogoUrl) URL.revokeObjectURL(currentLogoUrl); 
+        currentLogoUrl = URL.createObjectURL(file);
+        logoImg.onload = () => { 
+            const logoLabel = document.getElementById('logoLabel'); 
+            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
+            updateButtonVisualState('logoLabel', true);
+            
+            const scaleWrapper = document.getElementById('logoScaleWrapper'); 
+            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
+            forceRenderFrame(); 
+        };
+        logoImg.src = currentLogoUrl;
+    }
+});
+
+// 🛡️ 新增：防禦 HEIC 格式與阻擋機制
 document.getElementById('bgUpload')?.addEventListener('change', function(e) {
     if(this.files.length) {
-        bgManager.load(this.files[0], () => {
+        const file = this.files[0];
+
+        if (isUnsupportedFormat(file)) {
+            alert(window.t('alert_heic_unsupported'));
+            this.value = ''; 
+            return;
+        }
+
+        bgManager.load(file, () => {
             const bgLabel = document.getElementById('bgLabel'); 
             if (bgLabel) bgLabel.innerText = window.t('btn_bg_loaded'); 
             updateButtonVisualState('bgLabel', true);
@@ -1217,33 +1273,25 @@ function drawStaticWaveform(data) {
     });
 }
 
-// 拖放功能
 window.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('bg-blue-900/20'); });
 window.addEventListener('dragleave', () => document.body.classList.remove('bg-blue-900/20'));
 window.addEventListener('drop', (e) => { 
     e.preventDefault(); 
     document.body.classList.remove('bg-blue-900/20'); 
-    if (e.dataTransfer.files[0]) handleFileImport(e.dataTransfer.files[0]); 
-});
-
-// UI 基礎事件
-document.getElementById('audioUpload')?.addEventListener('change', (e) => { if(e.target.files.length) handleFileImport(e.target.files[0]); });
-document.getElementById('channelLogo')?.addEventListener('change', function(e) {
-    if(this.files.length) {
-        if (currentLogoUrl) URL.revokeObjectURL(currentLogoUrl); 
-        currentLogoUrl = URL.createObjectURL(this.files[0]);
-        logoImg.onload = () => { 
-            const logoLabel = document.getElementById('logoLabel'); 
-            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
-            updateButtonVisualState('logoLabel', true);
-            
-            const scaleWrapper = document.getElementById('logoScaleWrapper'); 
-            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
-            forceRenderFrame(); 
-        };
-        logoImg.src = currentLogoUrl;
+    
+    // 🛡️ 新增：檔案拖曳也進行格式防呆
+    if (e.dataTransfer.files[0]) {
+        const file = e.dataTransfer.files[0];
+        if (isUnsupportedFormat(file)) {
+             alert(window.t('alert_heic_unsupported'));
+             return;
+        }
+        handleFileImport(file); 
     }
 });
+
+document.getElementById('audioUpload')?.addEventListener('change', (e) => { if(e.target.files.length) handleFileImport(e.target.files[0]); });
+
 document.getElementById('resSelector')?.addEventListener('change', (e) => { 
     const mobileSel = document.getElementById('resSelectorMobile');
     if(mobileSel) mobileSel.value = e.target.value; 
@@ -1322,9 +1370,6 @@ function showPrivacyToast() {
     setTimeout(() => { if(document.body.contains(toast)) { toast.classList.add('translate-y-24', 'opacity-0'); setTimeout(() => { if(document.body.contains(toast)) toast.remove(); }, 700); } }, 8000);
 }
 
-// ==========================================
-// 🌐 語言選單自動生成與更新引擎
-// ==========================================
 document.getElementById('langSelect')?.addEventListener('change', (e) => updateLanguage(e.target.value));
 
 const langNames = { "en-US": "English", "zh-TW": "繁體中文", "zh-CN": "简体中文", "es-ES": "Español", "ja-JP": "日本語", "de-DE": "Deutsch", "fr-FR": "Français", "ko-KR": "한국어" };

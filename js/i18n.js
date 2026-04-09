@@ -106,7 +106,8 @@ export const translations = {
         "preset_minimal": "⚪ 極簡純粹",
         "msg_obs_mode_on": "🎥 OBS 直播模式已開啟 (按 Shift+F 退出)",
         "msg_obs_mode_off": "🔙 已退出 OBS 模式",
-        "btn_obs_mode": "OBS 模式"
+        "btn_obs_mode": "OBS 模式",
+        "alert_heic_unsupported": "⚠️ 系統提示：瀏覽器原生不支援 Apple 的 HEIC 格式。請將圖片轉換為 JPG 或 PNG 後再上傳！"
     },
     "zh-CN": {
         "nav_brand": "CyberSentinel 黑核核心",
@@ -212,7 +213,8 @@ export const translations = {
         "preset_minimal": "⚪ 极简纯粹",
         "msg_obs_mode_on": "🎥 OBS 直播模式已开启 (按 Shift+F 退出)",
         "msg_obs_mode_off": "🔙 已退出 OBS 模式",
-        "btn_obs_mode": "OBS 模式"
+        "btn_obs_mode": "OBS 模式",
+        "alert_heic_unsupported": "⚠️ 系统提示：浏览器原生不支持 Apple 的 HEIC 格式。请将图片转换为 JPG 或 PNG 后再上传！"
     },
     "en-US": {
         "nav_brand": "CyberSentinel Core",
@@ -318,7 +320,8 @@ export const translations = {
         "preset_minimal": "⚪ Pure Minimal",
         "msg_obs_mode_on": "🎥 OBS Studio Mode ON (Press Shift+F to exit)",
         "msg_obs_mode_off": "🔙 Exited OBS Mode",
-        "btn_obs_mode": "OBS Mode"
+        "btn_obs_mode": "OBS Mode",
+        "alert_heic_unsupported": "⚠️ System Alert: Browsers do not natively support Apple's HEIC format. Please convert your image to JPG or PNG before uploading!"
     },
     "es-ES": {
         "nav_brand": "CyberSentinel Core",
@@ -424,7 +427,8 @@ export const translations = {
         "preset_minimal": "⚪ Minimalista puro",
         "msg_obs_mode_on": "🎥 Modo OBS Activado (Presiona Shift+F para salir)",
         "msg_obs_mode_off": "🔙 Modo OBS Desactivado",
-        "btn_obs_mode": "Modo OBS"
+        "btn_obs_mode": "Modo OBS",
+        "alert_heic_unsupported": "⚠️ Alerta del Sistema: Los navegadores no soportan nativamente el formato HEIC de Apple. ¡Por favor, convierte tu imagen a JPG o PNG antes de subirla!"
     },
     "ja-JP": {
         "nav_brand": "CyberSentinel コア",
@@ -530,7 +534,8 @@ export const translations = {
         "preset_minimal": "⚪ ミニマル",
         "msg_obs_mode_on": "🎥 OBSモードがオンになりました (Shift+F で終了)",
         "msg_obs_mode_off": "🔙 OBSモードを終了しました",
-        "btn_obs_mode": "OBS モード"
+        "btn_obs_mode": "OBS モード",
+        "alert_heic_unsupported": "⚠️ システム警告: ブラウザはAppleのHEIC形式をネイティブにサポートしていません。アップロードする前に画像をJPGまたはPNGに変換してください！"
     },
     "de-DE": {
         "nav_brand": "CyberSentinel Core",
@@ -636,7 +641,8 @@ export const translations = {
         "preset_minimal": "⚪ Minimalistisch",
         "msg_obs_mode_on": "🎥 OBS-Modus EIN (Shift+F zum Beenden drücken)",
         "msg_obs_mode_off": "🔙 OBS-Modus beendet",
-        "btn_obs_mode": "OBS-Modus"
+        "btn_obs_mode": "OBS-Modus",
+        "alert_heic_unsupported": "⚠️ Systemwarnung: Browser unterstützen das HEIC-Format von Apple nicht nativ. Bitte konvertieren Sie Ihr Bild vor dem Hochladen in JPG oder PNG!"
     },
     "fr-FR": {
         "nav_brand": "CyberSentinel Core",
@@ -742,7 +748,8 @@ export const translations = {
         "preset_minimal": "⚪ Pur Minimalisme",
         "msg_obs_mode_on": "🎥 Mode OBS Activé (Appuyez sur Shift+F pour quitter)",
         "msg_obs_mode_off": "🔙 Mode OBS Désactivé",
-        "btn_obs_mode": "Mode OBS"
+        "btn_obs_mode": "Mode OBS",
+        "alert_heic_unsupported": "⚠️ Alerte Système : Les navigateurs ne prennent pas en charge nativement le format HEIC d'Apple. Veuillez convertir votre image en JPG ou PNG avant de la télécharger !"
     },
     "ko-KR": {
         "nav_brand": "CyberSentinel 코어",
@@ -848,6 +855,7 @@ export const translations = {
         "preset_minimal": "⚪ 미니멀",
         "msg_obs_mode_on": "🎥 OBS 모드 켜짐 (종료하려면 Shift+F 누름)",
         "msg_obs_mode_off": "🔙 OBS 모드 종료됨",
-        "btn_obs_mode": "OBS 모드"
+        "btn_obs_mode": "OBS 모드",
+        "alert_heic_unsupported": "⚠️ 시스템 알림: 브라우저는 Apple의 HEIC 형식을 기본적으로 지원하지 않습니다. 업로드하기 전에 이미지를 JPG 또는 PNG로 변환해주세요!"
     }
 };

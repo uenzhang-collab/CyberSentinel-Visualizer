@@ -77,14 +77,15 @@
                     <textarea id="channelName" rows="2" data-i18n-placeholder="ph_channel" placeholder="左上角頻道資訊..." class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full resize-none text-sm"></textarea>
                     
                     <div class="flex gap-2">
+                        <!-- 🛡️ 修復：HTML 加入明確副檔名白名單，阻擋 HEIC -->
                         <label class="flex-1 bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm">
                             <span id="logoLabel" data-i18n="btn_logo">🖼️ 上傳頻道 Logo</span>
-                            <input type="file" id="channelLogo" accept="image/*" class="hidden">
+                            <input type="file" id="channelLogo" accept="image/jpeg, image/png, image/webp, image/gif" class="hidden">
                         </label>
                         <!-- 自訂沉浸式背景上傳 -->
                         <label class="flex-1 bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm truncate">
                             <span id="bgLabel" data-i18n="btn_bg">🌌 上傳沉浸式背景</span>
-                            <input type="file" id="bgUpload" accept="image/*,video/*" class="hidden">
+                            <input type="file" id="bgUpload" accept="image/jpeg, image/png, image/webp, image/gif, video/mp4, video/webm" class="hidden">
                         </label>
                     </div>
                     
@@ -94,7 +95,6 @@
                         <span id="valLogoScale" class="text-xs text-blue-400 w-8 text-right font-mono">1.0x</span>
                     </div>
 
-                    <!-- 🌟 新增：背景遮罩暗度滑桿 -->
                     <div id="bgDimWrapper" class="hidden flex items-center justify-between gap-3 px-3 py-2 bg-gray-900/50 rounded-lg border border-gray-700 mt-[-4px]">
                         <span class="text-xs text-gray-400 whitespace-nowrap" data-i18n="lbl_bg_dim">🌌 背景遮罩</span>
                         <input type="range" id="slBgDim" min="0.0" max="1.0" step="0.05" value="0.85" class="w-full">
