@@ -36,7 +36,7 @@ let State = {
     layoutOffsets: {
         channel: { px: 0.04, py: 0.06 }, titles: { px: 0.50, py: 0.16 },  
         logo: { px: 0.96, py: 0.06 }, lyrics: { px: 0.50, py: 0.90 },
-        vfx: { px: 0.50, py: 0.50 } // 🌟 特效中心點座標
+        vfx: { px: 0.50, py: 0.50 } 
     },
     cache: {
         cNameLines: [], cNameMaxWidth: 0, topicWidth: 0, speakerWidth: 0, lastScale: 0
@@ -85,9 +85,6 @@ function loadState() {
     if (chkA11y) chkA11y.checked = State.ui.isA11y;
 }
 
-// ==========================================
-// 🎨 介面更新：按鈕狀態發光回饋 (解決載入前後無區別)
-// ==========================================
 function updateButtonVisualState(labelId, isLoaded) {
     const labelSpan = document.getElementById(labelId);
     if (!labelSpan) return;
@@ -310,14 +307,16 @@ let audio = new AudioEngine();
 let isDrawing = false;
 let currentMode = null; 
 
+// 🎯 穩定性修復 2：記憶體管理，紀錄當前 URL 以便撤銷
+let currentLogoUrl = null; 
 let logoImg = new Image();
+
 const canvas2D = document.getElementById('visualizer2D');
 const ctx2D = canvas2D.getContext('2d');
 const canvas3D = document.getElementById('visualizer3D'); 
 const particleCanvas = document.createElement('canvas');
 const pCtx = particleCanvas.getContext('2d');
 
-// 🎨 獨立特效緩衝區 (實現濾色混合與特效拖曳)
 const vfxCanvas = document.createElement('canvas');
 const vfxCtx = vfxCanvas.getContext('2d');
 
@@ -328,6 +327,12 @@ const bgManager = new BackgroundManager();
 
 let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x:0,y:0,w:0,h:0}, lyrics: {x:0,y:0,w:0,h:0}, vfx: {x:0,y:0,w:0,h:0} };
 let dragTarget = null, hoverTarget = null, dragOffsetX = 0, dragOffsetY = 0, userHasDragged = false; 
+
+// 🎯 穩定性修復 1：防止多重動畫迴圈暴衝 (Ghost Loops)
+let animationFrameId = null;
+
+// 🎯 效能修復：預分配音訊資料陣列 (Zero Garbage Collection Allocation)
+let sharedDataArray = null;
 
 function setup3D() {
     const auroraSystem = initAurora3D(canvas3D);
@@ -340,7 +345,7 @@ function applyResolution(width, height) {
     canvas2D.width = width; canvas2D.height = height;
     canvas3D.width = width; canvas3D.height = height;
     particleCanvas.width = width; particleCanvas.height = height;
-    vfxCanvas.width = width; vfxCanvas.height = height; // 確保緩衝區尺寸同步
+    vfxCanvas.width = width; vfxCanvas.height = height; 
 
     if (rm && rm.renderer) { rm.renderer.setSize(width, height, false); rm.camera.aspect = width / height; rm.camera.updateProjectionMatrix(); }
     if (nebulaSystem && nebulaSystem.renderer) nebulaSystem.renderer.setSize(width, height, false);
@@ -401,7 +406,7 @@ function formatTime(seconds) {
 }
 
 // ==========================================
-// 🎨 完美渲染迴圈 (解決背景黑屏遮擋與特效偏移)
+// 🎨 完美渲染迴圈 (極速 GC 優化版)
 // ==========================================
 function renderCore(dataArray, safePulse) {
     ctx2D.globalCompositeOperation = 'source-over';
@@ -420,7 +425,6 @@ function renderCore(dataArray, safePulse) {
         vfxCtx.clearRect(0, 0, vfxCanvas.width, vfxCanvas.height);
         effect.render(vfxCtx, vfxCanvas, canvas3D, dataArray, safePulse, getScale());
         
-        // 特效圖層跟隨滑鼠偏移疊加
         const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width;
         const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height;
         
@@ -434,30 +438,38 @@ function renderCore(dataArray, safePulse) {
     drawInteractions(); 
 }
 
-function forceRenderFrame() {
-    if (isDrawing) return; 
-    let dataArray = new Uint8Array(256), safePulse = 0;
+function extractAudioPulse() {
+    let safePulse = 0;
     if (audio.analyser) {
-        dataArray = new Uint8Array(audio.analyser.frequencyBinCount);
-        audio.analyser.getByteFrequencyData(dataArray);
-        const bassSum = dataArray[0] + dataArray[1] + dataArray[2] + dataArray[3] + dataArray[4] + dataArray[5];
+        if (!sharedDataArray || sharedDataArray.length !== audio.analyser.frequencyBinCount) {
+            sharedDataArray = new Uint8Array(audio.analyser.frequencyBinCount);
+        }
+        audio.analyser.getByteFrequencyData(sharedDataArray);
+        // 極速運算，取代 .slice().reduce() 的陣列配置
+        const bassSum = sharedDataArray[0] + sharedDataArray[1] + sharedDataArray[2] + sharedDataArray[3] + sharedDataArray[4] + sharedDataArray[5];
         const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
         safePulse = State.ui.isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
     }
-    renderCore(dataArray, safePulse);
+    return safePulse;
+}
+
+function forceRenderFrame() {
+    if (isDrawing) return; 
+    const safePulse = extractAudioPulse();
+    renderCore(sharedDataArray || new Uint8Array(256), safePulse);
 }
 
 function drawMasterLoop() {
     if (!isDrawing) return;
-    requestAnimationFrame(drawMasterLoop);
+    
+    // 🎯 穩定性修復 1：確保同一時間只有一個引擎在跑，防畫面撕裂與加速
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    animationFrameId = requestAnimationFrame(drawMasterLoop);
+    
     if (!audio.analyser) return;
 
-    const dataArray = new Uint8Array(audio.analyser.frequencyBinCount);
-    audio.analyser.getByteFrequencyData(dataArray);
-    const bassSum = dataArray[0] + dataArray[1] + dataArray[2] + dataArray[3] + dataArray[4] + dataArray[5];
-    const safePulse = State.ui.isA11y ? Math.min(Math.pow((bassSum / 6) / 255, 3.0), 0.15) : Math.pow((bassSum / 6) / 255, 3.0); 
-    
-    renderCore(dataArray, safePulse);
+    const safePulse = extractAudioPulse();
+    renderCore(sharedDataArray, safePulse);
 }
 
 function drawLayout() {
@@ -482,7 +494,6 @@ function drawLayout() {
     const tx = State.layoutOffsets.titles.px * canvas2D.width; const ty = State.layoutOffsets.titles.py * canvas2D.height;
     const lx = State.layoutOffsets.logo.px * canvas2D.width; const ly = State.layoutOffsets.logo.py * canvas2D.height;
 
-    // 1. 左上角文字
     if (State.ui.channelName && State.cache.cNameLines.length > 0) {
         ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
         ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx2D.font = `bold ${32*scale}px ${font}`;
@@ -498,7 +509,6 @@ function drawLayout() {
         hitboxes.channel = { x: cx, y: cy, w: State.cache.cNameMaxWidth, h: currentY - cy };
     } else hitboxes.channel = { x: 0, y: 0, w: 0, h: 0 };
     
-    // 2. 主標題文字
     if (State.ui.topicTitle || State.ui.speakerInfo) {
         const align = (State.layoutOffsets.titles.px < 0.25) ? 'left' : ((State.layoutOffsets.titles.px > 0.75) ? 'right' : 'center');
         ctx2D.textAlign = align; ctx2D.textBaseline = 'top';
@@ -516,19 +526,15 @@ function drawLayout() {
         hitboxes.titles = { x: boxX, y: ty, w: maxW, h: currentY - ty };
     } else hitboxes.titles = { x: 0, y: 0, w: 0, h: 0 };
     
-    // 3. Logo 繪製 (支援狀態記憶縮放)
     ctx2D.shadowBlur = 0;
     if (logoImg.src && logoImg.complete) {
-        const maxW = 120 * scale * State.ui.logoScale; 
-        const aspect = logoImg.width / logoImg.height;
-        const dw = aspect < 1 ? maxW * aspect : maxW;
-        const dh = aspect < 1 ? maxW : maxW / aspect;
-        const drawX = lx - dw; const drawY = ly;
+        const maxW = 120 * scale * State.ui.logoScale, aspect = logoImg.width / logoImg.height;
+        const dw = aspect < 1 ? maxW * aspect : maxW, dh = aspect < 1 ? maxW : maxW / aspect;
+        const drawX = lx - dw, drawY = ly;
         ctx2D.drawImage(logoImg, drawX, drawY, dw, dh);
         hitboxes.logo = { x: drawX, y: drawY, w: dw, h: dh };
     } else hitboxes.logo = { x: 0, y: 0, w: 0, h: 0 };
 
-    // 4. 定義特效(VFX)的隱形拖曳熱區 (置於特效中心)
     const vx = State.layoutOffsets.vfx.px * canvas2D.width;
     const vy = State.layoutOffsets.vfx.py * canvas2D.height;
     const vSize = 150 * scale; 
@@ -578,8 +584,12 @@ function getMousePos(canvas, evt) {
 function handlePointerMove(e) {
     const pos = getMousePos(canvas2D, e);
     if (dragTarget) {
-        State.layoutOffsets[dragTarget].px = (pos.x - dragOffsetX) / canvas2D.width;
-        State.layoutOffsets[dragTarget].py = (pos.y - dragOffsetY) / canvas2D.height;
+        // 🎯 穩定性修復 4：邊界限制 (Clamping)，防止 UI 飛出畫面外無法復原
+        let newPx = (pos.x - dragOffsetX) / canvas2D.width;
+        let newPy = (pos.y - dragOffsetY) / canvas2D.height;
+        State.layoutOffsets[dragTarget].px = Math.max(0.02, Math.min(0.98, newPx));
+        State.layoutOffsets[dragTarget].py = Math.max(0.02, Math.min(0.98, newPy));
+        
         userHasDragged = true; document.getElementById('presetSelector').value = 'custom';
         saveState(); forceRenderFrame(); canvas2D.style.cursor = 'grabbing';
         if(e.cancelable) e.preventDefault(); return;
@@ -834,6 +844,7 @@ document.getElementById('slVolMic').addEventListener('input', (e) => {
     saveState();
 });
 
+// 🎯 穩定性修復 3：資源釋放機制 (Memory Leak Fix)
 document.getElementById('bgUpload').addEventListener('change', function(e) {
     if(this.files.length) {
         bgManager.load(this.files[0], () => {
@@ -842,6 +853,23 @@ document.getElementById('bgUpload').addEventListener('change', function(e) {
             updateButtonVisualState('bgLabel', true);
             forceRenderFrame();
         });
+    }
+});
+
+document.getElementById('channelLogo').addEventListener('change', function(e) {
+    if(this.files.length) {
+        if (currentLogoUrl) URL.revokeObjectURL(currentLogoUrl); // 釋放舊記憶體
+        currentLogoUrl = URL.createObjectURL(this.files[0]);
+        logoImg.onload = () => { 
+            const logoLabel = document.getElementById('logoLabel'); 
+            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
+            updateButtonVisualState('logoLabel', true);
+            
+            const scaleWrapper = document.getElementById('logoScaleWrapper'); 
+            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
+            forceRenderFrame(); 
+        };
+        logoImg.src = currentLogoUrl;
     }
 });
 
@@ -878,20 +906,6 @@ window.addEventListener('drop', (e) => {
 
 // UI 基礎事件
 document.getElementById('audioUpload').addEventListener('change', (e) => { if(e.target.files.length) handleFileImport(e.target.files[0]); });
-document.getElementById('channelLogo').addEventListener('change', function(e) {
-    if(this.files.length) {
-        logoImg.onload = () => { 
-            const logoLabel = document.getElementById('logoLabel'); 
-            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
-            updateButtonVisualState('logoLabel', true);
-            
-            const scaleWrapper = document.getElementById('logoScaleWrapper'); 
-            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
-            forceRenderFrame(); 
-        };
-        logoImg.src = URL.createObjectURL(this.files[0]);
-    }
-});
 document.getElementById('resSelector').addEventListener('change', (e) => { document.getElementById('resSelectorMobile').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('resSelectorMobile').addEventListener('change', (e) => { document.getElementById('resSelector').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('btnCloseResult').addEventListener('click', () => { document.getElementById('resultModal').classList.add('hidden'); document.getElementById('resultModal').classList.remove('flex'); });
