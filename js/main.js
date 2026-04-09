@@ -20,7 +20,7 @@ window.t = function(key) {
 // 🧠 核心狀態管理與自動存檔 (Auto-Save)
 // ==========================================
 let State = {
-    activeVFX: ['waveform'], // 🌟 多圖層核心陣列
+    activeVFX: ['waveform'], 
     vfx: {
         aurora: { rotSpeed: 0.2, transmission: 0.9, showAurora: true, showSun: true },
         particle: { amountMult: 1.0, speedMult: 1.0 },
@@ -33,9 +33,10 @@ let State = {
         channelName: "", topicTitle: "", speakerInfo: "", 
         logoScale: 1.0, isA11y: false,
         volBGM: 1.0, volMic: 1.0,
-        cameraShake: true, // 🎥 電影級運鏡震動
-        obsMode: false,    // 📺 OBS 全螢幕轉播模式
-        bgDim: 0.85        // 🌌 背景遮罩亮度
+        cameraShake: true, 
+        obsMode: false,    
+        bgDim: 0.85,
+        autoVJ: false // 🤖 智慧化：AI 自動導播開關
     },
     layoutOffsets: {
         channel: { px: 0.04, py: 0.06 }, titles: { px: 0.50, py: 0.16 },  
@@ -90,7 +91,6 @@ function loadState() {
         document.getElementById('valLogoScale').textContent = parseFloat(State.ui.logoScale).toFixed(1) + 'x';
     }
 
-    // 🌟 載入背景遮罩狀態
     if (State.ui.bgDim === undefined) State.ui.bgDim = 0.85;
     const slBgDim = document.getElementById('slBgDim');
     if (slBgDim) {
@@ -115,6 +115,10 @@ function loadState() {
     
     const chkCam = document.getElementById('chkCameraShake');
     if (chkCam) chkCam.checked = State.ui.cameraShake;
+
+    if (State.ui.autoVJ === undefined) State.ui.autoVJ = false;
+    const chkAutoVJ = document.getElementById('chkAutoVJ');
+    if (chkAutoVJ) chkAutoVJ.checked = State.ui.autoVJ;
 }
 
 function updateButtonVisualState(labelId, isLoaded) {
@@ -284,12 +288,20 @@ function upgradeUIToMultiLayer() {
         
         const headerDiv = document.createElement('div');
         headerDiv.className = 'flex justify-between items-center mb-2 border-b border-gray-700 pb-1';
+        
+        // 🌟 注入 Auto-VJ 與 Camera Shake 控制面板
         headerDiv.innerHTML = `
             <span class="text-xs text-gray-400" data-i18n="lbl_active_vfx">${window.t('lbl_active_vfx') || '疊加特效 (可複選)'}</span>
-            <label class="text-xs text-blue-400 flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" id="chkCameraShake" class="rounded text-blue-600 focus:ring-blue-500" ${State.ui.cameraShake ? 'checked' : ''}>
-                <span data-i18n="lbl_camera_shake">${window.t('lbl_camera_shake') || '🎥 電影級運鏡震動'}</span>
-            </label>
+            <div class="flex items-center gap-3">
+                <label class="text-xs text-purple-400 flex items-center gap-1 cursor-pointer" title="重低音爆發時自動開啟運鏡與增強特效">
+                    <input type="checkbox" id="chkAutoVJ" class="rounded text-purple-600 focus:ring-purple-500" ${State.ui.autoVJ ? 'checked' : ''}>
+                    <span data-i18n="lbl_auto_vj">${window.t('lbl_auto_vj') || '🤖 AI 自動導播'}</span>
+                </label>
+                <label class="text-xs text-blue-400 flex items-center gap-1 cursor-pointer">
+                    <input type="checkbox" id="chkCameraShake" class="rounded text-blue-600 focus:ring-blue-500" ${State.ui.cameraShake ? 'checked' : ''}>
+                    <span data-i18n="lbl_camera_shake">${window.t('lbl_camera_shake') || '🎥 電影運鏡'}</span>
+                </label>
+            </div>
         `;
         parent.insertBefore(headerDiv, oldSelector);
 
@@ -302,6 +314,11 @@ function upgradeUIToMultiLayer() {
         
         document.getElementById('chkCameraShake')?.addEventListener('change', (e) => {
             State.ui.cameraShake = e.target.checked;
+            saveState();
+        });
+
+        document.getElementById('chkAutoVJ')?.addEventListener('change', (e) => {
+            State.ui.autoVJ = e.target.checked;
             saveState();
         });
     }
@@ -514,15 +531,25 @@ function formatTime(seconds) {
 }
 
 // ==========================================
-// 🎨 完美渲染迴圈 (多層疊加 + 音頻呼吸 + 電影級運鏡)
+// 🎨 完美渲染迴圈 (含 AI 自動導播 Auto-VJ)
 // ==========================================
 function renderCore(dataArray, safePulse) {
     ctx2D.globalCompositeOperation = 'source-over';
     ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
     
+    // 🤖 AI 自動導播運算：根據重低音決定視覺張力
+    let renderCameraShake = State.ui.cameraShake;
+    let vfxPulse = safePulse;
+    
+    if (State.ui.autoVJ) {
+        const isDrop = safePulse > 0.08; // 判斷是否為音樂高潮
+        renderCameraShake = isDrop;
+        vfxPulse = isDrop ? safePulse * 1.5 : safePulse; // 高潮時特效放大
+    }
+
     const hasBg = bgManager && bgManager.media;
     if (hasBg) {
-        const bgScale = 1 + (safePulse * 0.05); 
+        const bgScale = 1 + (vfxPulse * 0.05); 
         ctx2D.save();
         ctx2D.translate(canvas2D.width / 2, canvas2D.height / 2);
         ctx2D.scale(bgScale, bgScale);
@@ -530,9 +557,8 @@ function renderCore(dataArray, safePulse) {
         
         bgManager.draw(ctx2D, canvas2D.width, canvas2D.height);
         
-        // 🌟 背景遮罩：讀取使用者調整的 bgDim 數值，並隨著音樂呼吸
         const baseDim = State.ui.bgDim !== undefined ? State.ui.bgDim : 0.85;
-        const dynamicOpacity = Math.max(0.0, baseDim - (safePulse * 0.5));
+        const dynamicOpacity = Math.max(0.0, baseDim - (vfxPulse * 0.5));
         ctx2D.fillStyle = `rgba(0, 0, 0, ${dynamicOpacity})`;
         ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
         ctx2D.restore();
@@ -545,25 +571,25 @@ function renderCore(dataArray, safePulse) {
     
     ['aurora', 'nebula'].forEach(id => {
         if (State.activeVFX.includes(id) && VFXRegistry[id]) {
-            VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, safePulse, getScale());
+            VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
         }
     });
 
     ['particle', 'circular', 'eq', 'waveform'].forEach(id => {
         if (State.activeVFX.includes(id) && VFXRegistry[id]) {
-            VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, safePulse, getScale());
+            VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
         }
     });
 
     let camOffsetX = 0;
     let camOffsetY = 0;
-    if (State.ui.cameraShake) {
+    if (renderCameraShake) {
         const time = Date.now() * 0.001;
         camOffsetX = Math.sin(time * 0.5) * 0.01 * canvas2D.width;
         camOffsetY = Math.cos(time * 0.3) * 0.01 * canvas2D.height;
-        if (safePulse > 0.05) {
-            camOffsetX += (Math.random() - 0.5) * safePulse * 60;
-            camOffsetY += (Math.random() - 0.5) * safePulse * 60;
+        if (vfxPulse > 0.05) {
+            camOffsetX += (Math.random() - 0.5) * vfxPulse * 60;
+            camOffsetY += (Math.random() - 0.5) * vfxPulse * 60;
         }
     }
 
@@ -771,15 +797,22 @@ canvas2D.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 // ==========================================
-// 🎵 歌詞渲染與音訊狀態連動
+// 🎵 歌詞渲染與音訊狀態連動 (含波形時間軸標記)
 // ==========================================
-lyricsInput.addEventListener('input', () => lyricsManager.parse(lyricsInput.value));
+lyricsInput.addEventListener('input', () => {
+    lyricsManager.parse(lyricsInput.value);
+    updateWaveformMarkers(); // 🌟 更新波形標記
+});
 
 audioPlayer.addEventListener('timeupdate', () => {
     const timeDisplay = document.getElementById('currentTimeDisplay');
     if (timeDisplay) {
         timeDisplay.innerText = `${formatTime(audioPlayer.currentTime)} / ${formatTime(audioPlayer.duration)}`;
     }
+});
+
+audioPlayer.addEventListener('loadedmetadata', () => {
+    updateWaveformMarkers(); // 🌟 音檔讀取完畢後，初始化波形標記
 });
 
 audioPlayer.addEventListener('ended', () => {
@@ -790,6 +823,31 @@ audioPlayer.addEventListener('ended', () => {
         document.getElementById('currentSyncLine').innerText = window.t('sync_end');
     }
 });
+
+// 🌟 新增：繪製全局波形上的黃色歌詞標記
+function updateWaveformMarkers() {
+    const container = document.getElementById('waveformPreview');
+    if (!container) return;
+    
+    // 清除舊的標記
+    container.querySelectorAll('.lyric-marker').forEach(el => el.remove());
+    
+    if (!audioPlayer || isNaN(audioPlayer.duration) || audioPlayer.duration === 0) return;
+    
+    // 確保容器有 relative 屬性以供絕對定位
+    container.classList.add('relative');
+    
+    // 將所有歌詞的打軸時間轉化為黃色光柱標記
+    lyricsManager.parsedLyrics.forEach(lyric => {
+        const pct = lyric.time / audioPlayer.duration;
+        if (pct >= 0 && pct <= 1) {
+            const marker = document.createElement('div');
+            marker.className = 'lyric-marker absolute top-0 w-[2px] h-full bg-yellow-400 z-10 pointer-events-none shadow-[0_0_5px_#facc15] opacity-80';
+            marker.style.left = `${pct * 100}%`;
+            container.appendChild(marker);
+        }
+    });
+}
 
 function drawLyrics() {
     let active = "";
@@ -852,6 +910,8 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
     if (!result) return;
     
     lyricsInput.value = result.newText;
+    updateWaveformMarkers(); // 🌟 打下節點後，立刻更新波形標記
+    
     if (result.isFinished) {
         document.getElementById('currentSyncLine').innerHTML = `<span class="text-green-400">${window.t('sync_done')}</span>`;
         lyricsManager.stopSync();
@@ -1032,6 +1092,7 @@ async function handleFileImport(file) {
         try {
             const waveData = await audio.getStaticWaveform(file);
             drawStaticWaveform(waveData);
+            updateWaveformMarkers(); // 🌟 重繪波形時也重繪標記
         } catch (waveErr) {
             console.warn("Waveform generation skipped:", waveErr);
         }
@@ -1089,7 +1150,6 @@ document.getElementById('bgUpload').addEventListener('change', function(e) {
     }
 });
 
-// 🌟 新增：背景遮罩亮度滑桿事件
 document.getElementById('slBgDim')?.addEventListener('input', (e) => {
     const val = parseFloat(e.target.value);
     State.ui.bgDim = val;
@@ -1101,7 +1161,11 @@ document.getElementById('slBgDim')?.addEventListener('input', (e) => {
 
 function drawStaticWaveform(data) {
     const container = document.getElementById('waveformPreview'); if (!container) return; 
-    container.innerHTML = ''; const max = Math.max(...data);
+    
+    // 🌟 清除舊的波柱，但保留絕對定位的黃色標記 (如果有的話)
+    container.querySelectorAll('div:not(.lyric-marker)').forEach(el => el.remove());
+    
+    const max = Math.max(...data);
     data.forEach((val, i) => {
         const bar = document.createElement('div');
         bar.className = 'w-1 bg-gray-600 rounded-full transition-all hover:bg-blue-400 cursor-pointer';
@@ -1151,11 +1215,6 @@ document.getElementById('channelLogo').addEventListener('change', function(e) {
 document.getElementById('resSelector').addEventListener('change', (e) => { document.getElementById('resSelectorMobile').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('resSelectorMobile').addEventListener('change', (e) => { document.getElementById('resSelector').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('btnCloseResult').addEventListener('click', () => { document.getElementById('resultModal').classList.add('hidden'); document.getElementById('resultModal').classList.remove('flex'); });
-
-document.getElementById('chkCameraShake')?.addEventListener('change', (e) => {
-    State.ui.cameraShake = e.target.checked;
-    saveState();
-});
 
 document.getElementById('presetSelector').addEventListener('change', (e) => applyPreset(e.target.value));
 
