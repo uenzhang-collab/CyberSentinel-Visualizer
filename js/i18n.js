@@ -9,6 +9,7 @@ export const translations = {
         "btn_mic": "🎙️ 啟用麥克風",
         "btn_upload": "🎵 上傳音源 (含影片)",
         "logo_scale": "📏 Logo 縮放",
+        "lbl_bg_dim": "🌌 背景遮罩",
         "step2_title": "2️⃣ 動態歌詞 (LRC 打軸)",
         "step3_title": "3️⃣ 視覺特效與微調",
         "step4_title": "4️⃣ 即時預覽與錄製 (大視窗)",
@@ -41,7 +42,6 @@ export const translations = {
         "convert_cloud": "☁️ 前往 CloudConvert 轉檔",
         "privacy_notice": "🛡️ 隱私主權承諾：本系統採 100% 本地端邊緣運算，您的音訊絕不上傳雲端，完美保障資料安全。",
         "esg_eco_mode": "🌱 ESG 節能模式啟動 (低電量)",
-        
         "ph_topic": "大標題 (專題主題)",
         "ph_speaker": "副標題 (講者資訊)",
         "ph_channel": "左上角頻道資訊...",
@@ -103,7 +103,6 @@ export const translations = {
         "preset_cyberpunk": "🌆 賽博龐克之夜",
         "preset_podcast": "🎙️ 專業 Podcast",
         "preset_minimal": "⚪ 極簡純粹",
-        
         "msg_obs_mode_on": "🎥 OBS 直播模式已開啟 (按 Shift+F 退出)",
         "msg_obs_mode_off": "🔙 已退出 OBS 模式",
         "btn_obs_mode": "OBS 模式"
@@ -115,6 +114,7 @@ export const translations = {
         "btn_mic": "🎙️ 启用麦克风",
         "btn_upload": "🎵 上传音源 (含视频)",
         "logo_scale": "📏 Logo 缩放",
+        "lbl_bg_dim": "🌌 背景遮罩",
         "step2_title": "2️⃣ 动态歌词 (LRC 打轴)",
         "step3_title": "3️⃣ 视觉特效与微调",
         "step4_title": "4️⃣ 即时预览与录制 (大窗口)",
@@ -147,7 +147,6 @@ export const translations = {
         "convert_cloud": "☁️ 前往 CloudConvert 转档",
         "privacy_notice": "🛡️ 隐私主权承诺：本系统采 100% 本地端边缘运算，您的音讯绝不上传云端，完美保障数据安全。",
         "esg_eco_mode": "🌱 ESG 节能模式启动 (低电量)",
-        
         "ph_topic": "大标题 (专题主题)",
         "ph_speaker": "副标题 (讲者资讯)",
         "ph_channel": "左上角频道资讯...",
@@ -209,7 +208,6 @@ export const translations = {
         "preset_cyberpunk": "🌆 赛博朋克之夜",
         "preset_podcast": "🎙️ 专业 Podcast",
         "preset_minimal": "⚪ 极简纯粹",
-        
         "msg_obs_mode_on": "🎥 OBS 直播模式已开启 (按 Shift+F 退出)",
         "msg_obs_mode_off": "🔙 已退出 OBS 模式",
         "btn_obs_mode": "OBS 模式"
@@ -221,6 +219,7 @@ export const translations = {
         "btn_mic": "🎙️ Enable Mic",
         "btn_upload": "🎵 Upload Audio/Video",
         "logo_scale": "📏 Logo Scale",
+        "lbl_bg_dim": "🌌 BG Dimming",
         "step2_title": "2️⃣ Dynamic Lyrics",
         "step3_title": "3️⃣ Visual Effects",
         "step4_title": "4️⃣ Preview & Record",
@@ -253,7 +252,6 @@ export const translations = {
         "convert_cloud": "☁️ Convert via CloudConvert",
         "privacy_notice": "🛡️ Privacy Pledge: 100% local edge computing. Your audio never leaves your device.",
         "esg_eco_mode": "🌱 ESG Eco Mode (Low Battery)",
-        
         "ph_topic": "Main Title (Topic)",
         "ph_speaker": "Subtitle (Speaker Info)",
         "ph_channel": "Top-left Channel Info...",
@@ -315,7 +313,6 @@ export const translations = {
         "preset_cyberpunk": "🌆 Cyberpunk Night",
         "preset_podcast": "🎙️ Pro Podcast",
         "preset_minimal": "⚪ Pure Minimal",
-        
         "msg_obs_mode_on": "🎥 OBS Studio Mode ON (Press Shift+F to exit)",
         "msg_obs_mode_off": "🔙 Exited OBS Mode",
         "btn_obs_mode": "OBS Mode"
@@ -327,6 +324,7 @@ export const translations = {
         "btn_mic": "🎙️ Habilitar Micrófono",
         "btn_upload": "🎵 Subir Audio/Video",
         "logo_scale": "📏 Escala del Logo",
+        "lbl_bg_dim": "🌌 Oscurecimiento",
         "step2_title": "2️⃣ Letras Dinámicas (LRC)",
         "step3_title": "3️⃣ Efectos Visuales",
         "step4_title": "4️⃣ Vista Previa y Grabar",
@@ -359,7 +357,6 @@ export const translations = {
         "convert_cloud": "☁️ Convertir vía CloudConvert",
         "privacy_notice": "🛡️ Privacidad: 100% procesamiento local. Tu audio nunca se sube a la nube.",
         "esg_eco_mode": "🌱 Modo Eco ESG (Batería Baja)",
-        
         "ph_topic": "Título Principal (Tema)",
         "ph_speaker": "Subtítulo (Información del orador)",
         "ph_channel": "Información del canal...",
@@ -421,7 +418,6 @@ export const translations = {
         "preset_cyberpunk": "🌆 Noche Cyberpunk",
         "preset_podcast": "🎙️ Podcast Pro",
         "preset_minimal": "⚪ Minimalista puro",
-        
         "msg_obs_mode_on": "🎥 Modo OBS Activado (Presiona Shift+F para salir)",
         "msg_obs_mode_off": "🔙 Modo OBS Desactivado",
         "btn_obs_mode": "Modo OBS"
@@ -433,6 +429,7 @@ export const translations = {
         "btn_mic": "🎙️ マイクを有効にする",
         "btn_upload": "🎵 音声/動画をアップロード",
         "logo_scale": "📏 ロゴの拡大縮小",
+        "lbl_bg_dim": "🌌 背景の暗さ",
         "step2_title": "2️⃣ 動的歌詞 (LRC 同期)",
         "step3_title": "3️⃣ 視覚エフェクトと微調整",
         "step4_title": "4️⃣ プレビューと録画",
@@ -465,7 +462,6 @@ export const translations = {
         "convert_cloud": "☁️ CloudConvertで変換",
         "privacy_notice": "🛡️ プライバシーの誓い: 100%ローカル処理。音声がクラウドにアップロードされることはありません。",
         "esg_eco_mode": "🌱 ESGエコモード (バッテリー低下)",
-        
         "ph_topic": "メインタイトル (トピック)",
         "ph_speaker": "サブタイトル (スピーカー情報)",
         "ph_channel": "左上のチャンネル情報...",
@@ -527,7 +523,6 @@ export const translations = {
         "preset_cyberpunk": "🌆 サイバーパンクの夜",
         "preset_podcast": "🎙️ プロポッドキャスト",
         "preset_minimal": "⚪ ミニマル",
-        
         "msg_obs_mode_on": "🎥 OBSモードがオンになりました (Shift+F で終了)",
         "msg_obs_mode_off": "🔙 OBSモードを終了しました",
         "btn_obs_mode": "OBS モード"
@@ -539,6 +534,7 @@ export const translations = {
         "btn_mic": "🎙️ Mikrofon aktivieren",
         "btn_upload": "🎵 Audio/Video hochladen",
         "logo_scale": "📏 Logo-Skalierung",
+        "lbl_bg_dim": "🌌 BG-Verdunkelung",
         "step2_title": "2️⃣ Dynamische Songtexte",
         "step3_title": "3️⃣ Visuelle Effekte",
         "step4_title": "4️⃣ Vorschau & Aufnahme",
@@ -571,7 +567,6 @@ export const translations = {
         "convert_cloud": "☁️ Konvertieren via CloudConvert",
         "privacy_notice": "🛡️ Datenschutz: 100% lokale Verarbeitung. Keine Cloud-Uploads.",
         "esg_eco_mode": "🌱 ESG Eco-Modus (Akku schwach)",
-        
         "ph_topic": "Haupttitel (Thema)",
         "ph_speaker": "Untertitel (Sprecher)",
         "ph_channel": "Kanalinfo oben links...",
@@ -633,7 +628,6 @@ export const translations = {
         "preset_cyberpunk": "🌆 Cyberpunk-Nacht",
         "preset_podcast": "🎙️ Pro-Podcast",
         "preset_minimal": "⚪ Minimalistisch",
-        
         "msg_obs_mode_on": "🎥 OBS-Modus EIN (Shift+F zum Beenden drücken)",
         "msg_obs_mode_off": "🔙 OBS-Modus beendet",
         "btn_obs_mode": "OBS-Modus"
@@ -645,6 +639,7 @@ export const translations = {
         "btn_mic": "🎙️ Activer le Micro",
         "btn_upload": "🎵 Charger Audio/Vidéo",
         "logo_scale": "📏 Échelle du Logo",
+        "lbl_bg_dim": "🌌 Assombrissement",
         "step2_title": "2️⃣ Paroles Dynamiques",
         "step3_title": "3️⃣ Effets Visuels",
         "step4_title": "4️⃣ Aperçu et Enregistrement",
@@ -677,7 +672,6 @@ export const translations = {
         "convert_cloud": "☁️ Convertir via CloudConvert",
         "privacy_notice": "🛡️ Confidentialité : Traitement 100% local. Votre audio reste sur votre appareil.",
         "esg_eco_mode": "🌱 Mode Éco ESG (Batterie Faible)",
-        
         "ph_topic": "Titre Principal (Sujet)",
         "ph_speaker": "Sous-titre (Intervenant)",
         "ph_channel": "Info chaîne en haut à gauche...",
@@ -739,7 +733,6 @@ export const translations = {
         "preset_cyberpunk": "🌆 Nuit Cyberpunk",
         "preset_podcast": "🎙️ Podcast Pro",
         "preset_minimal": "⚪ Pur Minimalisme",
-        
         "msg_obs_mode_on": "🎥 Mode OBS Activé (Appuyez sur Shift+F pour quitter)",
         "msg_obs_mode_off": "🔙 Mode OBS Désactivé",
         "btn_obs_mode": "Mode OBS"
@@ -751,8 +744,9 @@ export const translations = {
         "btn_mic": "🎙️ 마이크 켜기",
         "btn_upload": "🎵 오디오/비디오 업로드",
         "logo_scale": "📏 로고 크기 조절",
+        "lbl_bg_dim": "🌌 배경 어둡기",
         "step2_title": "2️⃣ 동적 가사 (LRC 동기화)",
-        "step3_title": "3️⃣ 시각 효과 및 미세 조정",
+        "step3_title": "3 시각 효과 및 미세 조정",
         "step4_title": "4️⃣ 미리보기 및 녹화",
         "btn_record": "🔴 녹화 시작",
         "vfx_mod_aurora": "오로라 바",
@@ -783,7 +777,6 @@ export const translations = {
         "convert_cloud": "☁️ CloudConvert로 변환",
         "privacy_notice": "🛡️ 프라이버시 약속: 100% 로컬 처리. 오디오는 클라우드에 업로드되지 않습니다.",
         "esg_eco_mode": "🌱 ESG 에코 모드 (배터리 부족)",
-        
         "ph_topic": "메인 타이틀 (주제)",
         "ph_speaker": "서브 타이틀 (발표자 정보)",
         "ph_channel": "좌측 상단 채널 정보...",
@@ -845,7 +838,6 @@ export const translations = {
         "preset_cyberpunk": "🌆 사이버펑크 나이트",
         "preset_podcast": "🎙️ 프로 팟캐스트",
         "preset_minimal": "⚪ 미니멀",
-        
         "msg_obs_mode_on": "🎥 OBS 모드 켜짐 (종료하려면 Shift+F 누름)",
         "msg_obs_mode_off": "🔙 OBS 모드 종료됨",
         "btn_obs_mode": "OBS 모드"

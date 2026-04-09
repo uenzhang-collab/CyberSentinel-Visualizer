@@ -94,6 +94,13 @@
                         <span id="valLogoScale" class="text-xs text-blue-400 w-8 text-right font-mono">1.0x</span>
                     </div>
 
+                    <!-- 🌟 新增：背景遮罩暗度滑桿 -->
+                    <div id="bgDimWrapper" class="hidden flex items-center justify-between gap-3 px-3 py-2 bg-gray-900/50 rounded-lg border border-gray-700 mt-[-4px]">
+                        <span class="text-xs text-gray-400 whitespace-nowrap" data-i18n="lbl_bg_dim">🌌 背景遮罩</span>
+                        <input type="range" id="slBgDim" min="0.0" max="1.0" step="0.05" value="0.85" class="w-full">
+                        <span id="valBgDim" class="text-xs text-blue-400 w-8 text-right font-mono">0.85</span>
+                    </div>
+
                     <!-- 雙軌混音器 UI -->
                     <div class="mt-2 p-3 bg-gray-950 rounded-lg border border-gray-700">
                         <h4 class="text-xs font-bold text-blue-400 mb-3" data-i18n="lbl_mixer">🎚️ 雙軌混音器</h4>
