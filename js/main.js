@@ -36,7 +36,7 @@ let State = {
         cameraShake: true, 
         obsMode: false,    
         bgDim: 0.85,
-        autoVJ: false // 🤖 智慧化：AI 自動導播開關
+        autoVJ: false 
     },
     layoutOffsets: {
         channel: { px: 0.04, py: 0.06 }, titles: { px: 0.50, py: 0.16 },  
@@ -49,76 +49,79 @@ let State = {
 };
 
 let _saveTimeout = null;
-function saveState() {
-    clearTimeout(_saveTimeout);
-    _saveTimeout = setTimeout(() => {
-        localStorage.setItem('CS_State_VFX', JSON.stringify(State.vfx));
-        localStorage.setItem('CS_State_UI', JSON.stringify(State.ui));
-        localStorage.setItem('CS_State_Layout', JSON.stringify(State.layoutOffsets));
-        localStorage.setItem('CS_ActiveVFX', JSON.stringify(State.activeVFX));
-    }, 500); 
+
+// 🛡️ 架構升級 3：強健的狀態同步機制，支援強制立即寫入
+function saveState(force = false) {
+    const executeSave = () => {
+        try {
+            localStorage.setItem('CS_State_VFX', JSON.stringify(State.vfx));
+            localStorage.setItem('CS_State_UI', JSON.stringify(State.ui));
+            localStorage.setItem('CS_State_Layout', JSON.stringify(State.layoutOffsets));
+            localStorage.setItem('CS_ActiveVFX', JSON.stringify(State.activeVFX));
+        } catch (e) {
+            console.error("[CyberSentinel] 儲存狀態至 LocalStorage 失敗", e);
+        }
+    };
+
+    if (force) {
+        clearTimeout(_saveTimeout);
+        executeSave();
+    } else {
+        clearTimeout(_saveTimeout);
+        _saveTimeout = setTimeout(executeSave, 500); 
+    }
 }
 
+// 🛡️ 架構升級 3：生命週期終點守護，防止視窗關閉時遺失最後幾毫秒的設定
+window.addEventListener('beforeunload', () => saveState(true));
+
 function loadState() {
-    const savedVfx = localStorage.getItem('CS_State_VFX');
-    const savedUi = localStorage.getItem('CS_State_UI');
-    const savedLayout = localStorage.getItem('CS_State_Layout');
-    const savedActive = localStorage.getItem('CS_ActiveVFX');
-    
-    if (savedVfx) State.vfx = { ...State.vfx, ...JSON.parse(savedVfx) };
-    if (savedUi) State.ui = { ...State.ui, ...JSON.parse(savedUi) };
-    if (savedLayout) {
-        State.layoutOffsets = { ...State.layoutOffsets, ...JSON.parse(savedLayout) };
-        userHasDragged = true; 
-    }
-    if (savedActive) {
-        try {
-            let parsed = JSON.parse(savedActive);
-            if (Array.isArray(parsed)) State.activeVFX = parsed;
-            else State.activeVFX = [savedActive]; 
-        } catch(e) {
-            State.activeVFX = [savedActive];
+    try {
+        const savedVfx = localStorage.getItem('CS_State_VFX');
+        const savedUi = localStorage.getItem('CS_State_UI');
+        const savedLayout = localStorage.getItem('CS_State_Layout');
+        const savedActive = localStorage.getItem('CS_ActiveVFX');
+        
+        if (savedVfx) State.vfx = { ...State.vfx, ...JSON.parse(savedVfx) };
+        if (savedUi) State.ui = { ...State.ui, ...JSON.parse(savedUi) };
+        if (savedLayout) {
+            State.layoutOffsets = { ...State.layoutOffsets, ...JSON.parse(savedLayout) };
+            userHasDragged = true; 
         }
+        if (savedActive) {
+            let parsed = JSON.parse(savedActive);
+            State.activeVFX = Array.isArray(parsed) ? parsed : [savedActive]; 
+        }
+    } catch (e) {
+        console.warn("[CyberSentinel] 讀取本機狀態失敗，使用系統預設值", e);
     }
 
-    document.getElementById('topicTitle').value = State.ui.topicTitle;
-    document.getElementById('speakerInfo').value = State.ui.speakerInfo;
-    document.getElementById('channelName').value = State.ui.channelName;
+    // 安全綁定 UI 數值
+    const bindVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    const bindText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const bindChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
+
+    bindVal('topicTitle', State.ui.topicTitle);
+    bindVal('speakerInfo', State.ui.speakerInfo);
+    bindVal('channelName', State.ui.channelName);
     
-    const slLogoScale = document.getElementById('slLogoScale');
-    if(slLogoScale) {
-        slLogoScale.value = State.ui.logoScale;
-        document.getElementById('valLogoScale').textContent = parseFloat(State.ui.logoScale).toFixed(1) + 'x';
-    }
+    bindVal('slLogoScale', State.ui.logoScale);
+    bindText('valLogoScale', parseFloat(State.ui.logoScale).toFixed(1) + 'x');
 
     if (State.ui.bgDim === undefined) State.ui.bgDim = 0.85;
-    const slBgDim = document.getElementById('slBgDim');
-    if (slBgDim) {
-        slBgDim.value = State.ui.bgDim;
-        document.getElementById('valBgDim').textContent = parseFloat(State.ui.bgDim).toFixed(2);
-    }
+    bindVal('slBgDim', State.ui.bgDim);
+    bindText('valBgDim', parseFloat(State.ui.bgDim).toFixed(2));
 
-    const slVolBGM = document.getElementById('slVolBGM');
-    if(slVolBGM) {
-        slVolBGM.value = State.ui.volBGM;
-        document.getElementById('valVolBGM').textContent = parseFloat(State.ui.volBGM).toFixed(2);
-    }
-
-    const slVolMic = document.getElementById('slVolMic');
-    if(slVolMic) {
-        slVolMic.value = State.ui.volMic;
-        document.getElementById('valVolMic').textContent = parseFloat(State.ui.volMic).toFixed(2);
-    }
+    bindVal('slVolBGM', State.ui.volBGM);
+    bindText('valVolBGM', parseFloat(State.ui.volBGM).toFixed(2));
+    bindVal('slVolMic', State.ui.volMic);
+    bindText('valVolMic', parseFloat(State.ui.volMic).toFixed(2));
     
-    const chkA11y = document.getElementById('chkA11y');
-    if (chkA11y) chkA11y.checked = State.ui.isA11y;
+    bindChk('chkA11y', State.ui.isA11y);
+    bindChk('chkCameraShake', State.ui.cameraShake);
     
-    const chkCam = document.getElementById('chkCameraShake');
-    if (chkCam) chkCam.checked = State.ui.cameraShake;
-
     if (State.ui.autoVJ === undefined) State.ui.autoVJ = false;
-    const chkAutoVJ = document.getElementById('chkAutoVJ');
-    if (chkAutoVJ) chkAutoVJ.checked = State.ui.autoVJ;
+    bindChk('chkAutoVJ', State.ui.autoVJ);
 }
 
 function updateButtonVisualState(labelId, isLoaded) {
@@ -289,7 +292,6 @@ function upgradeUIToMultiLayer() {
         const headerDiv = document.createElement('div');
         headerDiv.className = 'flex justify-between items-center mb-2 border-b border-gray-700 pb-1';
         
-        // 🌟 注入 Auto-VJ 與 Camera Shake 控制面板
         headerDiv.innerHTML = `
             <span class="text-xs text-gray-400" data-i18n="lbl_active_vfx">${window.t('lbl_active_vfx') || '疊加特效 (可複選)'}</span>
             <div class="flex items-center gap-3">
@@ -531,79 +533,84 @@ function formatTime(seconds) {
 }
 
 // ==========================================
-// 🎨 完美渲染迴圈 (含 AI 自動導播 Auto-VJ)
+// 🎨 完美渲染迴圈 (多層疊加 + 音頻呼吸 + 電影級運鏡)
+// 🛡️ 架構升級 1：錯誤邊界防護 (Error Boundary)
 // ==========================================
 function renderCore(dataArray, safePulse) {
-    ctx2D.globalCompositeOperation = 'source-over';
-    ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
-    
-    // 🤖 AI 自動導播運算：根據重低音決定視覺張力
-    let renderCameraShake = State.ui.cameraShake;
-    let vfxPulse = safePulse;
-    
-    if (State.ui.autoVJ) {
-        const isDrop = safePulse > 0.08; // 判斷是否為音樂高潮
-        renderCameraShake = isDrop;
-        vfxPulse = isDrop ? safePulse * 1.5 : safePulse; // 高潮時特效放大
-    }
-
-    const hasBg = bgManager && bgManager.media;
-    if (hasBg) {
-        const bgScale = 1 + (vfxPulse * 0.05); 
-        ctx2D.save();
-        ctx2D.translate(canvas2D.width / 2, canvas2D.height / 2);
-        ctx2D.scale(bgScale, bgScale);
-        ctx2D.translate(-canvas2D.width / 2, -canvas2D.height / 2);
+    try {
+        ctx2D.globalCompositeOperation = 'source-over';
+        ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
         
-        bgManager.draw(ctx2D, canvas2D.width, canvas2D.height);
+        let renderCameraShake = State.ui.cameraShake;
+        let vfxPulse = safePulse;
         
-        const baseDim = State.ui.bgDim !== undefined ? State.ui.bgDim : 0.85;
-        const dynamicOpacity = Math.max(0.0, baseDim - (vfxPulse * 0.5));
-        ctx2D.fillStyle = `rgba(0, 0, 0, ${dynamicOpacity})`;
-        ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
-        ctx2D.restore();
-    } else {
-        ctx2D.fillStyle = '#000000';
-        ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+        if (State.ui.autoVJ) {
+            const isDrop = safePulse > 0.08; 
+            renderCameraShake = isDrop;
+            vfxPulse = isDrop ? safePulse * 1.5 : safePulse; 
+        }
+
+        const hasBg = bgManager && bgManager.media;
+        if (hasBg) {
+            const bgScale = 1 + (vfxPulse * 0.05); 
+            ctx2D.save();
+            ctx2D.translate(canvas2D.width / 2, canvas2D.height / 2);
+            ctx2D.scale(bgScale, bgScale);
+            ctx2D.translate(-canvas2D.width / 2, -canvas2D.height / 2);
+            
+            bgManager.draw(ctx2D, canvas2D.width, canvas2D.height);
+            
+            const baseDim = State.ui.bgDim !== undefined ? State.ui.bgDim : 0.85;
+            const dynamicOpacity = Math.max(0.0, baseDim - (vfxPulse * 0.5));
+            ctx2D.fillStyle = `rgba(0, 0, 0, ${dynamicOpacity})`;
+            ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+            ctx2D.restore();
+        } else {
+            ctx2D.fillStyle = '#000000';
+            ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+        }
+
+        vfxCtx.clearRect(0, 0, vfxCanvas.width, vfxCanvas.height);
+        
+        ['aurora', 'nebula'].forEach(id => {
+            if (State.activeVFX.includes(id) && VFXRegistry[id]) {
+                VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
+            }
+        });
+
+        ['particle', 'circular', 'eq', 'waveform'].forEach(id => {
+            if (State.activeVFX.includes(id) && VFXRegistry[id]) {
+                VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
+            }
+        });
+
+        let camOffsetX = 0;
+        let camOffsetY = 0;
+        if (renderCameraShake) {
+            const time = Date.now() * 0.001;
+            camOffsetX = Math.sin(time * 0.5) * 0.01 * canvas2D.width;
+            camOffsetY = Math.cos(time * 0.3) * 0.01 * canvas2D.height;
+            if (vfxPulse > 0.05) {
+                camOffsetX += (Math.random() - 0.5) * vfxPulse * 60;
+                camOffsetY += (Math.random() - 0.5) * vfxPulse * 60;
+            }
+        }
+
+        const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width + camOffsetX;
+        const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height + camOffsetY;
+        
+        ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
+        ctx2D.drawImage(vfxCanvas, dx, dy);
+        
+        ctx2D.globalCompositeOperation = 'source-over';
+        drawLayout(); 
+        drawLyrics(); 
+        
+        if (!State.ui.obsMode) drawInteractions(); 
+    } catch (e) {
+        console.error("[CyberSentinel] Render Core 崩潰:", e);
+        throw e; // 拋出給上層捕捉
     }
-
-    vfxCtx.clearRect(0, 0, vfxCanvas.width, vfxCanvas.height);
-    
-    ['aurora', 'nebula'].forEach(id => {
-        if (State.activeVFX.includes(id) && VFXRegistry[id]) {
-            VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
-        }
-    });
-
-    ['particle', 'circular', 'eq', 'waveform'].forEach(id => {
-        if (State.activeVFX.includes(id) && VFXRegistry[id]) {
-            VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
-        }
-    });
-
-    let camOffsetX = 0;
-    let camOffsetY = 0;
-    if (renderCameraShake) {
-        const time = Date.now() * 0.001;
-        camOffsetX = Math.sin(time * 0.5) * 0.01 * canvas2D.width;
-        camOffsetY = Math.cos(time * 0.3) * 0.01 * canvas2D.height;
-        if (vfxPulse > 0.05) {
-            camOffsetX += (Math.random() - 0.5) * vfxPulse * 60;
-            camOffsetY += (Math.random() - 0.5) * vfxPulse * 60;
-        }
-    }
-
-    const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width + camOffsetX;
-    const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height + camOffsetY;
-    
-    ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
-    ctx2D.drawImage(vfxCanvas, dx, dy);
-    
-    ctx2D.globalCompositeOperation = 'source-over';
-    drawLayout(); 
-    drawLyrics(); 
-    
-    if (!State.ui.obsMode) drawInteractions(); 
 }
 
 function extractAudioPulse() {
@@ -620,21 +627,36 @@ function extractAudioPulse() {
     return safePulse;
 }
 
+// 🛡️ 架構升級 2：防抖動幀同步 (Debounced rendering)
+let renderPending = false;
 function forceRenderFrame() {
-    if (isDrawing) return; 
-    const safePulse = extractAudioPulse();
-    renderCore(sharedDataArray || new Uint8Array(256), safePulse);
+    if (isDrawing || renderPending) return; 
+    renderPending = true;
+    requestAnimationFrame(() => {
+        try {
+            const safePulse = extractAudioPulse();
+            renderCore(sharedDataArray || new Uint8Array(256), safePulse);
+        } catch (e) {
+            console.error("Force Render Crashed", e);
+        } finally {
+            renderPending = false;
+        }
+    });
 }
 
 function drawMasterLoop() {
     if (!isDrawing) return;
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
-    animationFrameId = requestAnimationFrame(drawMasterLoop);
     
-    if (!audio.analyser) return;
-
-    const safePulse = extractAudioPulse();
-    renderCore(sharedDataArray, safePulse);
+    try {
+        const safePulse = extractAudioPulse();
+        renderCore(sharedDataArray || new Uint8Array(256), safePulse);
+        animationFrameId = requestAnimationFrame(drawMasterLoop);
+    } catch (error) {
+        console.error("[CyberSentinel] Master Loop 嚴重崩潰，安全停機", error);
+        isDrawing = false;
+        showToast("⚠️ 渲染引擎發生異常，已啟動安全保護機制停機", "red");
+    }
 }
 
 function drawLayout() {
@@ -754,9 +776,15 @@ function handlePointerMove(e) {
         State.layoutOffsets[dragTarget].px = Math.max(0.02, Math.min(0.98, newPx));
         State.layoutOffsets[dragTarget].py = Math.max(0.02, Math.min(0.98, newPy));
         
-        userHasDragged = true; document.getElementById('presetSelector').value = 'custom';
-        saveState(); forceRenderFrame(); canvas2D.style.cursor = 'grabbing';
-        if(e.cancelable) e.preventDefault(); return;
+        userHasDragged = true; 
+        const ps = document.getElementById('presetSelector');
+        if(ps) ps.value = 'custom';
+        
+        saveState(); 
+        forceRenderFrame(); 
+        canvas2D.style.cursor = 'grabbing';
+        if(e.cancelable) e.preventDefault(); 
+        return;
     }
     hoverTarget = null; const pad = 15 * getScale();
     for (const key of ['vfx', 'channel', 'titles', 'logo', 'lyrics']) {
@@ -797,11 +825,11 @@ canvas2D.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 // ==========================================
-// 🎵 歌詞渲染與音訊狀態連動 (含波形時間軸標記)
+// 🎵 歌詞渲染與音訊狀態連動 
 // ==========================================
 lyricsInput.addEventListener('input', () => {
     lyricsManager.parse(lyricsInput.value);
-    updateWaveformMarkers(); // 🌟 更新波形標記
+    updateWaveformMarkers(); 
 });
 
 audioPlayer.addEventListener('timeupdate', () => {
@@ -812,7 +840,7 @@ audioPlayer.addEventListener('timeupdate', () => {
 });
 
 audioPlayer.addEventListener('loadedmetadata', () => {
-    updateWaveformMarkers(); // 🌟 音檔讀取完畢後，初始化波形標記
+    updateWaveformMarkers(); 
 });
 
 audioPlayer.addEventListener('ended', () => {
@@ -824,20 +852,16 @@ audioPlayer.addEventListener('ended', () => {
     }
 });
 
-// 🌟 新增：繪製全局波形上的黃色歌詞標記
 function updateWaveformMarkers() {
     const container = document.getElementById('waveformPreview');
     if (!container) return;
     
-    // 清除舊的標記
     container.querySelectorAll('.lyric-marker').forEach(el => el.remove());
     
     if (!audioPlayer || isNaN(audioPlayer.duration) || audioPlayer.duration === 0) return;
     
-    // 確保容器有 relative 屬性以供絕對定位
     container.classList.add('relative');
     
-    // 將所有歌詞的打軸時間轉化為黃色光柱標記
     lyricsManager.parsedLyrics.forEach(lyric => {
         const pct = lyric.time / audioPlayer.duration;
         if (pct >= 0 && pct <= 1) {
@@ -910,7 +934,7 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
     if (!result) return;
     
     lyricsInput.value = result.newText;
-    updateWaveformMarkers(); // 🌟 打下節點後，立刻更新波形標記
+    updateWaveformMarkers(); 
     
     if (result.isFinished) {
         document.getElementById('currentSyncLine').innerHTML = `<span class="text-green-400">${window.t('sync_done')}</span>`;
@@ -1079,10 +1103,16 @@ async function handleFileImport(file) {
         const fileName = file.name.replace(/\.[^/.]+$/, "");
         if (fileName.includes(" - ")) {
             const parts = fileName.split(" - ");
-            document.getElementById('topicTitle').value = parts[1].trim(); State.ui.topicTitle = parts[1].trim();
-            document.getElementById('speakerInfo').value = `Artist: ${parts[0].trim()}`; State.ui.speakerInfo = `Artist: ${parts[0].trim()}`;
+            const topicEl = document.getElementById('topicTitle');
+            if(topicEl) topicEl.value = parts[1].trim(); 
+            State.ui.topicTitle = parts[1].trim();
+            const speakerEl = document.getElementById('speakerInfo');
+            if(speakerEl) speakerEl.value = `Artist: ${parts[0].trim()}`; 
+            State.ui.speakerInfo = `Artist: ${parts[0].trim()}`;
         } else {
-            document.getElementById('topicTitle').value = fileName; State.ui.topicTitle = fileName;
+            const topicEl = document.getElementById('topicTitle');
+            if(topicEl) topicEl.value = fileName; 
+            State.ui.topicTitle = fileName;
         }
         recalculateLayoutCache(ctx2D, getScale()); saveState();
 
@@ -1092,7 +1122,7 @@ async function handleFileImport(file) {
         try {
             const waveData = await audio.getStaticWaveform(file);
             drawStaticWaveform(waveData);
-            updateWaveformMarkers(); // 🌟 重繪波形時也重繪標記
+            updateWaveformMarkers(); 
         } catch (waveErr) {
             console.warn("Waveform generation skipped:", waveErr);
         }
@@ -1122,20 +1152,23 @@ document.getElementById('btnMic').addEventListener('click', async () => {
     } catch(e) { alert(window.t('alert_mic_fail')); }
 });
 
-document.getElementById('slVolBGM').addEventListener('input', (e) => {
+document.getElementById('slVolBGM')?.addEventListener('input', (e) => {
     const val = parseFloat(e.target.value);
     audio.setBGMVolume(val); State.ui.volBGM = val;
-    document.getElementById('valVolBGM').textContent = val.toFixed(2);
-    saveState();
-});
-document.getElementById('slVolMic').addEventListener('input', (e) => {
-    const val = parseFloat(e.target.value);
-    audio.setMicVolume(val); State.ui.volMic = val;
-    document.getElementById('valVolMic').textContent = val.toFixed(2);
+    const label = document.getElementById('valVolBGM');
+    if(label) label.textContent = val.toFixed(2);
     saveState();
 });
 
-document.getElementById('bgUpload').addEventListener('change', function(e) {
+document.getElementById('slVolMic')?.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    audio.setMicVolume(val); State.ui.volMic = val;
+    const label = document.getElementById('valVolMic');
+    if(label) label.textContent = val.toFixed(2);
+    saveState();
+});
+
+document.getElementById('bgUpload')?.addEventListener('change', function(e) {
     if(this.files.length) {
         bgManager.load(this.files[0], () => {
             const bgLabel = document.getElementById('bgLabel'); 
@@ -1162,7 +1195,6 @@ document.getElementById('slBgDim')?.addEventListener('input', (e) => {
 function drawStaticWaveform(data) {
     const container = document.getElementById('waveformPreview'); if (!container) return; 
     
-    // 🌟 清除舊的波柱，但保留絕對定位的黃色標記 (如果有的話)
     container.querySelectorAll('div:not(.lyric-marker)').forEach(el => el.remove());
     
     const max = Math.max(...data);
@@ -1195,8 +1227,8 @@ window.addEventListener('drop', (e) => {
 });
 
 // UI 基礎事件
-document.getElementById('audioUpload').addEventListener('change', (e) => { if(e.target.files.length) handleFileImport(e.target.files[0]); });
-document.getElementById('channelLogo').addEventListener('change', function(e) {
+document.getElementById('audioUpload')?.addEventListener('change', (e) => { if(e.target.files.length) handleFileImport(e.target.files[0]); });
+document.getElementById('channelLogo')?.addEventListener('change', function(e) {
     if(this.files.length) {
         if (currentLogoUrl) URL.revokeObjectURL(currentLogoUrl); 
         currentLogoUrl = URL.createObjectURL(this.files[0]);
@@ -1212,14 +1244,28 @@ document.getElementById('channelLogo').addEventListener('change', function(e) {
         logoImg.src = currentLogoUrl;
     }
 });
-document.getElementById('resSelector').addEventListener('change', (e) => { document.getElementById('resSelectorMobile').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
-document.getElementById('resSelectorMobile').addEventListener('change', (e) => { document.getElementById('resSelector').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
-document.getElementById('btnCloseResult').addEventListener('click', () => { document.getElementById('resultModal').classList.add('hidden'); document.getElementById('resultModal').classList.remove('flex'); });
+document.getElementById('resSelector')?.addEventListener('change', (e) => { 
+    const mobileSel = document.getElementById('resSelectorMobile');
+    if(mobileSel) mobileSel.value = e.target.value; 
+    applyResolution(...e.target.value.split('x').map(Number)); 
+});
+document.getElementById('resSelectorMobile')?.addEventListener('change', (e) => { 
+    const deskSel = document.getElementById('resSelector');
+    if(deskSel) deskSel.value = e.target.value; 
+    applyResolution(...e.target.value.split('x').map(Number)); 
+});
+document.getElementById('btnCloseResult')?.addEventListener('click', () => { 
+    const modal = document.getElementById('resultModal');
+    if(modal){
+        modal.classList.add('hidden'); 
+        modal.classList.remove('flex'); 
+    }
+});
 
-document.getElementById('presetSelector').addEventListener('change', (e) => applyPreset(e.target.value));
+document.getElementById('presetSelector')?.addEventListener('change', (e) => applyPreset(e.target.value));
 
 ['channelName', 'topicTitle', 'speakerInfo'].forEach(id => { 
-    document.getElementById(id).addEventListener('input', (e) => {
+    document.getElementById(id)?.addEventListener('input', (e) => {
         State.ui[id] = e.target.value;
         recalculateLayoutCache(ctx2D, getScale());
         saveState(); forceRenderFrame();
@@ -1239,9 +1285,12 @@ document.getElementById('btnToggleSync')?.addEventListener('click', () => {
     if(panel) panel.classList.toggle('hidden');
     if (panel && panel.classList.contains('hidden')) {
         lyricsManager.stopSync();
-        document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_start');
-        document.getElementById('btnMarkTime').disabled = true;
-        document.getElementById('currentSyncLine').innerText = window.t('sync_end');
+        const btnSync = document.getElementById('btnStartSync');
+        if(btnSync) btnSync.innerHTML = window.t('btn_sync_start');
+        const btnMark = document.getElementById('btnMarkTime');
+        if(btnMark) btnMark.disabled = true;
+        const currentLine = document.getElementById('currentSyncLine');
+        if(currentLine) currentLine.innerText = window.t('sync_end');
     }
 });
 
@@ -1276,7 +1325,7 @@ function showPrivacyToast() {
 // ==========================================
 // 🌐 語言選單自動生成與更新引擎
 // ==========================================
-document.getElementById('langSelect').addEventListener('change', (e) => updateLanguage(e.target.value));
+document.getElementById('langSelect')?.addEventListener('change', (e) => updateLanguage(e.target.value));
 
 const langNames = { "en-US": "English", "zh-TW": "繁體中文", "zh-CN": "简体中文", "es-ES": "Español", "ja-JP": "日本語", "de-DE": "Deutsch", "fr-FR": "Français", "ko-KR": "한국어" };
 function initLanguageSelect() {
@@ -1294,8 +1343,14 @@ function updateLanguage(lang) {
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => el.placeholder = dict[el.getAttribute('data-i18n-placeholder')] || el.placeholder);
     localStorage.setItem('preferredLang', lang);
     
-    if (currentMode === 'file') document.getElementById('overlayText').innerText = window.t('msg_audio_loaded');
-    else if (currentMode === 'mic') document.getElementById('overlayText').innerText = window.t('msg_mic_ready');
+    if (currentMode === 'file') {
+        const oText = document.getElementById('overlayText');
+        if(oText) oText.innerText = window.t('msg_audio_loaded');
+    }
+    else if (currentMode === 'mic') {
+        const oText = document.getElementById('overlayText');
+        if(oText) oText.innerText = window.t('msg_mic_ready');
+    }
     
     if (logoImg.src && logoImg.complete) { 
         const logoLabel = document.getElementById('logoLabel');
@@ -1316,10 +1371,21 @@ function updateLanguage(lang) {
     
     const syncLine = document.getElementById('currentSyncLine');
     if (syncLine) {
-        if (lyricsManager.isSyncing) document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_pause');
-        else if (lyricsManager.syncIndex > 0 && lyricsManager.syncIndex < lyricsManager.rawLines.length) { document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_restart'); syncLine.innerText = lyricsManager.rawLines[lyricsManager.syncIndex]; }
-        else if (lyricsManager.syncIndex >= lyricsManager.rawLines.length && lyricsManager.rawLines.length > 0) syncLine.innerHTML = `<span class="text-green-400">${window.t('sync_done')}</span>`;
-        else { document.getElementById('btnStartSync').innerHTML = window.t('btn_sync_start'); syncLine.innerText = window.t('sync_init'); }
+        const btnStartSync = document.getElementById('btnStartSync');
+        if (lyricsManager.isSyncing) {
+            if(btnStartSync) btnStartSync.innerHTML = window.t('btn_sync_pause');
+        }
+        else if (lyricsManager.syncIndex > 0 && lyricsManager.syncIndex < lyricsManager.rawLines.length) { 
+            if(btnStartSync) btnStartSync.innerHTML = window.t('btn_sync_restart'); 
+            syncLine.innerText = lyricsManager.rawLines[lyricsManager.syncIndex]; 
+        }
+        else if (lyricsManager.syncIndex >= lyricsManager.rawLines.length && lyricsManager.rawLines.length > 0) {
+            syncLine.innerHTML = `<span class="text-green-400">${window.t('sync_done')}</span>`;
+        }
+        else { 
+            if(btnStartSync) btnStartSync.innerHTML = window.t('btn_sync_start'); 
+            syncLine.innerText = window.t('sync_init'); 
+        }
     }
     forceRenderFrame();
 }
