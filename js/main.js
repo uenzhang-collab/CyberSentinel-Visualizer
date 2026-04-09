@@ -20,7 +20,7 @@ window.t = function(key) {
 // 🧠 核心狀態管理與自動存檔 (Auto-Save)
 // ==========================================
 let State = {
-    activeVFX: ['waveform'], // 🌟 多圖層核心陣列
+    activeVFX: ['waveform'], 
     vfx: {
         aurora: { rotSpeed: 0.2, transmission: 0.9, showAurora: true, showSun: true },
         particle: { amountMult: 1.0, speedMult: 1.0 },
@@ -33,8 +33,8 @@ let State = {
         channelName: "", topicTitle: "", speakerInfo: "", 
         logoScale: 1.0, isA11y: false,
         volBGM: 1.0, volMic: 1.0,
-        cameraShake: true, // 🎥 電影級運鏡震動
-        obsMode: false     // 📺 OBS 全螢幕轉播模式
+        cameraShake: true, 
+        obsMode: false     
     },
     layoutOffsets: {
         channel: { px: 0.04, py: 0.06 }, titles: { px: 0.50, py: 0.16 },  
@@ -115,7 +115,7 @@ function updateButtonVisualState(labelId, isLoaded) {
 }
 
 // ==========================================
-// 🎨 一鍵大師風格庫 (多圖層陣列格式)
+// 🎨 一鍵大師風格庫
 // ==========================================
 const ThemePresets = {
     lofi: { 
@@ -255,7 +255,6 @@ const vfxOptionsList = [
     { id: 'waveform', icon: '🌊', label: 'vfx_opt_waveform' }
 ];
 
-// 🌟 無痛升級 UI
 function upgradeUIToMultiLayer() {
     const oldSelector = document.getElementById('vfxSelector');
     if (oldSelector && oldSelector.tagName === 'SELECT') {
@@ -859,20 +858,33 @@ window.addEventListener('keydown', (e) => {
 function toggleOBSMode() {
     State.ui.obsMode = !State.ui.obsMode;
     
-    // 🎯 修復 1：直接透過子元素反查父容器，徹底避免誤抓到 Placeholder！
+    // 🎯 透過子元素反查父容器，避免誤抓到 Placeholder！
     const canvasContainer = document.getElementById('visualizer2D').parentElement;
-    
     const leftPanel = document.querySelector('.lg\\:w-4\\/12');
     const nav = document.querySelector('nav');
+    const rightPanelControls = document.querySelector('.bg-gray-800\\/90');
+    
+    if (State.ui.obsMode) {
+        // 1. 建立一個隱形的佔位符
+        let placeholder = document.getElementById('obs-placeholder');
+        if (!placeholder) {
             placeholder = document.createElement('div');
             placeholder.id = 'obs-placeholder';
             placeholder.className = 'relative w-full aspect-video mb-5';
             canvasContainer.parentNode.insertBefore(placeholder, canvasContainer);
         }
         
-        // 2. 讓畫布「靈魂出竅」！移出選單，掛載到 body 上，徹底突破 backdrop-filter 的結界
+        // 2. 讓畫布「靈魂出竅」！移出選單，掛載到 body 上
         document.body.appendChild(canvasContainer);
-        document.body.style.overflow = 'hidden'; // 隱藏旁邊多餘的滾動條
+        document.body.style.overflow = 'hidden'; 
+        
+        if(leftPanel) leftPanel.style.display = 'none';
+        if(nav) nav.style.display = 'none';
+        if(rightPanelControls) {
+            Array.from(rightPanelControls.children).forEach(child => {
+                if (!child.querySelector('canvas')) child.style.display = 'none';
+            });
+        }
         
         canvasContainer.style.position = 'fixed';
         canvasContainer.style.top = '0';
@@ -895,6 +907,12 @@ function toggleOBSMode() {
         
         document.body.style.overflow = '';
         
+        if(leftPanel) leftPanel.style.display = '';
+        if(nav) nav.style.display = 'flex';
+        if(rightPanelControls) {
+            Array.from(rightPanelControls.children).forEach(child => child.style.display = '');
+        }
+        
         // 2. 恢復原本的排版樣式
         canvasContainer.style.position = 'relative';
         canvasContainer.style.top = '';
@@ -910,6 +928,20 @@ function toggleOBSMode() {
     }
     // 給瀏覽器一點時間重繪 DOM 再調整解析度
     setTimeout(() => applyResolution(1920, 1080), 100);
+}
+
+function injectOBSButton() {
+    if (document.getElementById('btnOBSMode')) return;
+    const recordBar = document.getElementById('btnStopRecord').parentElement;
+    const obsBtn = document.createElement('button');
+    obsBtn.id = 'btnOBSMode';
+    obsBtn.title = 'Shift + F';
+    obsBtn.className = 'px-3 lg:px-4 py-3 text-sm lg:text-base bg-indigo-700/80 text-white rounded-xl font-bold transition-all shadow-md hover:bg-indigo-600 flex items-center justify-center gap-2 border border-indigo-500';
+    obsBtn.innerHTML = `📺 <span class="hidden xl:inline" data-i18n="btn_obs_mode">${window.t('btn_obs_mode') || 'OBS 模式'}</span> <span class="text-xs text-indigo-300 font-normal bg-indigo-900/50 px-1.5 py-0.5 rounded border border-indigo-700">Shift+F</span>`;
+    obsBtn.onclick = toggleOBSMode;
+    
+    const statusDiv = document.getElementById('recordingStatus').parentElement;
+    recordBar.insertBefore(obsBtn, statusDiv);
 }
 
 document.getElementById('btnExportLRC')?.addEventListener('click', () => {
@@ -1088,11 +1120,6 @@ document.getElementById('resSelector').addEventListener('change', (e) => { docum
 document.getElementById('resSelectorMobile').addEventListener('change', (e) => { document.getElementById('resSelector').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('btnCloseResult').addEventListener('click', () => { document.getElementById('resultModal').classList.add('hidden'); document.getElementById('resultModal').classList.remove('flex'); });
 
-document.getElementById('chkCameraShake')?.addEventListener('change', (e) => {
-    State.ui.cameraShake = e.target.checked;
-    saveState();
-});
-
 document.getElementById('presetSelector').addEventListener('change', (e) => applyPreset(e.target.value));
 
 ['channelName', 'topicTitle', 'speakerInfo'].forEach(id => { 
@@ -1202,10 +1229,7 @@ function initSystem() {
     upgradeUIToMultiLayer(); 
     setup3D();
     initLanguageSelect(); 
-    
-    // 🎯 修復 2：動態產生 OBS 模式實體按鈕，顯示在錄影按鈕旁邊
-    injectOBSButton();
-    
+    injectOBSButton(); // 🌟 注入實體 OBS 切換按鈕
     updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
     loadState(); 
     initVfxToggles();
@@ -1213,21 +1237,6 @@ function initSystem() {
     setTimeout(() => applyResolution(1920, 1080), 500);
     setTimeout(() => { showPrivacyToast(); }, 1000); 
     initESGMode();
-}
-
-// 🌟 新增：注入 OBS 按鈕函數
-function injectOBSButton() {
-    if (document.getElementById('btnOBSMode')) return;
-    const recordBar = document.getElementById('btnStopRecord').parentElement;
-    const obsBtn = document.createElement('button');
-    obsBtn.id = 'btnOBSMode';
-    obsBtn.title = 'Shift + F';
-    obsBtn.className = 'px-3 lg:px-4 py-3 text-sm lg:text-base bg-indigo-700/80 text-white rounded-xl font-bold transition-all shadow-md hover:bg-indigo-600 flex items-center justify-center gap-2 border border-indigo-500';
-    obsBtn.innerHTML = '📺 <span class="hidden xl:inline" data-i18n="btn_obs_mode">OBS 模式</span> <span class="text-xs text-indigo-300 font-normal bg-indigo-900/50 px-1.5 py-0.5 rounded border border-indigo-700">Shift+F</span>';
-    obsBtn.onclick = toggleOBSMode;
-    
-    const statusDiv = document.getElementById('recordingStatus').parentElement;
-    recordBar.insertBefore(obsBtn, statusDiv);
 }
 
 initSystem();
