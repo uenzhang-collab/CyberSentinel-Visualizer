@@ -115,7 +115,7 @@ function updateButtonVisualState(labelId, isLoaded) {
 }
 
 // ==========================================
-// 🎨 一鍵大師風格庫 (更新為多圖層陣列格式)
+// 🎨 一鍵大師風格庫 (多圖層陣列格式)
 // ==========================================
 const ThemePresets = {
     lofi: { 
@@ -255,7 +255,7 @@ const vfxOptionsList = [
     { id: 'waveform', icon: '🌊', label: 'vfx_opt_waveform' }
 ];
 
-// 🌟 1. UI 升級：自動將舊選單轉換為多圖層按鈕介面 (無痛升級)
+// 🌟 無痛升級 UI
 function upgradeUIToMultiLayer() {
     const oldSelector = document.getElementById('vfxSelector');
     if (oldSelector && oldSelector.tagName === 'SELECT') {
@@ -419,7 +419,7 @@ let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x
 let dragTarget = null, hoverTarget = null, dragOffsetX = 0, dragOffsetY = 0, userHasDragged = false; 
 
 let animationFrameId = null;
-let sharedDataArray = null; // Zero GC Allocation Array
+let sharedDataArray = null; 
 
 function setup3D() {
     const auroraSystem = initAurora3D(canvas3D);
@@ -493,7 +493,7 @@ function formatTime(seconds) {
 }
 
 // ==========================================
-// 🎨 2. 完美渲染迴圈 (多層疊加 + 音頻呼吸 + 電影級運鏡)
+// 🎨 完美渲染迴圈 (多層疊加 + 音頻呼吸 + 電影級運鏡)
 // ==========================================
 function renderCore(dataArray, safePulse) {
     ctx2D.globalCompositeOperation = 'source-over';
@@ -501,7 +501,6 @@ function renderCore(dataArray, safePulse) {
     
     const hasBg = bgManager && bgManager.media;
     if (hasBg) {
-        // 🫀 音頻聯動：將背景微微放大，並加入動態明暗遮罩
         const bgScale = 1 + (safePulse * 0.05); 
         ctx2D.save();
         ctx2D.translate(canvas2D.width / 2, canvas2D.height / 2);
@@ -533,7 +532,6 @@ function renderCore(dataArray, safePulse) {
         }
     });
 
-    // 🎥 電影級運鏡：緩慢漂移與重低音碎震
     let camOffsetX = 0;
     let camOffsetY = 0;
     if (State.ui.cameraShake) {
@@ -556,7 +554,6 @@ function renderCore(dataArray, safePulse) {
     drawLayout(); 
     drawLyrics(); 
     
-    // 直播模式隱藏虛線外框
     if (!State.ui.obsMode) drawInteractions(); 
 }
 
@@ -613,7 +610,6 @@ function drawLayout() {
     const tx = State.layoutOffsets.titles.px * canvas2D.width; const ty = State.layoutOffsets.titles.py * canvas2D.height;
     const lx = State.layoutOffsets.logo.px * canvas2D.width; const ly = State.layoutOffsets.logo.py * canvas2D.height;
 
-    // 頻道資訊
     if (State.ui.channelName && State.cache.cNameLines.length > 0) {
         ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
         ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx2D.font = `bold ${32*scale}px ${font}`;
@@ -629,7 +625,6 @@ function drawLayout() {
         hitboxes.channel = { x: cx, y: cy, w: State.cache.cNameMaxWidth, h: currentY - cy };
     } else hitboxes.channel = { x: 0, y: 0, w: 0, h: 0 };
     
-    // 主標題與副標題
     if (State.ui.topicTitle || State.ui.speakerInfo) {
         const align = (State.layoutOffsets.titles.px < 0.25) ? 'left' : ((State.layoutOffsets.titles.px > 0.75) ? 'right' : 'center');
         ctx2D.textAlign = align; ctx2D.textBaseline = 'top';
@@ -647,7 +642,6 @@ function drawLayout() {
         hitboxes.titles = { x: boxX, y: ty, w: maxW, h: currentY - ty };
     } else hitboxes.titles = { x: 0, y: 0, w: 0, h: 0 };
     
-    // Logo
     ctx2D.shadowBlur = 0;
     if (logoImg.src && logoImg.complete) {
         const maxW = 120 * scale * State.ui.logoScale, aspect = logoImg.width / logoImg.height;
@@ -846,7 +840,7 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
 });
 
 // ==========================================
-// 🌟 3. 鍵盤快速鍵與 OBS 廣播模式切換
+// 🌟 3. 鍵盤防呆快速鍵 (Shift+F) 與 OBS 廣播模式切換
 // ==========================================
 window.addEventListener('keydown', (e) => { 
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -855,7 +849,8 @@ window.addEventListener('keydown', (e) => {
         e.preventDefault(); document.getElementById('btnMarkTime').click(); 
     }
     
-    if (e.key === 'f' || e.key === 'F') {
+    // 🛡️ 專業防呆快捷鍵：必須同時按下 Shift + F 才能觸發 OBS 直播模式
+    if (e.shiftKey && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
         toggleOBSMode();
     }
@@ -863,46 +858,57 @@ window.addEventListener('keydown', (e) => {
 
 function toggleOBSMode() {
     State.ui.obsMode = !State.ui.obsMode;
-    const leftPanel = document.querySelector('.lg\\:w-4\\/12');
-    const nav = document.querySelector('nav');
-    const rightPanelControls = document.querySelector('.bg-gray-800\\/90');
     const canvasContainer = document.querySelector('.aspect-video');
     
     if (State.ui.obsMode) {
-        if(leftPanel) leftPanel.style.display = 'none';
-        if(nav) nav.style.display = 'none';
-        if(rightPanelControls) {
-            Array.from(rightPanelControls.children).forEach(child => {
-                if (!child.querySelector('canvas')) child.style.display = 'none';
-            });
+        // 1. 建立一個隱形的佔位符，記住畫布原本的位置與空間
+        let placeholder = document.getElementById('obs-placeholder');
+        if (!placeholder) {
+            placeholder = document.createElement('div');
+            placeholder.id = 'obs-placeholder';
+            placeholder.className = 'relative w-full aspect-video mb-5';
+            canvasContainer.parentNode.insertBefore(placeholder, canvasContainer);
         }
-        if(canvasContainer) {
-            canvasContainer.style.position = 'fixed';
-            canvasContainer.style.top = '0';
-            canvasContainer.style.left = '0';
-            canvasContainer.style.width = '100vw';
-            canvasContainer.style.height = '100vh';
-            canvasContainer.style.zIndex = '9999';
-            canvasContainer.style.borderRadius = '0';
-            canvasContainer.style.border = 'none';
-        }
-        showToast("🎥 OBS 直播模式已開啟 (按 F 退出)", "green");
+        
+        // 2. 讓畫布「靈魂出竅」！移出選單，掛載到 body 上，徹底突破 backdrop-filter 的結界
+        document.body.appendChild(canvasContainer);
+        document.body.style.overflow = 'hidden'; // 隱藏旁邊多餘的滾動條
+        
+        canvasContainer.style.position = 'fixed';
+        canvasContainer.style.top = '0';
+        canvasContainer.style.left = '0';
+        canvasContainer.style.width = '100vw';
+        canvasContainer.style.height = '100vh';
+        canvasContainer.style.zIndex = '99999';
+        canvasContainer.style.borderRadius = '0';
+        canvasContainer.style.border = 'none';
+        canvasContainer.style.margin = '0';
+        
+        showToast(window.t('msg_obs_mode_on'), "green");
     } else {
-        if(leftPanel) leftPanel.style.display = '';
-        if(nav) nav.style.display = 'flex';
-        if(rightPanelControls) {
-            Array.from(rightPanelControls.children).forEach(child => child.style.display = '');
+        // 1. 找回佔位符，把畫布靈魂塞回原本的 DOM 結構裡
+        let placeholder = document.getElementById('obs-placeholder');
+        if (placeholder) {
+            placeholder.parentNode.insertBefore(canvasContainer, placeholder);
+            placeholder.remove();
         }
-        if(canvasContainer) {
-            canvasContainer.style.position = 'relative';
-            canvasContainer.style.width = '100%';
-            canvasContainer.style.height = 'auto';
-            canvasContainer.style.zIndex = '';
-            canvasContainer.style.borderRadius = '0.75rem';
-            canvasContainer.style.border = '';
-        }
-        showToast("🔙 已退出 OBS 模式", "blue");
+        
+        document.body.style.overflow = '';
+        
+        // 2. 恢復原本的排版樣式
+        canvasContainer.style.position = 'relative';
+        canvasContainer.style.top = '';
+        canvasContainer.style.left = '';
+        canvasContainer.style.width = '100%';
+        canvasContainer.style.height = 'auto';
+        canvasContainer.style.zIndex = '';
+        canvasContainer.style.borderRadius = '0.75rem';
+        canvasContainer.style.border = '';
+        canvasContainer.style.margin = '';
+        
+        showToast(window.t('msg_obs_mode_off'), "blue");
     }
+    // 給瀏覽器一點時間重繪 DOM 再調整解析度
     setTimeout(() => applyResolution(1920, 1080), 100);
 }
 
@@ -1082,6 +1088,11 @@ document.getElementById('resSelector').addEventListener('change', (e) => { docum
 document.getElementById('resSelectorMobile').addEventListener('change', (e) => { document.getElementById('resSelector').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('btnCloseResult').addEventListener('click', () => { document.getElementById('resultModal').classList.add('hidden'); document.getElementById('resultModal').classList.remove('flex'); });
 
+document.getElementById('chkCameraShake')?.addEventListener('change', (e) => {
+    State.ui.cameraShake = e.target.checked;
+    saveState();
+});
+
 document.getElementById('presetSelector').addEventListener('change', (e) => applyPreset(e.target.value));
 
 ['channelName', 'topicTitle', 'speakerInfo'].forEach(id => { 
@@ -1188,7 +1199,7 @@ function updateLanguage(lang) {
 }
 
 function initSystem() {
-    upgradeUIToMultiLayer(); // 🌟 無痛升級 UI
+    upgradeUIToMultiLayer(); 
     setup3D();
     initLanguageSelect(); 
     updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');

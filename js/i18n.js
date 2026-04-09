@@ -102,7 +102,10 @@ export const translations = {
         "preset_lofi": "☕ Lo-Fi 經典套房",
         "preset_cyberpunk": "🌆 賽博龐克之夜",
         "preset_podcast": "🎙️ 專業 Podcast",
-        "preset_minimal": "⚪ 極簡純粹"
+        "preset_minimal": "⚪ 極簡純粹",
+        
+        "msg_obs_mode_on": "🎥 OBS 直播模式已開啟 (按 Shift+F 退出)",
+        "msg_obs_mode_off": "🔙 已退出 OBS 模式"
     },
     "zh-CN": {
         "nav_brand": "CyberSentinel 黑核核心",
@@ -204,7 +207,10 @@ export const translations = {
         "preset_lofi": "☕ Lo-Fi 经典套房",
         "preset_cyberpunk": "🌆 赛博朋克之夜",
         "preset_podcast": "🎙️ 专业 Podcast",
-        "preset_minimal": "⚪ 极简纯粹"
+        "preset_minimal": "⚪ 极简纯粹",
+        
+        "msg_obs_mode_on": "🎥 OBS 直播模式已开启 (按 Shift+F 退出)",
+        "msg_obs_mode_off": "🔙 已退出 OBS 模式"
     },
     "en-US": {
         "nav_brand": "CyberSentinel Core",
@@ -306,7 +312,10 @@ export const translations = {
         "preset_lofi": "☕ Lo-Fi Classic",
         "preset_cyberpunk": "🌆 Cyberpunk Night",
         "preset_podcast": "🎙️ Pro Podcast",
-        "preset_minimal": "⚪ Pure Minimal"
+        "preset_minimal": "⚪ Pure Minimal",
+        
+        "msg_obs_mode_on": "🎥 OBS Studio Mode ON (Press Shift+F to exit)",
+        "msg_obs_mode_off": "🔙 Exited OBS Mode"
     },
     "es-ES": {
         "nav_brand": "CyberSentinel Core",
@@ -408,7 +417,10 @@ export const translations = {
         "preset_lofi": "☕ Clásico Lo-Fi",
         "preset_cyberpunk": "🌆 Noche Cyberpunk",
         "preset_podcast": "🎙️ Podcast Pro",
-        "preset_minimal": "⚪ Minimalista puro"
+        "preset_minimal": "⚪ Minimalista puro",
+        
+        "msg_obs_mode_on": "🎥 Modo OBS Activado (Presiona Shift+F para salir)",
+        "msg_obs_mode_off": "🔙 Modo OBS Desactivado"
     },
     "ja-JP": {
         "nav_brand": "CyberSentinel コア",
@@ -510,7 +522,10 @@ export const translations = {
         "preset_lofi": "☕ Lo-Fi クラシック",
         "preset_cyberpunk": "🌆 サイバーパンクの夜",
         "preset_podcast": "🎙️ プロポッドキャスト",
-        "preset_minimal": "⚪ ミニマル"
+        "preset_minimal": "⚪ ミニマル",
+        
+        "msg_obs_mode_on": "🎥 OBSモードがオンになりました (Shift+F で終了)",
+        "msg_obs_mode_off": "🔙 OBSモードを終了しました"
     },
     "de-DE": {
         "nav_brand": "CyberSentinel Core",
@@ -612,7 +627,10 @@ export const translations = {
         "preset_lofi": "☕ Lo-Fi Klassik",
         "preset_cyberpunk": "🌆 Cyberpunk-Nacht",
         "preset_podcast": "🎙️ Pro-Podcast",
-        "preset_minimal": "⚪ Minimalistisch"
+        "preset_minimal": "⚪ Minimalistisch",
+        
+        "msg_obs_mode_on": "🎥 OBS-Modus EIN (Shift+F zum Beenden drücken)",
+        "msg_obs_mode_off": "🔙 OBS-Modus beendet"
     },
     "fr-FR": {
         "nav_brand": "CyberSentinel Core",
@@ -714,7 +732,10 @@ export const translations = {
         "preset_lofi": "☕ Classique Lo-Fi",
         "preset_cyberpunk": "🌆 Nuit Cyberpunk",
         "preset_podcast": "🎙️ Podcast Pro",
-        "preset_minimal": "⚪ Pur Minimalisme"
+        "preset_minimal": "⚪ Pur Minimalisme",
+        
+        "msg_obs_mode_on": "🎥 Mode OBS Activé (Appuyez sur Shift+F pour quitter)",
+        "msg_obs_mode_off": "🔙 Mode OBS Désactivé"
     },
     "ko-KR": {
         "nav_brand": "CyberSentinel 코어",
@@ -816,6 +837,9 @@ export const translations = {
         "preset_lofi": "☕ Lo-Fi 클래식",
         "preset_cyberpunk": "🌆 사이버펑크 나이트",
         "preset_podcast": "🎙️ 프로 팟캐스트",
-        "preset_minimal": "⚪ 미니멀"
+        "preset_minimal": "⚪ 미니멀",
+        
+        "msg_obs_mode_on": "🎥 OBS 모드 켜짐 (종료하려면 Shift+F 누름)",
+        "msg_obs_mode_off": "🔙 OBS 모드 종료됨"
     }
 };
