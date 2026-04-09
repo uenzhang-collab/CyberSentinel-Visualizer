@@ -20,6 +20,7 @@ window.t = function(key) {
 // 🧠 核心狀態管理與自動存檔 (Auto-Save)
 // ==========================================
 let State = {
+    activeVFX: ['waveform'], // 🌟 多圖層核心陣列
     vfx: {
         aurora: { rotSpeed: 0.2, transmission: 0.9, showAurora: true, showSun: true },
         particle: { amountMult: 1.0, speedMult: 1.0 },
@@ -31,7 +32,9 @@ let State = {
     ui: {
         channelName: "", topicTitle: "", speakerInfo: "", 
         logoScale: 1.0, isA11y: false,
-        volBGM: 1.0, volMic: 1.0
+        volBGM: 1.0, volMic: 1.0,
+        cameraShake: true, // 🎥 電影級運鏡震動
+        obsMode: false     // 📺 OBS 全螢幕轉播模式
     },
     layoutOffsets: {
         channel: { px: 0.04, py: 0.06 }, titles: { px: 0.50, py: 0.16 },  
@@ -50,7 +53,7 @@ function saveState() {
         localStorage.setItem('CS_State_VFX', JSON.stringify(State.vfx));
         localStorage.setItem('CS_State_UI', JSON.stringify(State.ui));
         localStorage.setItem('CS_State_Layout', JSON.stringify(State.layoutOffsets));
-        localStorage.setItem('CS_ActiveVFX', document.getElementById('vfxSelector').value);
+        localStorage.setItem('CS_ActiveVFX', JSON.stringify(State.activeVFX));
     }, 500); 
 }
 
@@ -66,9 +69,14 @@ function loadState() {
         State.layoutOffsets = { ...State.layoutOffsets, ...JSON.parse(savedLayout) };
         userHasDragged = true; 
     }
-    const vfxSelector = document.getElementById('vfxSelector');
-    if (savedActive && document.querySelector(`#vfxSelector option[value="${savedActive}"]`)) {
-        vfxSelector.value = savedActive;
+    if (savedActive) {
+        try {
+            let parsed = JSON.parse(savedActive);
+            if (Array.isArray(parsed)) State.activeVFX = parsed;
+            else State.activeVFX = [savedActive]; 
+        } catch(e) {
+            State.activeVFX = [savedActive];
+        }
     }
 
     document.getElementById('topicTitle').value = State.ui.topicTitle;
@@ -83,6 +91,8 @@ function loadState() {
     
     const chkA11y = document.getElementById('chkA11y');
     if (chkA11y) chkA11y.checked = State.ui.isA11y;
+    const chkCam = document.getElementById('chkCameraShake');
+    if (chkCam) chkCam.checked = State.ui.cameraShake;
 }
 
 function updateButtonVisualState(labelId, isLoaded) {
@@ -105,26 +115,26 @@ function updateButtonVisualState(labelId, isLoaded) {
 }
 
 // ==========================================
-// 🎨 一鍵大師風格庫 (Theme Presets)
+// 🎨 一鍵大師風格庫 (更新為多圖層陣列格式)
 // ==========================================
 const ThemePresets = {
     lofi: { 
-        vfx: 'circular', 
-        vfxState: { circular: { count: 180, ampMult: 0.8, colorMult: 2.0, spinMult: 0.5 } }, 
+        activeVFX: ['circular', 'particle'], 
+        vfxState: { circular: { count: 180, ampMult: 0.8, colorMult: 2.0, spinMult: 0.5 }, particle: { amountMult: 0.5, speedMult: 0.5 } }, 
         layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.85 }, vfx: { px: 0.50, py: 0.50 } } 
     },
     cyberpunk: { 
-        vfx: 'waveform', 
-        vfxState: { waveform: { ampMult: 1.5, colorMult: 3.0, glowMult: 2.5, thick: 8 } }, 
+        activeVFX: ['waveform', 'particle'], 
+        vfxState: { waveform: { ampMult: 1.5, colorMult: 3.0, glowMult: 2.5, thick: 8 }, particle: { amountMult: 1.5, speedMult: 2.0 } }, 
         layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.90 }, vfx: { px: 0.50, py: 0.50 } } 
     },
     podcast: { 
-        vfx: 'eq', 
+        activeVFX: ['eq'], 
         vfxState: { eq: { count: 64, ampMult: 1.0, colorMult: 1.0, gravityMult: 1.5 } }, 
         layout: { titles: { px: 0.08, py: 0.35 }, lyrics: { px: 0.08, py: 0.88 }, vfx: { px: 0.50, py: 0.50 } } 
     },
     minimal: {
-        vfx: 'particle',
+        activeVFX: ['particle'],
         vfxState: { particle: { amountMult: 0.5, speedMult: 0.8 } },
         layout: { titles: { px: 0.50, py: 0.40 }, lyrics: { px: 0.50, py: 0.80 }, vfx: { px: 0.50, py: 0.50 } }
     }
@@ -135,25 +145,24 @@ function applyPreset(presetName) {
     const preset = ThemePresets[presetName];
     if (!preset) return;
 
-    const vfxSelector = document.getElementById('vfxSelector');
-    vfxSelector.value = preset.vfx;
-    
-    if (preset.vfxState[preset.vfx]) {
-        State.vfx[preset.vfx] = { ...State.vfx[preset.vfx], ...preset.vfxState[preset.vfx] };
-    }
+    State.activeVFX = [...preset.activeVFX];
+    preset.activeVFX.forEach(id => {
+        if (preset.vfxState[id]) State.vfx[id] = { ...State.vfx[id], ...preset.vfxState[id] };
+    });
     if (preset.layout) {
         State.layoutOffsets = { ...State.layoutOffsets, ...preset.layout };
         userHasDragged = true;
     }
     
-    buildDynamicUI(vfxSelector.value);
+    initVfxToggles();
+    buildDynamicUI();
     recalculateLayoutCache(ctx2D, getScale());
     saveState();
     forceRenderFrame();
 }
 
 // ==========================================
-// 🧩 註冊表模式 (Registry Pattern) & UI 自動生成
+// 🧩 註冊表模式 & UI 自動生成
 // ==========================================
 const VFXRegistry = {
     aurora: {
@@ -177,7 +186,6 @@ const VFXRegistry = {
             
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas2D.width, canvas2D.height);
-            
             renderNebulaShader(nebulaSystem, canvas2D.width, canvas2D.height, safePulse, cfg);
             ctx.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
         },
@@ -188,7 +196,6 @@ const VFXRegistry = {
     },
     particle: {
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
-            canvas3D.style.display = 'none';
             const cfg = { ...State.vfx.particle };
             if (window.ESG_ECO_MODE) cfg.amountMult = Math.min(cfg.amountMult, 0.25);
             renderParticles(ctx, canvas2D, particleCanvas, pCtx, dataArray, scale, State.ui.isA11y, cfg);
@@ -200,7 +207,6 @@ const VFXRegistry = {
     },
     circular: {
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
-            canvas3D.style.display = 'none';
             const cfg = { ...State.vfx.circular };
             if (window.ESG_ECO_MODE) cfg.count = Math.min(cfg.count, 90);
             renderCircular(ctx, canvas2D, dataArray, scale, safePulse, State.ui.isA11y, cfg);
@@ -214,7 +220,6 @@ const VFXRegistry = {
     },
     eq: {
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
-            canvas3D.style.display = 'none';
             const cfg = { ...State.vfx.eq };
             if (window.ESG_ECO_MODE) cfg.count = Math.min(cfg.count, 64);
             renderEq(ctx, canvas2D, dataArray, scale, safePulse, State.ui.isA11y, cfg);
@@ -228,7 +233,6 @@ const VFXRegistry = {
     },
     waveform: {
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
-            canvas3D.style.display = 'none';
             const cfg = { ...State.vfx.waveform };
             if (window.ESG_ECO_MODE) cfg.glowMult = Math.min(cfg.glowMult, 0.3);
             renderWaveform(ctx, canvas2D, audio.analyser, scale, safePulse, State.ui.isA11y, cfg);
@@ -242,56 +246,144 @@ const VFXRegistry = {
     }
 };
 
-function buildDynamicUI(vfxKey) {
+const vfxOptionsList = [
+    { id: 'aurora', icon: '🌌', label: 'vfx_opt_aurora' },
+    { id: 'nebula', icon: '🧬', label: 'vfx_opt_nebula' },
+    { id: 'particle', icon: '☄️', label: 'vfx_opt_particle' },
+    { id: 'circular', icon: '💿', label: 'vfx_opt_circular' },
+    { id: 'eq', icon: '🎚️', label: 'vfx_opt_eq' },
+    { id: 'waveform', icon: '🌊', label: 'vfx_opt_waveform' }
+];
+
+// 🌟 1. UI 升級：自動將舊選單轉換為多圖層按鈕介面 (無痛升級)
+function upgradeUIToMultiLayer() {
+    const oldSelector = document.getElementById('vfxSelector');
+    if (oldSelector && oldSelector.tagName === 'SELECT') {
+        const parent = oldSelector.parentElement;
+        
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'flex justify-between items-center mb-2 border-b border-gray-700 pb-1';
+        headerDiv.innerHTML = `
+            <span class="text-xs text-gray-400" data-i18n="lbl_active_vfx">${window.t('lbl_active_vfx') || '疊加特效 (可複選)'}</span>
+            <label class="text-xs text-blue-400 flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" id="chkCameraShake" class="rounded text-blue-600 focus:ring-blue-500" ${State.ui.cameraShake ? 'checked' : ''}>
+                <span data-i18n="lbl_camera_shake">${window.t('lbl_camera_shake') || '🎥 電影級運鏡震動'}</span>
+            </label>
+        `;
+        parent.insertBefore(headerDiv, oldSelector);
+
+        const togglesDiv = document.createElement('div');
+        togglesDiv.id = 'vfxToggles';
+        togglesDiv.className = 'grid grid-cols-2 gap-2 text-xs mb-4';
+        parent.insertBefore(togglesDiv, oldSelector);
+        
+        oldSelector.style.display = 'none'; 
+        
+        document.getElementById('chkCameraShake')?.addEventListener('change', (e) => {
+            State.ui.cameraShake = e.target.checked;
+            saveState();
+        });
+    }
+}
+
+function initVfxToggles() {
+    const container = document.getElementById('vfxToggles');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    vfxOptionsList.forEach(opt => {
+        const btn = document.createElement('button');
+        const isActive = State.activeVFX.includes(opt.id);
+        
+        btn.className = `py-2 px-2 rounded-lg font-bold transition-all border text-left flex items-center gap-2 ${isActive ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'}`;
+        btn.innerHTML = `<span>${opt.icon}</span> <span class="truncate" data-i18n="${opt.label}">${window.t(opt.label)}</span>`;
+        
+        btn.onclick = () => {
+            if (opt.id === 'aurora' && !State.activeVFX.includes('aurora')) {
+                State.activeVFX = State.activeVFX.filter(v => v !== 'nebula');
+            }
+            if (opt.id === 'nebula' && !State.activeVFX.includes('nebula')) {
+                State.activeVFX = State.activeVFX.filter(v => v !== 'aurora');
+            }
+
+            if (State.activeVFX.includes(opt.id)) {
+                if (State.activeVFX.length > 1) { 
+                    State.activeVFX = State.activeVFX.filter(v => v !== opt.id);
+                }
+            } else {
+                State.activeVFX.push(opt.id);
+            }
+            
+            document.getElementById('presetSelector').value = 'custom';
+            initVfxToggles();
+            buildDynamicUI();
+            saveState();
+            forceRenderFrame();
+        };
+        container.appendChild(btn);
+    });
+}
+
+function buildDynamicUI() {
     const container = document.getElementById('dynamicVfxContainer');
     if (!container) return;
     container.innerHTML = '';
     
-    const schema = VFXRegistry[vfxKey]?.schema || [];
-    const chkContainer = document.createElement('div');
-    chkContainer.className = 'flex flex-wrap gap-3 mb-1';
-    
-    schema.forEach(param => {
-        if (param.type === 'checkbox') {
-            const lbl = document.createElement('label');
-            lbl.className = 'flex items-center gap-2 cursor-pointer group';
-            const chk = document.createElement('input');
-            chk.type = 'checkbox'; chk.className = 'w-3.5 h-3.5 bg-gray-700 rounded border-gray-600 focus:ring-blue-500';
-            chk.checked = State.vfx[vfxKey][param.id];
-            chk.addEventListener('change', (e) => {
-                State.vfx[vfxKey][param.id] = e.target.checked;
-                document.getElementById('presetSelector').value = 'custom';
-                saveState(); forceRenderFrame();
-            });
-            const span = document.createElement('span');
-            span.className = 'text-sm text-gray-300 group-hover:text-white transition-colors';
-            span.setAttribute('data-i18n', param.label); span.textContent = window.t(param.label);
-            lbl.appendChild(chk); lbl.appendChild(span); chkContainer.appendChild(lbl);
-        } else if (param.type === 'range') {
-            const wrap = document.createElement('div'); wrap.className = 'flex flex-col gap-1 mb-2';
-            const head = document.createElement('label'); head.className = 'text-xs flex justify-between text-gray-400';
-            const spanName = document.createElement('span'); spanName.setAttribute('data-i18n', param.label); spanName.textContent = window.t(param.label);
-            const spanVal = document.createElement('span'); spanVal.className = 'text-blue-400';
-            
-            const val = State.vfx[vfxKey][param.id];
-            spanVal.textContent = param.isInt ? val : val.toFixed(2) + 'x';
-            head.appendChild(spanName); head.appendChild(spanVal);
-            
-            const range = document.createElement('input');
-            range.type = 'range'; range.className = 'w-full';
-            range.min = param.min; range.max = param.max; range.step = param.step; range.value = val;
-            
-            range.addEventListener('input', (e) => {
-                const newVal = parseFloat(e.target.value);
-                State.vfx[vfxKey][param.id] = newVal;
-                spanVal.textContent = param.isInt ? newVal : newVal.toFixed(2) + 'x';
-                document.getElementById('presetSelector').value = 'custom';
-                saveState(); forceRenderFrame();
-            });
-            wrap.appendChild(head); wrap.appendChild(range); container.appendChild(wrap);
-        }
+    State.activeVFX.forEach(vfxKey => {
+        const schema = VFXRegistry[vfxKey]?.schema || [];
+        if(schema.length === 0) return;
+        
+        const titleDiv = document.createElement('div');
+        const optInfo = vfxOptionsList.find(o => o.id === vfxKey);
+        titleDiv.className = 'text-xs text-blue-400 mt-2 mb-1 font-bold border-b border-gray-700 pb-1';
+        titleDiv.innerHTML = `${optInfo ? optInfo.icon : ''} <span data-i18n="${optInfo ? optInfo.label : ''}">${optInfo ? window.t(optInfo.label) : vfxKey}</span>`;
+        container.appendChild(titleDiv);
+
+        const chkContainer = document.createElement('div');
+        chkContainer.className = 'flex flex-wrap gap-3 mb-1';
+        
+        schema.forEach(param => {
+            if (param.type === 'checkbox') {
+                const lbl = document.createElement('label');
+                lbl.className = 'flex items-center gap-2 cursor-pointer group';
+                const chk = document.createElement('input');
+                chk.type = 'checkbox'; chk.className = 'w-3.5 h-3.5 bg-gray-700 rounded border-gray-600 focus:ring-blue-500';
+                chk.checked = State.vfx[vfxKey][param.id];
+                chk.addEventListener('change', (e) => {
+                    State.vfx[vfxKey][param.id] = e.target.checked;
+                    document.getElementById('presetSelector').value = 'custom';
+                    saveState(); forceRenderFrame();
+                });
+                const span = document.createElement('span');
+                span.className = 'text-sm text-gray-300 group-hover:text-white transition-colors';
+                span.setAttribute('data-i18n', param.label); span.textContent = window.t(param.label);
+                lbl.appendChild(chk); lbl.appendChild(span); chkContainer.appendChild(lbl);
+            } else if (param.type === 'range') {
+                const wrap = document.createElement('div'); wrap.className = 'flex flex-col gap-1 mb-2';
+                const head = document.createElement('label'); head.className = 'text-xs flex justify-between text-gray-400';
+                const spanName = document.createElement('span'); spanName.setAttribute('data-i18n', param.label); spanName.textContent = window.t(param.label);
+                const spanVal = document.createElement('span'); spanVal.className = 'text-blue-400';
+                
+                const val = State.vfx[vfxKey][param.id];
+                spanVal.textContent = param.isInt ? val : val.toFixed(2) + 'x';
+                head.appendChild(spanName); head.appendChild(spanVal);
+                
+                const range = document.createElement('input');
+                range.type = 'range'; range.className = 'w-full';
+                range.min = param.min; range.max = param.max; range.step = param.step; range.value = val;
+                
+                range.addEventListener('input', (e) => {
+                    const newVal = parseFloat(e.target.value);
+                    State.vfx[vfxKey][param.id] = newVal;
+                    spanVal.textContent = param.isInt ? newVal : newVal.toFixed(2) + 'x';
+                    document.getElementById('presetSelector').value = 'custom';
+                    saveState(); forceRenderFrame();
+                });
+                wrap.appendChild(head); wrap.appendChild(range); container.appendChild(wrap);
+            }
+        });
+        if (chkContainer.childNodes.length > 0) container.appendChild(chkContainer);
     });
-    if (chkContainer.childNodes.length > 0) container.insertBefore(chkContainer, container.firstChild);
 }
 
 // ==========================================
@@ -300,14 +392,12 @@ function buildDynamicUI(vfxKey) {
 const audioPlayer = document.getElementById('audioPlayer');
 const btnRecord = document.getElementById('btnRecord');
 const btnStopRecord = document.getElementById('btnStopRecord');
-const vfxSelector = document.getElementById('vfxSelector');
 const lyricsInput = document.getElementById('lyricsInput');
 
 let audio = new AudioEngine();
 let isDrawing = false;
 let currentMode = null; 
 
-// 🎯 穩定性修復 2：記憶體管理，紀錄當前 URL 以便撤銷
 let currentLogoUrl = null; 
 let logoImg = new Image();
 
@@ -328,11 +418,8 @@ const bgManager = new BackgroundManager();
 let hitboxes = { channel: {x:0,y:0,w:0,h:0}, titles: {x:0,y:0,w:0,h:0}, logo: {x:0,y:0,w:0,h:0}, lyrics: {x:0,y:0,w:0,h:0}, vfx: {x:0,y:0,w:0,h:0} };
 let dragTarget = null, hoverTarget = null, dragOffsetX = 0, dragOffsetY = 0, userHasDragged = false; 
 
-// 🎯 穩定性修復 1：防止多重動畫迴圈暴衝 (Ghost Loops)
 let animationFrameId = null;
-
-// 🎯 效能修復：預分配音訊資料陣列 (Zero Garbage Collection Allocation)
-let sharedDataArray = null;
+let sharedDataArray = null; // Zero GC Allocation Array
 
 function setup3D() {
     const auroraSystem = initAurora3D(canvas3D);
@@ -406,7 +493,7 @@ function formatTime(seconds) {
 }
 
 // ==========================================
-// 🎨 完美渲染迴圈 (極速 GC 優化版)
+// 🎨 2. 完美渲染迴圈 (多層疊加 + 音頻呼吸 + 電影級運鏡)
 // ==========================================
 function renderCore(dataArray, safePulse) {
     ctx2D.globalCompositeOperation = 'source-over';
@@ -414,28 +501,63 @@ function renderCore(dataArray, safePulse) {
     
     const hasBg = bgManager && bgManager.media;
     if (hasBg) {
+        // 🫀 音頻聯動：將背景微微放大，並加入動態明暗遮罩
+        const bgScale = 1 + (safePulse * 0.05); 
+        ctx2D.save();
+        ctx2D.translate(canvas2D.width / 2, canvas2D.height / 2);
+        ctx2D.scale(bgScale, bgScale);
+        ctx2D.translate(-canvas2D.width / 2, -canvas2D.height / 2);
+        
         bgManager.draw(ctx2D, canvas2D.width, canvas2D.height);
+        
+        const dynamicOpacity = Math.max(0.1, 0.85 - (safePulse * 0.5));
+        ctx2D.fillStyle = `rgba(0, 0, 0, ${dynamicOpacity})`;
+        ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
+        ctx2D.restore();
     } else {
         ctx2D.fillStyle = '#000000';
         ctx2D.fillRect(0, 0, canvas2D.width, canvas2D.height);
     }
 
-    const effect = VFXRegistry[vfxSelector.value];
-    if (effect) {
-        vfxCtx.clearRect(0, 0, vfxCanvas.width, vfxCanvas.height);
-        effect.render(vfxCtx, vfxCanvas, canvas3D, dataArray, safePulse, getScale());
-        
-        const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width;
-        const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height;
-        
-        ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
-        ctx2D.drawImage(vfxCanvas, dx, dy);
+    vfxCtx.clearRect(0, 0, vfxCanvas.width, vfxCanvas.height);
+    
+    ['aurora', 'nebula'].forEach(id => {
+        if (State.activeVFX.includes(id) && VFXRegistry[id]) {
+            VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, safePulse, getScale());
+        }
+    });
+
+    ['particle', 'circular', 'eq', 'waveform'].forEach(id => {
+        if (State.activeVFX.includes(id) && VFXRegistry[id]) {
+            VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, safePulse, getScale());
+        }
+    });
+
+    // 🎥 電影級運鏡：緩慢漂移與重低音碎震
+    let camOffsetX = 0;
+    let camOffsetY = 0;
+    if (State.ui.cameraShake) {
+        const time = Date.now() * 0.001;
+        camOffsetX = Math.sin(time * 0.5) * 0.01 * canvas2D.width;
+        camOffsetY = Math.cos(time * 0.3) * 0.01 * canvas2D.height;
+        if (safePulse > 0.05) {
+            camOffsetX += (Math.random() - 0.5) * safePulse * 60;
+            camOffsetY += (Math.random() - 0.5) * safePulse * 60;
+        }
     }
+
+    const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width + camOffsetX;
+    const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height + camOffsetY;
+    
+    ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
+    ctx2D.drawImage(vfxCanvas, dx, dy);
     
     ctx2D.globalCompositeOperation = 'source-over';
     drawLayout(); 
     drawLyrics(); 
-    drawInteractions(); 
+    
+    // 直播模式隱藏虛線外框
+    if (!State.ui.obsMode) drawInteractions(); 
 }
 
 function extractAudioPulse() {
@@ -445,7 +567,6 @@ function extractAudioPulse() {
             sharedDataArray = new Uint8Array(audio.analyser.frequencyBinCount);
         }
         audio.analyser.getByteFrequencyData(sharedDataArray);
-        // 極速運算，取代 .slice().reduce() 的陣列配置
         const bassSum = sharedDataArray[0] + sharedDataArray[1] + sharedDataArray[2] + sharedDataArray[3] + sharedDataArray[4] + sharedDataArray[5];
         const orbPulse = Math.pow((bassSum / 6) / 255, 3.0); 
         safePulse = State.ui.isA11y ? Math.min(orbPulse, 0.15) : orbPulse;
@@ -461,8 +582,6 @@ function forceRenderFrame() {
 
 function drawMasterLoop() {
     if (!isDrawing) return;
-    
-    // 🎯 穩定性修復 1：確保同一時間只有一個引擎在跑，防畫面撕裂與加速
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
     animationFrameId = requestAnimationFrame(drawMasterLoop);
     
@@ -478,10 +597,10 @@ function drawLayout() {
     const font = '"Microsoft JhengHei", "PingFang TC", sans-serif';
 
     ctx2D.shadowColor = 'rgba(0, 0, 0, 1)';
-    ctx2D.shadowBlur = (vfxSelector.value === 'nebula' ? 30 : 15) * scale;
+    ctx2D.shadowBlur = (State.activeVFX.includes('nebula') || State.activeVFX.includes('aurora')) ? 30 * scale : 15 * scale;
 
     if (!userHasDragged) {
-        const isLeftAlign = (vfxSelector.value === 'circular');
+        const isLeftAlign = (State.activeVFX.includes('circular'));
         State.layoutOffsets.titles.px = isLeftAlign ? 0.08 : 0.50; 
         State.layoutOffsets.titles.py = isLeftAlign ? 0.35 : 0.16; 
         State.layoutOffsets.lyrics.px = isLeftAlign ? 0.08 : 0.50; 
@@ -494,6 +613,7 @@ function drawLayout() {
     const tx = State.layoutOffsets.titles.px * canvas2D.width; const ty = State.layoutOffsets.titles.py * canvas2D.height;
     const lx = State.layoutOffsets.logo.px * canvas2D.width; const ly = State.layoutOffsets.logo.py * canvas2D.height;
 
+    // 頻道資訊
     if (State.ui.channelName && State.cache.cNameLines.length > 0) {
         ctx2D.textAlign = 'left'; ctx2D.textBaseline = 'top';
         ctx2D.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx2D.font = `bold ${32*scale}px ${font}`;
@@ -509,6 +629,7 @@ function drawLayout() {
         hitboxes.channel = { x: cx, y: cy, w: State.cache.cNameMaxWidth, h: currentY - cy };
     } else hitboxes.channel = { x: 0, y: 0, w: 0, h: 0 };
     
+    // 主標題與副標題
     if (State.ui.topicTitle || State.ui.speakerInfo) {
         const align = (State.layoutOffsets.titles.px < 0.25) ? 'left' : ((State.layoutOffsets.titles.px > 0.75) ? 'right' : 'center');
         ctx2D.textAlign = align; ctx2D.textBaseline = 'top';
@@ -526,6 +647,7 @@ function drawLayout() {
         hitboxes.titles = { x: boxX, y: ty, w: maxW, h: currentY - ty };
     } else hitboxes.titles = { x: 0, y: 0, w: 0, h: 0 };
     
+    // Logo
     ctx2D.shadowBlur = 0;
     if (logoImg.src && logoImg.complete) {
         const maxW = 120 * scale * State.ui.logoScale, aspect = logoImg.width / logoImg.height;
@@ -584,7 +706,6 @@ function getMousePos(canvas, evt) {
 function handlePointerMove(e) {
     const pos = getMousePos(canvas2D, e);
     if (dragTarget) {
-        // 🎯 穩定性修復 4：邊界限制 (Clamping)，防止 UI 飛出畫面外無法復原
         let newPx = (pos.x - dragOffsetX) / canvas2D.width;
         let newPy = (pos.y - dragOffsetY) / canvas2D.height;
         State.layoutOffsets[dragTarget].px = Math.max(0.02, Math.min(0.98, newPx));
@@ -681,7 +802,6 @@ function drawLyrics() {
     }
 }
 
-// 歌詞打軸控制
 document.getElementById('btnStartSync').addEventListener('click', async () => {
     if(currentMode !== 'file' && currentMode !== 'dual') return alert(window.t('alert_no_audio'));
     
@@ -725,13 +845,67 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
     }
 });
 
+// ==========================================
+// 🌟 3. 鍵盤快速鍵與 OBS 廣播模式切換
+// ==========================================
 window.addEventListener('keydown', (e) => { 
-    if(lyricsManager.isSyncing && e.code === 'Space' && document.activeElement !== lyricsInput && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { 
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+    if(lyricsManager.isSyncing && e.code === 'Space') { 
         e.preventDefault(); document.getElementById('btnMarkTime').click(); 
+    }
+    
+    if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleOBSMode();
     }
 });
 
-// 🌟 匯出 LRC/SRT 事件綁定
+function toggleOBSMode() {
+    State.ui.obsMode = !State.ui.obsMode;
+    const leftPanel = document.querySelector('.lg\\:w-4\\/12');
+    const nav = document.querySelector('nav');
+    const rightPanelControls = document.querySelector('.bg-gray-800\\/90');
+    const canvasContainer = document.querySelector('.aspect-video');
+    
+    if (State.ui.obsMode) {
+        if(leftPanel) leftPanel.style.display = 'none';
+        if(nav) nav.style.display = 'none';
+        if(rightPanelControls) {
+            Array.from(rightPanelControls.children).forEach(child => {
+                if (!child.querySelector('canvas')) child.style.display = 'none';
+            });
+        }
+        if(canvasContainer) {
+            canvasContainer.style.position = 'fixed';
+            canvasContainer.style.top = '0';
+            canvasContainer.style.left = '0';
+            canvasContainer.style.width = '100vw';
+            canvasContainer.style.height = '100vh';
+            canvasContainer.style.zIndex = '9999';
+            canvasContainer.style.borderRadius = '0';
+            canvasContainer.style.border = 'none';
+        }
+        showToast("🎥 OBS 直播模式已開啟 (按 F 退出)", "green");
+    } else {
+        if(leftPanel) leftPanel.style.display = '';
+        if(nav) nav.style.display = 'flex';
+        if(rightPanelControls) {
+            Array.from(rightPanelControls.children).forEach(child => child.style.display = '');
+        }
+        if(canvasContainer) {
+            canvasContainer.style.position = 'relative';
+            canvasContainer.style.width = '100%';
+            canvasContainer.style.height = 'auto';
+            canvasContainer.style.zIndex = '';
+            canvasContainer.style.borderRadius = '0.75rem';
+            canvasContainer.style.border = '';
+        }
+        showToast("🔙 已退出 OBS 模式", "blue");
+    }
+    setTimeout(() => applyResolution(1920, 1080), 100);
+}
+
 document.getElementById('btnExportLRC')?.addEventListener('click', () => {
     const topic = document.getElementById('topicTitle').value.trim() || 'CyberSentinel_Lyrics';
     const success = lyricsManager.exportLRC(lyricsInput.value.trim(), topic);
@@ -844,7 +1018,6 @@ document.getElementById('slVolMic').addEventListener('input', (e) => {
     saveState();
 });
 
-// 🎯 穩定性修復 3：資源釋放機制 (Memory Leak Fix)
 document.getElementById('bgUpload').addEventListener('change', function(e) {
     if(this.files.length) {
         bgManager.load(this.files[0], () => {
@@ -853,23 +1026,6 @@ document.getElementById('bgUpload').addEventListener('change', function(e) {
             updateButtonVisualState('bgLabel', true);
             forceRenderFrame();
         });
-    }
-});
-
-document.getElementById('channelLogo').addEventListener('change', function(e) {
-    if(this.files.length) {
-        if (currentLogoUrl) URL.revokeObjectURL(currentLogoUrl); // 釋放舊記憶體
-        currentLogoUrl = URL.createObjectURL(this.files[0]);
-        logoImg.onload = () => { 
-            const logoLabel = document.getElementById('logoLabel'); 
-            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
-            updateButtonVisualState('logoLabel', true);
-            
-            const scaleWrapper = document.getElementById('logoScaleWrapper'); 
-            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
-            forceRenderFrame(); 
-        };
-        logoImg.src = currentLogoUrl;
     }
 });
 
@@ -906,16 +1062,25 @@ window.addEventListener('drop', (e) => {
 
 // UI 基礎事件
 document.getElementById('audioUpload').addEventListener('change', (e) => { if(e.target.files.length) handleFileImport(e.target.files[0]); });
+document.getElementById('channelLogo').addEventListener('change', function(e) {
+    if(this.files.length) {
+        if (currentLogoUrl) URL.revokeObjectURL(currentLogoUrl); 
+        currentLogoUrl = URL.createObjectURL(this.files[0]);
+        logoImg.onload = () => { 
+            const logoLabel = document.getElementById('logoLabel'); 
+            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
+            updateButtonVisualState('logoLabel', true);
+            
+            const scaleWrapper = document.getElementById('logoScaleWrapper'); 
+            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
+            forceRenderFrame(); 
+        };
+        logoImg.src = currentLogoUrl;
+    }
+});
 document.getElementById('resSelector').addEventListener('change', (e) => { document.getElementById('resSelectorMobile').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('resSelectorMobile').addEventListener('change', (e) => { document.getElementById('resSelector').value = e.target.value; applyResolution(...e.target.value.split('x').map(Number)); });
 document.getElementById('btnCloseResult').addEventListener('click', () => { document.getElementById('resultModal').classList.add('hidden'); document.getElementById('resultModal').classList.remove('flex'); });
-
-vfxSelector.addEventListener('change', (e) => {
-    document.getElementById('presetSelector').value = 'custom';
-    saveState(); buildDynamicUI(e.target.value);
-    if (audio.analyser) audio.analyser.fftSize = (e.target.value === 'waveform' || e.target.value === 'aurora' || e.target.value === 'nebula') ? 2048 : 256;
-    forceRenderFrame();
-});
 
 document.getElementById('presetSelector').addEventListener('change', (e) => applyPreset(e.target.value));
 
@@ -945,6 +1110,20 @@ document.getElementById('btnToggleSync')?.addEventListener('click', () => {
         document.getElementById('currentSyncLine').innerText = window.t('sync_end');
     }
 });
+
+function showToast(msg, color="blue") {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-6 right-6 bg-gray-900/95 backdrop-blur-md border border-${color}-500/50 text-${color}-300 px-5 py-4 rounded-xl text-sm shadow-2xl z-[10000] flex items-center gap-4 transform transition-all duration-500 translate-y-[-20px] opacity-0`;
+    toast.innerHTML = `<span class="text-xl">✨</span> <p class="font-bold">${msg}</p>`;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { setTimeout(() => { toast.classList.remove('translate-y-[-20px]', 'opacity-0'); }, 50); });
+    setTimeout(() => {
+        if(document.body.contains(toast)) {
+            toast.classList.add('translate-y-[-20px]', 'opacity-0');
+            setTimeout(() => { if(document.body.contains(toast)) toast.remove(); }, 500);
+        }
+    }, 3000);
+}
 
 function showPrivacyToast() {
     const toast = document.createElement('div');
@@ -995,7 +1174,8 @@ function updateLanguage(lang) {
         updateButtonVisualState('bgLabel', true);
     }
     
-    buildDynamicUI(vfxSelector.value);
+    initVfxToggles();
+    buildDynamicUI();
     
     const syncLine = document.getElementById('currentSyncLine');
     if (syncLine) {
@@ -1008,11 +1188,13 @@ function updateLanguage(lang) {
 }
 
 function initSystem() {
+    upgradeUIToMultiLayer(); // 🌟 無痛升級 UI
     setup3D();
     initLanguageSelect(); 
     updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
     loadState(); 
-    buildDynamicUI(vfxSelector.value); 
+    initVfxToggles();
+    buildDynamicUI(); 
     setTimeout(() => applyResolution(1920, 1080), 500);
     setTimeout(() => { showPrivacyToast(); }, 1000); 
     initESGMode();
