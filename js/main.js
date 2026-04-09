@@ -858,12 +858,12 @@ window.addEventListener('keydown', (e) => {
 
 function toggleOBSMode() {
     State.ui.obsMode = !State.ui.obsMode;
-    const canvasContainer = document.querySelector('.aspect-video');
     
-    if (State.ui.obsMode) {
-        // 1. 建立一個隱形的佔位符，記住畫布原本的位置與空間
-        let placeholder = document.getElementById('obs-placeholder');
-        if (!placeholder) {
+    // 🎯 修復 1：直接透過子元素反查父容器，徹底避免誤抓到 Placeholder！
+    const canvasContainer = document.getElementById('visualizer2D').parentElement;
+    
+    const leftPanel = document.querySelector('.lg\\:w-4\\/12');
+    const nav = document.querySelector('nav');
             placeholder = document.createElement('div');
             placeholder.id = 'obs-placeholder';
             placeholder.className = 'relative w-full aspect-video mb-5';
@@ -1202,6 +1202,10 @@ function initSystem() {
     upgradeUIToMultiLayer(); 
     setup3D();
     initLanguageSelect(); 
+    
+    // 🎯 修復 2：動態產生 OBS 模式實體按鈕，顯示在錄影按鈕旁邊
+    injectOBSButton();
+    
     updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
     loadState(); 
     initVfxToggles();
@@ -1209,6 +1213,21 @@ function initSystem() {
     setTimeout(() => applyResolution(1920, 1080), 500);
     setTimeout(() => { showPrivacyToast(); }, 1000); 
     initESGMode();
+}
+
+// 🌟 新增：注入 OBS 按鈕函數
+function injectOBSButton() {
+    if (document.getElementById('btnOBSMode')) return;
+    const recordBar = document.getElementById('btnStopRecord').parentElement;
+    const obsBtn = document.createElement('button');
+    obsBtn.id = 'btnOBSMode';
+    obsBtn.title = 'Shift + F';
+    obsBtn.className = 'px-3 lg:px-4 py-3 text-sm lg:text-base bg-indigo-700/80 text-white rounded-xl font-bold transition-all shadow-md hover:bg-indigo-600 flex items-center justify-center gap-2 border border-indigo-500';
+    obsBtn.innerHTML = '📺 <span class="hidden xl:inline" data-i18n="btn_obs_mode">OBS 模式</span> <span class="text-xs text-indigo-300 font-normal bg-indigo-900/50 px-1.5 py-0.5 rounded border border-indigo-700">Shift+F</span>';
+    obsBtn.onclick = toggleOBSMode;
+    
+    const statusDiv = document.getElementById('recordingStatus').parentElement;
+    recordBar.insertBefore(obsBtn, statusDiv);
 }
 
 initSystem();

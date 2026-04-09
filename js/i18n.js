@@ -105,7 +105,8 @@ export const translations = {
         "preset_minimal": "⚪ 極簡純粹",
         
         "msg_obs_mode_on": "🎥 OBS 直播模式已開啟 (按 Shift+F 退出)",
-        "msg_obs_mode_off": "🔙 已退出 OBS 模式"
+        "msg_obs_mode_off": "🔙 已退出 OBS 模式",
+        "btn_obs_mode": "OBS 模式"
     },
     "zh-CN": {
         "nav_brand": "CyberSentinel 黑核核心",
@@ -210,7 +211,8 @@ export const translations = {
         "preset_minimal": "⚪ 极简纯粹",
         
         "msg_obs_mode_on": "🎥 OBS 直播模式已开启 (按 Shift+F 退出)",
-        "msg_obs_mode_off": "🔙 已退出 OBS 模式"
+        "msg_obs_mode_off": "🔙 已退出 OBS 模式",
+        "btn_obs_mode": "OBS 模式"
     },
     "en-US": {
         "nav_brand": "CyberSentinel Core",
@@ -315,7 +317,8 @@ export const translations = {
         "preset_minimal": "⚪ Pure Minimal",
         
         "msg_obs_mode_on": "🎥 OBS Studio Mode ON (Press Shift+F to exit)",
-        "msg_obs_mode_off": "🔙 Exited OBS Mode"
+        "msg_obs_mode_off": "🔙 Exited OBS Mode",
+        "btn_obs_mode": "OBS Mode"
     },
     "es-ES": {
         "nav_brand": "CyberSentinel Core",
@@ -420,7 +423,8 @@ export const translations = {
         "preset_minimal": "⚪ Minimalista puro",
         
         "msg_obs_mode_on": "🎥 Modo OBS Activado (Presiona Shift+F para salir)",
-        "msg_obs_mode_off": "🔙 Modo OBS Desactivado"
+        "msg_obs_mode_off": "🔙 Modo OBS Desactivado",
+        "btn_obs_mode": "Modo OBS"
     },
     "ja-JP": {
         "nav_brand": "CyberSentinel コア",
@@ -525,7 +529,8 @@ export const translations = {
         "preset_minimal": "⚪ ミニマル",
         
         "msg_obs_mode_on": "🎥 OBSモードがオンになりました (Shift+F で終了)",
-        "msg_obs_mode_off": "🔙 OBSモードを終了しました"
+        "msg_obs_mode_off": "🔙 OBSモードを終了しました",
+        "btn_obs_mode": "OBS モード"
     },
     "de-DE": {
         "nav_brand": "CyberSentinel Core",
@@ -630,7 +635,8 @@ export const translations = {
         "preset_minimal": "⚪ Minimalistisch",
         
         "msg_obs_mode_on": "🎥 OBS-Modus EIN (Shift+F zum Beenden drücken)",
-        "msg_obs_mode_off": "🔙 OBS-Modus beendet"
+        "msg_obs_mode_off": "🔙 OBS-Modus beendet",
+        "btn_obs_mode": "OBS-Modus"
     },
     "fr-FR": {
         "nav_brand": "CyberSentinel Core",
@@ -735,7 +741,8 @@ export const translations = {
         "preset_minimal": "⚪ Pur Minimalisme",
         
         "msg_obs_mode_on": "🎥 Mode OBS Activé (Appuyez sur Shift+F pour quitter)",
-        "msg_obs_mode_off": "🔙 Mode OBS Désactivé"
+        "msg_obs_mode_off": "🔙 Mode OBS Désactivé",
+        "btn_obs_mode": "Mode OBS"
     },
     "ko-KR": {
         "nav_brand": "CyberSentinel 코어",
@@ -840,6 +847,7 @@ export const translations = {
         "preset_minimal": "⚪ 미니멀",
         
         "msg_obs_mode_on": "🎥 OBS 모드 켜짐 (종료하려면 Shift+F 누름)",
-        "msg_obs_mode_off": "🔙 OBS 모드 종료됨"
+        "msg_obs_mode_off": "🔙 OBS 모드 종료됨",
+        "btn_obs_mode": "OBS 모드"
     }
 };
