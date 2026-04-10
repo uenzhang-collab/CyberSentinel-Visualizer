@@ -3,6 +3,7 @@ import { initAurora3D, renderAurora3D } from './vfx/Aurora3D.js';
 import { renderParticles } from './vfx/Particles.js';
 import { renderCircular, renderEq, renderWaveform } from './vfx/AudioSpectrums.js';
 import { initNebulaShader, renderNebulaShader } from './vfx/NebulaShader.js';
+import { renderInkGlow } from './vfx/InkGlow.js'; // 🌟 新增：墨暈流光特效
 import { translations } from './i18n.js';
 import { VideoRecorder } from './modules/VideoRecorder.js';
 import { LyricsManager } from './modules/LyricsManager.js';
@@ -27,7 +28,8 @@ let State = {
         circular: { count: 360, ampMult: 1.0, colorMult: 1.0, spinMult: 1.0 },
         eq: { count: 128, ampMult: 1.0, colorMult: 1.0, gravityMult: 1.0 },
         waveform: { ampMult: 1.0, colorMult: 1.0, glowMult: 1.0, thick: 5 },
-        nebula: { viscosity: 0.2, colorFlow: 1.0 }
+        nebula: { viscosity: 0.2, colorFlow: 1.0 },
+        ink: { spreadMult: 1.0, colorFlow: 1.0, persistence: 0.9 } // 🌟 新增：墨暈流光狀態
     },
     ui: {
         channelName: "", topicTitle: "", speakerInfo: "", 
@@ -50,6 +52,7 @@ let State = {
 
 let _saveTimeout = null;
 
+// 🛡️ 狀態同步機制
 function saveState(force = false) {
     const executeSave = () => {
         try {
@@ -71,6 +74,7 @@ function saveState(force = false) {
     }
 }
 
+// 🛡️ 生命週期終點守護
 window.addEventListener('beforeunload', () => saveState(true));
 
 function loadState() {
@@ -83,7 +87,7 @@ function loadState() {
         if (savedVfx) State.vfx = { ...State.vfx, ...JSON.parse(savedVfx) };
         if (savedUi) State.ui = { ...State.ui, ...JSON.parse(savedUi) };
         
-        // 🛡️ 修復 1：加入極度嚴謹的 NaN 預設值保護機制
+        // 🛡️ 預設值保護機制
         if (savedLayout) {
             const parsedLayout = JSON.parse(savedLayout);
             const safeFloat = (val, fallback) => (isNaN(parseFloat(val)) ? fallback : parseFloat(val));
@@ -104,6 +108,7 @@ function loadState() {
         console.warn("[CyberSentinel] 讀取本機狀態失敗，使用系統預設值", e);
     }
 
+    // 安全綁定 UI 數值
     const bindVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     const bindText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     const bindChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
@@ -137,11 +142,10 @@ function updateButtonVisualState(labelId, isLoaded) {
     const container = labelSpan.closest('label');
     if (!container) return;
 
-    // 🛡️ 修復 2：改用原生 Style，徹底根除 Tailwind 編譯打包後遺失 Class 的 Bug
     if (isLoaded) {
-        container.style.backgroundColor = 'rgba(20, 83, 45, 0.6)'; // 對應 bg-green-900/60
-        container.style.borderColor = '#22c55e'; // 對應 border-green-500
-        labelSpan.style.color = '#4ade80'; // 對應 text-green-400
+        container.style.backgroundColor = 'rgba(20, 83, 45, 0.6)'; 
+        container.style.borderColor = '#22c55e'; 
+        labelSpan.style.color = '#4ade80'; 
     } else {
         container.style.backgroundColor = '';
         container.style.borderColor = '';
@@ -149,7 +153,7 @@ function updateButtonVisualState(labelId, isLoaded) {
     }
 }
 
-// 🛡️ 新增：防禦蘋果 HEIC 格式的輔助函式
+// 🛡️ 防禦蘋果 HEIC 格式
 function isUnsupportedFormat(file) {
     const fileName = file.name.toLowerCase();
     return fileName.endsWith('.heic') || fileName.endsWith('.heif');
@@ -159,6 +163,11 @@ function isUnsupportedFormat(file) {
 // 🎨 一鍵大師風格庫
 // ==========================================
 const ThemePresets = {
+    acoustic: { // 🌟 新增：不插電民謠專屬配置
+        activeVFX: ['ink', 'particle'], 
+        vfxState: { ink: { spreadMult: 1.2, colorFlow: 0.8, persistence: 0.95 }, particle: { amountMult: 0.3, speedMult: 0.5 } }, 
+        layout: { titles: { px: 0.50, py: 0.40 }, lyrics: { px: 0.50, py: 0.80 }, vfx: { px: 0.50, py: 0.50 } } 
+    },
     lofi: { 
         activeVFX: ['circular', 'particle'], 
         vfxState: { circular: { count: 180, ampMult: 0.8, colorMult: 2.0, spinMult: 0.5 }, particle: { amountMult: 0.5, speedMult: 0.5 } }, 
@@ -235,6 +244,21 @@ const VFXRegistry = {
             { id: 'colorFlow', type: 'range', label: 'vfx_n_color', min: 0, max: 3.0, step: 0.1 }
         ]
     },
+    ink: { // 🌟 新增：墨暈流光模組註冊
+        render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
+            const cfg = { ...State.vfx.ink };
+            if (window.ESG_ECO_MODE) {
+                cfg.spreadMult = Math.min(cfg.spreadMult, 0.5);
+                cfg.persistence = Math.min(cfg.persistence, 0.7);
+            }
+            renderInkGlow(ctx, canvas2D, dataArray, scale, safePulse, State.ui.isA11y, cfg);
+        },
+        schema: [
+            { id: 'spreadMult', type: 'range', label: 'vfx_i_spread', min: 0.1, max: 3.0, step: 0.1 },
+            { id: 'colorFlow', type: 'range', label: 'vfx_i_color', min: 0.0, max: 3.0, step: 0.1 },
+            { id: 'persistence', type: 'range', label: 'vfx_i_persist', min: 0.1, max: 0.99, step: 0.01 }
+        ]
+    },
     particle: {
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
             const cfg = { ...State.vfx.particle };
@@ -290,6 +314,7 @@ const VFXRegistry = {
 const vfxOptionsList = [
     { id: 'aurora', icon: '🌌', label: 'vfx_opt_aurora' },
     { id: 'nebula', icon: '🧬', label: 'vfx_opt_nebula' },
+    { id: 'ink', icon: '🖌️', label: 'vfx_opt_ink' }, // 🌟 新增選項
     { id: 'particle', icon: '☄️', label: 'vfx_opt_particle' },
     { id: 'circular', icon: '💿', label: 'vfx_opt_circular' },
     { id: 'eq', icon: '🎚️', label: 'vfx_opt_eq' },
@@ -546,7 +571,6 @@ function formatTime(seconds) {
 
 // ==========================================
 // 🎨 完美渲染迴圈 (多層疊加 + 音頻呼吸 + 電影級運鏡)
-// 🛡️ 修復 3：實作電影級色散運鏡 (Chromatic Aberration)
 // ==========================================
 function renderCore(dataArray, safePulse) {
     try {
@@ -590,7 +614,8 @@ function renderCore(dataArray, safePulse) {
             }
         });
 
-        ['particle', 'circular', 'eq', 'waveform'].forEach(id => {
+        // 🌟 核心更新：將 ink 模組加入 2D 畫布繪製序列
+        ['particle', 'ink', 'circular', 'eq', 'waveform'].forEach(id => {
             if (State.activeVFX.includes(id) && VFXRegistry[id]) {
                 VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
             }
@@ -598,7 +623,7 @@ function renderCore(dataArray, safePulse) {
 
         let camOffsetX = 0;
         let camOffsetY = 0;
-        let chromaticOffset = 0; // 💥 負責儲存色散偏移量
+        let chromaticOffset = 0; 
 
         if (renderCameraShake) {
             const time = Date.now() * 0.001;
@@ -607,34 +632,29 @@ function renderCore(dataArray, safePulse) {
             if (vfxPulse > 0.05) {
                 camOffsetX += (Math.random() - 0.5) * vfxPulse * 60;
                 camOffsetY += (Math.random() - 0.5) * vfxPulse * 60;
-                chromaticOffset = vfxPulse * 25 * getScale(); // 重低音時觸發色散
+                chromaticOffset = vfxPulse * 25 * getScale(); 
             }
         }
 
         const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width + camOffsetX;
         const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height + camOffsetY;
         
-        // --- 核心更新：電影級色散 (Chromatic Aberration) 疊加邏輯 ---
         if (chromaticOffset > 2) {
             ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'lighter';
             
-            // 向左偏移 (模擬紅色通道撕裂)
             ctx2D.save();
             ctx2D.globalAlpha = 0.6;
             ctx2D.drawImage(vfxCanvas, dx - chromaticOffset, dy);
             ctx2D.restore();
             
-            // 向右偏移 (模擬藍綠通道撕裂)
             ctx2D.save();
             ctx2D.globalAlpha = 0.6;
             ctx2D.drawImage(vfxCanvas, dx + chromaticOffset, dy);
             ctx2D.restore();
             
-            // 主視覺 (置中本體)
             ctx2D.globalAlpha = 1.0;
             ctx2D.drawImage(vfxCanvas, dx, dy);
         } else {
-            // 平常無色散狀態，正常繪製
             ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'source-over';
             ctx2D.drawImage(vfxCanvas, dx, dy);
         }
@@ -794,6 +814,9 @@ function drawInteractions() {
     }
 }
 
+// ==========================================
+// 👆 畫布拖曳與滾輪監聽器
+// ==========================================
 function getMousePos(canvas, evt) {
     const rect = canvas.getBoundingClientRect();
     let cx = evt.touches?.length ? evt.touches[0].clientX : evt.clientX;
@@ -857,6 +880,9 @@ canvas2D.addEventListener('wheel', (e) => {
     }
 }, { passive: false });
 
+// ==========================================
+// 🎵 歌詞渲染與音訊狀態連動 
+// ==========================================
 lyricsInput.addEventListener('input', () => {
     lyricsManager.parse(lyricsInput.value);
     updateWaveformMarkers(); 
@@ -976,6 +1002,9 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
     }
 });
 
+// ==========================================
+// 🌟 OBS 廣播模式切換
+// ==========================================
 window.addEventListener('keydown', (e) => { 
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
@@ -1085,6 +1114,9 @@ document.getElementById('btnExportSRT')?.addEventListener('click', () => {
     if (!success) alert(window.t('alert_no_lyrics'));
 });
 
+// ==========================================
+// 🎥 錄影引擎事件
+// ==========================================
 btnRecord.addEventListener('click', async () => {
     await audio.resumeContext();
 
@@ -1114,6 +1146,9 @@ btnStopRecord.addEventListener('click', () => {
     isDrawing = false;
 });
 
+// ==========================================
+// 🎚️ 檔案匯入與雙軌混音 UI
+// ==========================================
 async function handleFileImport(file) {
     if (!file) return;
     if (!file.type.startsWith('audio/') && !file.type.startsWith('video/') && file.type !== "") {
@@ -1189,37 +1224,9 @@ document.getElementById('slVolMic')?.addEventListener('input', (e) => {
     saveState();
 });
 
-// 🛡️ 新增：防禦 HEIC 格式與阻擋機制
-document.getElementById('channelLogo')?.addEventListener('change', function(e) {
-    if(this.files.length) {
-        const file = this.files[0];
-        
-        if (isUnsupportedFormat(file)) {
-            alert(window.t('alert_heic_unsupported'));
-            this.value = ''; 
-            return;
-        }
-
-        if (currentLogoUrl) URL.revokeObjectURL(currentLogoUrl); 
-        currentLogoUrl = URL.createObjectURL(file);
-        logoImg.onload = () => { 
-            const logoLabel = document.getElementById('logoLabel'); 
-            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
-            updateButtonVisualState('logoLabel', true);
-            
-            const scaleWrapper = document.getElementById('logoScaleWrapper'); 
-            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
-            forceRenderFrame(); 
-        };
-        logoImg.src = currentLogoUrl;
-    }
-});
-
-// 🛡️ 新增：防禦 HEIC 格式與阻擋機制
 document.getElementById('bgUpload')?.addEventListener('change', function(e) {
     if(this.files.length) {
         const file = this.files[0];
-
         if (isUnsupportedFormat(file)) {
             alert(window.t('alert_heic_unsupported'));
             this.value = ''; 
@@ -1273,13 +1280,12 @@ function drawStaticWaveform(data) {
     });
 }
 
+// 拖放功能
 window.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('bg-blue-900/20'); });
 window.addEventListener('dragleave', () => document.body.classList.remove('bg-blue-900/20'));
 window.addEventListener('drop', (e) => { 
     e.preventDefault(); 
     document.body.classList.remove('bg-blue-900/20'); 
-    
-    // 🛡️ 新增：檔案拖曳也進行格式防呆
     if (e.dataTransfer.files[0]) {
         const file = e.dataTransfer.files[0];
         if (isUnsupportedFormat(file)) {
@@ -1290,7 +1296,31 @@ window.addEventListener('drop', (e) => {
     }
 });
 
+// UI 基礎事件
 document.getElementById('audioUpload')?.addEventListener('change', (e) => { if(e.target.files.length) handleFileImport(e.target.files[0]); });
+document.getElementById('channelLogo')?.addEventListener('change', function(e) {
+    if(this.files.length) {
+        const file = this.files[0];
+        if (isUnsupportedFormat(file)) {
+            alert(window.t('alert_heic_unsupported'));
+            this.value = ''; 
+            return;
+        }
+
+        if (currentLogoUrl) URL.revokeObjectURL(currentLogoUrl); 
+        currentLogoUrl = URL.createObjectURL(file);
+        logoImg.onload = () => { 
+            const logoLabel = document.getElementById('logoLabel'); 
+            if (logoLabel) logoLabel.innerText = window.t('btn_logo_loaded'); 
+            updateButtonVisualState('logoLabel', true);
+            
+            const scaleWrapper = document.getElementById('logoScaleWrapper'); 
+            if (scaleWrapper) scaleWrapper.classList.remove('hidden');
+            forceRenderFrame(); 
+        };
+        logoImg.src = currentLogoUrl;
+    }
+});
 
 document.getElementById('resSelector')?.addEventListener('change', (e) => { 
     const mobileSel = document.getElementById('resSelectorMobile');
@@ -1370,6 +1400,9 @@ function showPrivacyToast() {
     setTimeout(() => { if(document.body.contains(toast)) { toast.classList.add('translate-y-24', 'opacity-0'); setTimeout(() => { if(document.body.contains(toast)) toast.remove(); }, 700); } }, 8000);
 }
 
+// ==========================================
+// 🌐 語言選單自動生成與更新引擎
+// ==========================================
 document.getElementById('langSelect')?.addEventListener('change', (e) => updateLanguage(e.target.value));
 
 const langNames = { "en-US": "English", "zh-TW": "繁體中文", "zh-CN": "简体中文", "es-ES": "Español", "ja-JP": "日本語", "de-DE": "Deutsch", "fr-FR": "Français", "ko-KR": "한국어" };
@@ -1432,6 +1465,16 @@ function updateLanguage(lang) {
             syncLine.innerText = window.t('sync_init'); 
         }
     }
+    
+    // 更新 Preset 選單文字
+    const presetSelect = document.getElementById('presetSelector');
+    if (presetSelect) {
+        Array.from(presetSelect.options).forEach(opt => {
+            const i18nKey = opt.getAttribute('data-i18n');
+            if (i18nKey && dict[i18nKey]) opt.text = dict[i18nKey];
+        });
+    }
+
     forceRenderFrame();
 }
 
