@@ -40,6 +40,7 @@
             <!-- 一鍵大師風格庫 (Presets) -->
             <select id="presetSelector" class="bg-indigo-900/60 text-indigo-300 font-bold text-sm p-1.5 rounded border border-indigo-700 focus:outline-none focus:border-indigo-500 shadow-md transition-colors hover:bg-indigo-800/60">
                 <option value="custom" data-i18n="preset_custom">🔧 自訂 (Custom)</option>
+                <option value="citypop" data-i18n="preset_citypop">🌃 復古城市流行 (City Pop)</option>
                 <option value="acoustic" data-i18n="preset_acoustic">🎸 不插電民謠 (Acoustic)</option>
                 <option value="urban" data-i18n="preset_urban">🌆 都市流行 (Urban)</option>
                 <option value="lofi" data-i18n="preset_lofi">☕ Lo-Fi 經典套房</option>
@@ -79,12 +80,10 @@
                     <textarea id="channelName" rows="2" data-i18n-placeholder="ph_channel" placeholder="左上角頻道資訊..." class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full resize-none text-sm"></textarea>
                     
                     <div class="flex gap-2">
-                        <!-- 🛡️ 修復：HTML 加入明確副檔名白名單，阻擋 HEIC -->
                         <label class="flex-1 bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm">
                             <span id="logoLabel" data-i18n="btn_logo">🖼️ 上傳頻道 Logo</span>
                             <input type="file" id="channelLogo" accept="image/jpeg, image/png, image/webp, image/gif" class="hidden">
                         </label>
-                        <!-- 自訂沉浸式背景上傳 -->
                         <label class="flex-1 bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm truncate">
                             <span id="bgLabel" data-i18n="btn_bg">🌌 上傳沉浸式背景</span>
                             <input type="file" id="bgUpload" accept="image/jpeg, image/png, image/webp, image/gif, video/mp4, video/webm" class="hidden">
@@ -154,6 +153,7 @@
                 <select id="vfxSelector" class="w-full bg-gray-900 text-white p-2.5 rounded-lg border border-gray-600 focus:border-blue-500 outline-none font-bold text-sm mb-4">
                     <option value="aurora" data-i18n="vfx_opt_aurora">🌌 3D 極光水晶柱 (3D WebGL)</option>
                     <option value="nebula" data-i18n="vfx_opt_nebula">🧬 異星流體星雲 (GPU GLSL Shader)</option>
+                    <option value="retrogrid" data-i18n="vfx_opt_retrogrid">🌃 復古幻波網格</option>
                     <option value="ink" data-i18n="vfx_opt_ink">🖌️ 墨暈流光</option>
                     <option value="bokeh" data-i18n="vfx_opt_bokeh">🎇 幻夜光斑</option>
                     <option value="particle" data-i18n="vfx_opt_particle">☄️ 粒子與星雲流體 (2D 深空軌跡)</option>
@@ -285,7 +285,6 @@
         </div>
     </div>
 
-    <!-- 🌟 全新升級：載入模組化 (ESM) 的系統啟動器 -->
     <script type="module" src="./js/main.js"></script>
   
 </body>

@@ -1,10 +1,15 @@
-/**
+/*
  * CyberSentinel - Theme & Configuration Manager
  * 負責管理「一鍵大師風格 (Presets)」、「特效選單列表」以及「特效參數拉桿配置 (Schema)」。
- * 未來要新增特效或新風格，只需要修改此檔案即可，實現設定與邏輯分離。
  */
 
 export const ThemePresets = {
+    citypop: { 
+        /* 🌟 全新 City Pop 預設：網格 + 光斑 */
+        activeVFX: ['retrogrid', 'bokeh'], 
+        vfxState: { retrogrid: { speedMult: 1.0, glowMult: 1.2, terrainHeight: 1.5 }, bokeh: { count: 20, speedMult: 0.5, glowMult: 1.0 } },
+        layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.90 }, vfx: { px: 0.50, py: 0.50 } }
+    },
     acoustic: { 
         activeVFX: ['ink', 'particle'], 
         vfxState: { ink: { spreadMult: 1.2, colorFlow: 0.8, persistence: 0.95 }, particle: { amountMult: 0.3, speedMult: 0.5 } }, 
@@ -40,6 +45,7 @@ export const ThemePresets = {
 export const vfxOptionsList = [
     { id: 'aurora', icon: '🌌', label: 'vfx_opt_aurora' },
     { id: 'nebula', icon: '🧬', label: 'vfx_opt_nebula' },
+    { id: 'retrogrid', icon: '🌃', label: 'vfx_opt_retrogrid' }, /* 🌟 註冊清單 */
     { id: 'ink', icon: '🖌️', label: 'vfx_opt_ink' }, 
     { id: 'bokeh', icon: '🎇', label: 'vfx_opt_bokeh' }, 
     { id: 'particle', icon: '☄️', label: 'vfx_opt_particle' },
@@ -58,6 +64,11 @@ export const VFXSchemas = {
     nebula: [
         { id: 'viscosity', type: 'range', label: 'vfx_n_viscosity', min: 0.05, max: 1.0, step: 0.05 },
         { id: 'colorFlow', type: 'range', label: 'vfx_n_color', min: 0, max: 3.0, step: 0.1 }
+    ],
+    retrogrid: [ /* 🌟 拉桿配置 */
+        { id: 'speedMult', type: 'range', label: 'vfx_r_speed', min: 0.1, max: 3.0, step: 0.1 },
+        { id: 'glowMult', type: 'range', label: 'vfx_r_glow', min: 0.1, max: 3.0, step: 0.1 },
+        { id: 'terrainHeight', type: 'range', label: 'vfx_r_terrain', min: 0.0, max: 3.0, step: 0.1 }
     ],
     ink: [
         { id: 'spreadMult', type: 'range', label: 'vfx_i_spread', min: 0.1, max: 3.0, step: 0.1 },

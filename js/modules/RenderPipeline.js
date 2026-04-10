@@ -1,4 +1,4 @@
-/**
+/*
  * CyberSentinel - Render Pipeline Engine
  * 負責所有 Canvas 2D/3D 的渲染疊加、效能迴圈 (RequestAnimationFrame)、以及畫布拖曳互動。
  */
@@ -8,13 +8,12 @@ import { renderCircular, renderEq, renderWaveform } from '../vfx/AudioSpectrums.
 import { initNebulaShader, renderNebulaShader } from '../vfx/NebulaShader.js';
 import { renderInkGlow } from '../vfx/InkGlow.js';
 import { renderBokeh } from '../vfx/Bokeh.js';
+import { renderRetroGrid } from '../vfx/RetroGrid.js'; /* 🌟 引入復古網格特效 */
 import { State } from './StateManager.js';
 
-// 依賴注入環境
 let audio, audioPlayer, bgManager, lyricsManager, getLogoImg, getCurrentMode, uiManager;
 let onLayoutChangeCallback = null;
 
-// 畫布與 Context
 export const canvas2D = document.getElementById('visualizer2D');
 export const ctx2D = canvas2D.getContext('2d');
 const canvas3D = document.getElementById('visualizer3D'); 
@@ -34,7 +33,6 @@ let animationFrameId = null;
 let sharedDataArray = null; 
 let renderPending = false;
 
-// 狀態 Getter / Setter
 export function getIsDrawing() { return isDrawing; }
 export function setIsDrawing(val) { isDrawing = val; }
 export function setUserHasDragged(val) { userHasDragged = val; }
@@ -70,6 +68,12 @@ const VFXRegistry = {
             ctx.fillRect(0, 0, canvas2D.width, canvas2D.height);
             renderNebulaShader(nebulaSystem, canvas2D.width, canvas2D.height, safePulse, cfg);
             ctx.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
+        }
+    },
+    retrogrid: { /* 🌟 註冊網格路由 */
+        render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
+            const cfg = { ...State.vfx.retrogrid };
+            renderRetroGrid(ctx, canvas2D, dataArray, scale, safePulse, State.ui.isA11y, cfg);
         }
     },
     ink: { 
@@ -194,7 +198,8 @@ function renderCore(dataArray, safePulse) {
             if (State.activeVFX.includes(id) && VFXRegistry[id]) VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
         });
 
-        ['particle', 'ink', 'bokeh', 'circular', 'eq', 'waveform'].forEach(id => {
+        /* 🌟 將 retrogrid 放入繪圖陣列 (會從底部往上畫) */
+        ['retrogrid', 'particle', 'ink', 'bokeh', 'circular', 'eq', 'waveform'].forEach(id => {
             if (State.activeVFX.includes(id) && VFXRegistry[id]) VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
         });
 
@@ -392,7 +397,6 @@ function drawLyrics() {
     }
 }
 
-// 👆 滑鼠與觸控事件互動
 function getMousePos(canvas, evt) {
     const rect = canvas.getBoundingClientRect();
     let cx = evt.touches?.length ? evt.touches[0].clientX : evt.clientX;
