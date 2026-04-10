@@ -1,289 +1,95 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="author" content="張承偉">
-    <meta name="copyright" content="© 2026 張承偉 (CyberSentinel)">
-    <title>CyberSentinel 3D Audio Visualizer Studio</title>
+import { AudioEngine } from './AudioEngine.js';
+import { VideoRecorder } from './modules/VideoRecorder.js';
+import { LyricsManager } from './modules/LyricsManager.js';
+import { BackgroundManager } from './modules/BackgroundManager.js';
+import { State, stateManager } from './modules/StateManager.js'; 
+import { UIManager } from './modules/UIManager.js'; 
+import { AppController } from './modules/AppController.js'; 
+import { 
+    canvas2D, initRenderPipeline, forceRenderFrame, applyResolution, 
+    recalculateLayoutCache, setUserHasDragged 
+} from './modules/RenderPipeline.js';
+
+// ==========================================
+// ⚙️ 核心實例化與依賴注入 (Dependency Injection)
+// ==========================================
+const audioPlayer = document.getElementById('audioPlayer');
+let logoImg = new Image();
+
+const audio = new AudioEngine();
+const videoRecorder = new VideoRecorder(canvas2D);
+const lyricsManager = new LyricsManager();
+const bgManager = new BackgroundManager();
+
+let currentMode = null; 
+const getCurrentMode = () => currentMode;
+const setCurrentMode = (mode) => { currentMode = mode; };
+
+// 🌟 實例化 UI 控制中心
+const uiManager = new UIManager({
+    getLogoImg: () => logoImg,
+    getBgManager: () => bgManager,
+    getLyricsManager: () => lyricsManager,
+    getCurrentMode: getCurrentMode,
+    forceRenderFrame: () => forceRenderFrame(),
+    applyResolution: (w, h) => applyResolution(w, h),
+    recalculateLayoutCache: () => recalculateLayoutCache(),
+    setUserHasDragged: (val) => setUserHasDragged(val)
+});
+
+// 🌟 實例化圖形渲染管線
+initRenderPipeline({
+    audio: audio,
+    audioPlayer: audioPlayer,
+    bgManager: bgManager,
+    lyricsManager: lyricsManager,
+    getLogoImg: () => logoImg,
+    getCurrentMode: getCurrentMode,
+    uiManager: uiManager,
+    onLayoutChange: (type, data) => {
+        if (type === 'wheel') {
+            const slider = document.getElementById('slLogoScale');
+            if (slider) {
+                slider.value = Math.max(0.2, Math.min(5.0, parseFloat(slider.value) - data * 0.002));
+                slider.dispatchEvent(new Event('input')); 
+            }
+        } else {
+            const ps = document.getElementById('presetSelector');
+            if(ps) ps.value = 'custom';
+            stateManager.save();
+        }
+    }
+});
+
+// 🌟 實例化事件總線中心
+const appController = new AppController({
+    audio, audioPlayer, videoRecorder, lyricsManager, bgManager, uiManager,
+    logoImg, getCurrentMode, setCurrentMode
+});
+
+// ==========================================
+// 🚀 系統點火啟動
+// ==========================================
+function initSystem() {
+    uiManager.upgradeUIToMultiLayer(); 
+    uiManager.initLanguageSelect(); 
+    uiManager.injectOBSButton(); 
+    uiManager.updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
     
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#3b82f6">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/727/727218.png">
+    stateManager.load(); 
+    if (State.cache.userHasDragged) setUserHasDragged(true); 
+    uiManager.syncUIToState();     
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    uiManager.initVfxToggles();
+    uiManager.buildDynamicUI(); 
     
-    <style>
-        body { background-color: #030305; }
-        .glass-panel { background: rgba(31, 41, 55, 0.7); backdrop-filter: blur(10px); }
-        input[type=range] { accent-color: #3b82f6; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
-        ::-webkit-scrollbar-track { background: #1f2937; }
-        
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-        .recording-dot { animation: blink 1.5s infinite; }
-    </style>
-</head>
-<body class="text-gray-100 min-h-screen flex flex-col font-sans overflow-x-hidden">
+    // 啟動所有 DOM 監聽事件！
+    appController.init();
 
-    <!-- 導航欄 -->
-    <nav class="p-4 border-b border-gray-800 flex justify-between items-center glass-panel sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">CS</div>
-            <span class="text-xl font-bold tracking-tight text-blue-400" data-i18n="nav_brand">CyberSentinel 黑核核心</span>
-        </div>
-        <div class="flex items-center gap-4">
-            <span class="text-sm text-gray-500 hidden md:block" data-i18n="creator_label">CS-Founder 2026.04.06</span>
-            
-            <!-- 一鍵大師風格庫 (Presets) -->
-            <select id="presetSelector" class="bg-indigo-900/60 text-indigo-300 font-bold text-sm p-1.5 rounded border border-indigo-700 focus:outline-none focus:border-indigo-500 shadow-md transition-colors hover:bg-indigo-800/60">
-                <option value="custom" data-i18n="preset_custom">🔧 自訂 (Custom)</option>
-                <option value="lofi" data-i18n="preset_lofi">☕ Lo-Fi 經典套房</option>
-                <option value="cyberpunk" data-i18n="preset_cyberpunk">🌆 賽博龐克之夜</option>
-                <option value="podcast" data-i18n="preset_podcast">🎙️ 專業 Podcast</option>
-                <option value="minimal" data-i18n="preset_minimal">⚪ 極簡純粹</option>
-                <option value="urban" data-i18n="preset_urban">🌆 都市流行 (Urban)</option>
-            </select>
-            
-            <select id="langSelect" class="bg-gray-800 text-sm p-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500">
-                <!-- 語言選項將由 main.js 動態生成 -->
-            </select>
-        </div>
-    </nav>
+    setTimeout(() => applyResolution(1920, 1080), 500);
+    setTimeout(() => uiManager.showPrivacyToast(), 1000); 
+    uiManager.initESGMode();
+}
 
-    <!-- 主框架 -->
-    <main class="flex-1 flex flex-col lg:flex-row gap-6 w-full max-w-[1800px] mx-auto py-6 lg:py-8 px-4 lg:px-6">
-        
-        <!-- 【左半部：設定與控制樞紐】 -->
-        <div class="w-full lg:w-4/12 flex flex-col gap-5 order-2 lg:order-1 h-fit">
-            
-            <!-- 區塊 1：素材與排版 -->
-            <div class="bg-gray-800/60 p-5 rounded-2xl border border-gray-700 shadow-lg">
-                <h3 class="text-lg font-bold text-blue-400 mb-4 border-b border-gray-700 pb-2" data-i18n="step1_title">1️⃣ 匯入素材 (音源與排版)</h3>
-                
-                <div class="flex flex-wrap gap-2 mb-4">
-                    <button id="btnMic" class="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold transition-colors text-sm" data-i18n="btn_mic">🎙️ 啟用麥克風</button>
-                    <label class="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold cursor-pointer transition-colors text-center text-sm">
-                        <span data-i18n="btn_upload">🎵 上傳音源 (含影片)</span>
-                        <input type="file" id="audioUpload" accept="audio/*,video/*,.m4a,.mp4,.mov" class="hidden">
-                    </label>
-                    <audio id="audioPlayer" class="hidden"></audio>
-                </div>
-                
-                <div class="flex flex-col gap-2">
-                    <input type="text" id="topicTitle" data-i18n-placeholder="ph_topic" placeholder="大標題 (專題主題)" class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full text-sm">
-                    <input type="text" id="speakerInfo" data-i18n-placeholder="ph_speaker" placeholder="副標題 (講者資訊)" class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full text-sm">
-                    <textarea id="channelName" rows="2" data-i18n-placeholder="ph_channel" placeholder="左上角頻道資訊..." class="bg-gray-900 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none w-full resize-none text-sm"></textarea>
-                    
-                    <div class="flex gap-2">
-                        <!-- 🛡️ 修復：HTML 加入明確副檔名白名單，阻擋 HEIC -->
-                        <label class="flex-1 bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm">
-                            <span id="logoLabel" data-i18n="btn_logo">🖼️ 上傳頻道 Logo</span>
-                            <input type="file" id="channelLogo" accept="image/jpeg, image/png, image/webp, image/gif" class="hidden">
-                        </label>
-                        <!-- 自訂沉浸式背景上傳 -->
-                        <label class="flex-1 bg-gray-900 hover:bg-gray-700 text-gray-300 px-3 py-2 rounded-lg border border-gray-600 cursor-pointer flex justify-center transition-colors text-sm truncate">
-                            <span id="bgLabel" data-i18n="btn_bg">🌌 上傳沉浸式背景</span>
-                            <input type="file" id="bgUpload" accept="image/jpeg, image/png, image/webp, image/gif, video/mp4, video/webm" class="hidden">
-                        </label>
-                    </div>
-                    
-                    <div id="logoScaleWrapper" class="hidden flex items-center justify-between gap-3 px-3 py-2 bg-gray-900/50 rounded-lg border border-gray-700 mt-[-4px]">
-                        <span class="text-xs text-gray-400 whitespace-nowrap" data-i18n="logo_scale">📏 Logo 縮放</span>
-                        <input type="range" id="slLogoScale" min="0.2" max="5.0" step="0.1" value="1.0" class="w-full">
-                        <span id="valLogoScale" class="text-xs text-blue-400 w-8 text-right font-mono">1.0x</span>
-                    </div>
-
-                    <div id="bgDimWrapper" class="hidden flex items-center justify-between gap-3 px-3 py-2 bg-gray-900/50 rounded-lg border border-gray-700 mt-[-4px]">
-                        <span class="text-xs text-gray-400 whitespace-nowrap" data-i18n="lbl_bg_dim">🌌 背景遮罩</span>
-                        <input type="range" id="slBgDim" min="0.0" max="1.0" step="0.05" value="0.85" class="w-full">
-                        <span id="valBgDim" class="text-xs text-blue-400 w-8 text-right font-mono">0.85</span>
-                    </div>
-
-                    <!-- 雙軌混音器 UI -->
-                    <div class="mt-2 p-3 bg-gray-950 rounded-lg border border-gray-700">
-                        <h4 class="text-xs font-bold text-blue-400 mb-3" data-i18n="lbl_mixer">🎚️ 雙軌混音器</h4>
-                        <div class="flex flex-col gap-3">
-                            <div class="flex items-center gap-3">
-                                <span class="text-xs text-gray-400 w-16" data-i18n="lbl_vol_bgm">🎵 音樂</span>
-                                <input type="range" id="slVolBGM" min="0" max="2" step="0.05" value="1.0" class="w-full">
-                                <span id="valVolBGM" class="text-xs text-gray-400 w-8 text-right font-mono">1.0</span>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span class="text-xs text-gray-400 w-16" data-i18n="lbl_vol_mic">🎙️ 麥克風</span>
-                                <input type="range" id="slVolMic" min="0" max="2" step="0.05" value="1.0" class="w-full">
-                                <span id="valVolMic" class="text-xs text-gray-400 w-8 text-right font-mono">1.0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 區塊 2：動態歌詞 (LRC) -->
-            <div class="bg-gray-800/60 p-5 rounded-2xl border border-gray-700 shadow-lg">
-                <div class="flex justify-between items-center mb-3 border-b border-gray-700 pb-2">
-                    <h3 class="text-base font-bold text-blue-400" data-i18n="step2_title">2️⃣ 動態歌詞 (LRC 打軸)</h3>
-                    <button id="btnToggleSync" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded shadow-md transition-colors" data-i18n="btn_sync_tool">🛠️ 工具</button>
-                </div>
-                <textarea id="lyricsInput" rows="4" data-i18n-placeholder="ph_lyrics" placeholder="請貼上純文字歌詞，或 LRC 格式..." class="bg-gray-900 text-white w-full px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-400 focus:outline-none resize-y text-sm"></textarea>
-                
-                <div class="flex justify-end gap-2 mt-2">
-                    <button id="btnExportLRC" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded transition-colors flex items-center gap-1 shadow border border-gray-600" data-i18n="btn_export_lrc">⬇️ .LRC</button>
-                    <button id="btnExportSRT" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded transition-colors flex items-center gap-1 shadow border border-gray-600" data-i18n="btn_export_srt">⬇️ .SRT</button>
-                </div>
-
-                <div id="syncToolPanel" class="hidden mt-3 p-3 bg-gray-950 border border-blue-500 rounded-xl">
-                    <div class="flex flex-col gap-2 mb-2">
-                        <button id="btnStartSync" class="w-full px-3 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-sm transition-colors" data-i18n="btn_sync_start">▶️ 開始播放</button>
-                        <button id="btnMarkTime" disabled class="w-full py-2 bg-gray-800 text-gray-500 border border-gray-700 rounded-lg font-bold disabled:opacity-50 text-sm transition-colors" data-i18n="btn_sync_mark">標記下一句 [空白鍵]</button>
-                    </div>
-                    <div class="p-2 bg-black rounded-lg text-center border border-gray-800">
-                        <p class="text-xs text-gray-500 mb-1" data-i18n="sync_prep">準備標記：</p>
-                        <div class="text-base font-bold text-yellow-400 min-h-[24px] truncate" id="currentSyncLine" data-i18n="sync_init">-- 準備開始 --</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 區塊 3：視覺特效 -->
-            <div class="bg-gray-800/60 p-5 rounded-2xl border border-gray-700 shadow-lg mb-4">
-                <h3 class="text-base font-bold text-blue-400 mb-3 border-b border-gray-700 pb-2" data-i18n="step3_title">3️⃣ 視覺特效與微調</h3>
-                
-                <select id="vfxSelector" class="w-full bg-gray-900 text-white p-2.5 rounded-lg border border-gray-600 focus:border-blue-500 outline-none font-bold text-sm mb-4">
-                    <option value="aurora" data-i18n="vfx_opt_aurora">🌌 3D 極光水晶柱 (3D WebGL)</option>
-                    <option value="nebula" data-i18n="vfx_opt_nebula">🧬 異星流體星雲 (GPU GLSL Shader)</option>
-                    <option value="particle" data-i18n="vfx_opt_particle">☄️ 粒子與星雲流體 (2D 深空軌跡)</option>
-                    <option value="circular" data-i18n="vfx_opt_circular">💿 對稱環形光譜 (2D 廣播級美學引擎)</option>
-                    <option value="eq" data-i18n="vfx_opt_eq">🎚️ 柱狀均衡器 (2D 廣播級美學引擎)</option>
-                    <option value="waveform" selected data-i18n="vfx_opt_waveform">🌊 霓虹時域波形 (2D 多重殘影版)</option>
-                </select>
-
-                <!-- 資料驅動 UI 容器 (由 JS 自動生成拉桿) -->
-                <div id="dynamicVfxContainer" class="flex flex-col gap-3 mt-4"></div>
-
-                <div class="flex items-center justify-between mt-3 p-2 bg-gray-900/50 rounded-lg">
-                    <label class="text-xs text-gray-400 flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="chkA11y" class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500">
-                        <span data-i18n="vfx_a11y">🔒 視覺保護模式</span>
-                    </label>
-                </div>
-            </div>
-            
-        </div>
-
-        <!-- 【右半部：監看器與輸出樞紐】 -->
-        <div class="w-full lg:w-8/12 flex flex-col gap-6 order-1 lg:order-2">
-            <div class="sticky top-[72px] lg:top-24 z-40 bg-gray-900 lg:bg-transparent pb-4 lg:pb-0 shadow-2xl lg:shadow-none -mx-4 px-4 lg:mx-0 lg:px-0">
-                <div class="bg-gray-800/90 backdrop-blur-md p-4 lg:p-6 rounded-b-2xl lg:rounded-2xl border-b border-gray-700 lg:border-t shadow-2xl">
-                    <div class="flex justify-between items-center mb-4 px-1 hidden lg:flex">
-                        <h3 class="text-xl font-bold text-blue-400" data-i18n="step4_title">4️⃣ 即時預覽與錄製 (大視窗)</h3>
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm text-gray-400" data-i18n="lbl_quality">錄影畫質:</span>
-                            <select id="resSelector" class="bg-gray-900 text-white text-sm p-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none">
-                                <option value="1280x720" data-i18n="opt_720p">720p (標準)</option>
-                                <option value="1920x1080" selected data-i18n="opt_1080p">1080p (高畫質)</option>
-                                <option value="2560x1440" data-i18n="opt_2k">2K (超清)</option>
-                                <option value="3840x2160" data-i18n="opt_4k">4K (極致)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- 全局波形預覽區塊 -->
-                    <div class="bg-gray-900/80 p-3 rounded-xl mb-4 border border-gray-700 shadow-inner">
-                        <p class="text-xs text-gray-500 mb-2 flex justify-between items-center">
-                            <span class="flex items-center gap-1" data-i18n="lbl_waveform_preview">📍 全局波形預覽 <span class="hidden sm:inline">(點擊波形可跳轉時間)</span></span>
-                            <span id="currentTimeDisplay" class="font-mono text-gray-400">00:00 / 00:00</span>
-                        </p>
-                        <div id="waveformPreview" class="h-16 w-full flex items-center gap-[2px] px-2 overflow-hidden bg-black/50 rounded-lg cursor-pointer hover:bg-black/70 transition-colors">
-                            <p class="text-gray-600 text-xs w-full text-center pointer-events-none" data-i18n="msg_drag_audio">直接把電腦裡的 MP3 或手機上的螢幕錄影拖曳進來吧！</p>
-                        </div>
-                    </div>
-                    
-                    <!-- 監看畫布 (16:9) -->
-                    <div class="relative w-full aspect-video rounded-xl overflow-hidden border-2 border-gray-900 bg-black mb-5 group shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-                        <canvas id="visualizer3D" width="1920" height="1080" class="absolute inset-0 w-full h-full object-cover hidden"></canvas>
-                        <canvas id="visualizer2D" width="1920" height="1080" class="absolute inset-0 w-full h-full object-cover"></canvas>
-                        
-                        <div id="canvasOverlay" class="absolute inset-0 flex flex-col items-center justify-center text-gray-300 pointer-events-none bg-black/70 z-10 backdrop-blur-md transition-opacity duration-500">
-                            <span class="text-6xl mb-4 drop-shadow-lg">🌌</span>
-                            <p class="text-xl font-bold tracking-widest text-blue-300" id="overlayText" data-i18n="msg_wait_audio">等待音源輸入...</p>
-                        </div>
-                        
-                        <div id="energyNotice" class="absolute top-4 right-4 bg-green-900/80 text-green-300 px-3 py-1.5 rounded-full text-xs hidden items-center gap-2 border border-green-700 z-20 shadow-lg">
-                            <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                            <span data-i18n="energy_msg">🌱 節能模式</span>
-                        </div>
-                    </div>
-
-                    <!-- 錄影控制台 -->
-                    <div class="flex items-center gap-3 lg:gap-4 bg-gray-900 p-3 lg:p-4 rounded-xl border border-gray-700">
-                        <button id="btnRecord" disabled class="flex-1 py-3 text-lg lg:text-xl bg-gray-700 text-gray-400 rounded-xl font-bold transition-all flex justify-center items-center gap-3 shadow-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <div class="w-4 h-4 rounded-full bg-red-500"></div> <span data-i18n="btn_record">🔴 開始錄影</span>
-                        </button>
-                        <button id="btnStopRecord" disabled class="px-6 lg:px-8 py-3 text-base lg:text-lg bg-gray-500 text-white rounded-xl font-bold transition-all shadow-md hover:bg-gray-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.4)] disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-700 disabled:hover:shadow-none" data-i18n="btn_stop_record">
-                            停止
-                        </button>
-                        
-                        <div class="w-24 lg:w-28 text-right pr-2">
-                            <span id="recordingStatus" class="hidden text-red-400 text-sm lg:text-base font-bold flex items-center justify-end gap-2">
-                                <div class="w-2.5 h-2.5 rounded-full bg-red-500 recording-dot"></div> <span data-i18n="lbl_recording">錄製中</span>
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- 手機版的畫質選擇 -->
-                    <div class="flex justify-end items-center mt-3 lg:hidden px-2">
-                        <span class="text-xs text-gray-400 mr-2" data-i18n="lbl_quality">畫質:</span>
-                        <select id="resSelectorMobile" class="bg-gray-900 text-white text-xs p-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none">
-                            <option value="1280x720" data-i18n="opt_720p">720p</option>
-                            <option value="1920x1080" selected data-i18n="opt_1080p">1080p</option>
-                            <option value="2560x1440" data-i18n="opt_2k">2K</option>
-                            <option value="3840x2160" data-i18n="opt_4k">4K</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- 【滿版彈跳視窗 (Modal)】：錄影結果與轉檔區塊 -->
-    <div id="resultModal" class="hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm items-center justify-center p-4 lg:p-8">
-        <div class="bg-gray-800 w-full max-w-4xl rounded-2xl shadow-2xl border border-green-600 flex flex-col gap-5 relative overflow-hidden max-h-[95vh] overflow-y-auto p-6 lg:p-8">
-            
-            <button id="btnCloseResult" class="absolute top-4 right-5 text-gray-400 hover:text-white text-4xl leading-none transition-colors">&times;</button>
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-blue-500"></div>
-            
-            <h3 class="text-2xl font-bold text-green-400 text-center flex items-center justify-center gap-2 mt-2">
-                <span>✅</span> <span data-i18n="msg_record_done">錄製完成！</span>
-            </h3>
-            
-            <div class="w-full border-2 border-gray-700 rounded-xl overflow-hidden bg-black shadow-inner shrink-0">
-                <video id="recordedVideo" controls class="w-full max-h-[45vh] object-contain"></video>
-            </div>
-            
-            <a id="downloadLink" class="px-6 py-4 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold text-xl transition-colors w-full text-center shadow-lg transform hover:scale-[1.01] shrink-0" data-i18n="btn_download_video">⬇️ 下載影片檔 (WebM 格式)</a>
-            
-            <div class="w-full mt-2 bg-gray-900 border border-gray-700 rounded-xl p-5 shadow-inner shrink-0">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="text-2xl">🔄</span>
-                    <h4 class="text-blue-400 font-bold text-lg" data-i18n="convert_title">進階：需要轉檔為 MP4 嗎？</h4>
-                </div>
-                <p class="text-sm text-gray-400 mb-4 leading-relaxed" data-i18n="convert_desc">由於瀏覽器技術限制，錄影原生輸出為 WebM 格式。若您需要傳送至 iPhone、LINE 或 Instagram 等平台，建議使用以下安全免費的線上轉檔工具：</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <a href="https://www.freeconvert.com/webm-to-mp4" target="_blank" class="flex flex-col items-center justify-center gap-1 px-4 py-4 bg-indigo-700 hover:bg-indigo-600 text-white rounded-xl font-bold transition-colors shadow-md group">
-                        <span class="flex items-center gap-2 text-base" data-i18n="convert_free">🌐 前往 FreeConvert 轉檔</span>
-                    </a>
-                    <a href="https://cloudconvert.com/webm-to-mp4" target="_blank" class="flex flex-col items-center justify-center gap-1 px-4 py-4 bg-blue-700 hover:bg-blue-600 text-white rounded-xl font-bold transition-colors shadow-md group">
-                        <span class="flex items-center gap-2 text-base" data-i18n="convert_cloud">☁️ 前往 CloudConvert 轉檔</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 將龐大的 JavaScript 替換為 Module 引入 -->
-    <script type="module" src="./js/main.js"></script>
-  
-</body>
-</html>
+// 啟動專案
+initSystem();
