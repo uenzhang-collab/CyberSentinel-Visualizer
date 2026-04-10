@@ -40,15 +40,16 @@
             <!-- 一鍵大師風格庫 (Presets) -->
             <select id="presetSelector" class="bg-indigo-900/60 text-indigo-300 font-bold text-sm p-1.5 rounded border border-indigo-700 focus:outline-none focus:border-indigo-500 shadow-md transition-colors hover:bg-indigo-800/60">
                 <option value="custom" data-i18n="preset_custom">🔧 自訂 (Custom)</option>
+                <option value="acoustic" data-i18n="preset_acoustic">🎸 不插電民謠 (Acoustic)</option>
+                <option value="urban" data-i18n="preset_urban">🌆 都市流行 (Urban)</option>
                 <option value="lofi" data-i18n="preset_lofi">☕ Lo-Fi 經典套房</option>
                 <option value="cyberpunk" data-i18n="preset_cyberpunk">🌆 賽博龐克之夜</option>
                 <option value="podcast" data-i18n="preset_podcast">🎙️ 專業 Podcast</option>
                 <option value="minimal" data-i18n="preset_minimal">⚪ 極簡純粹</option>
-                <option value="urban" data-i18n="preset_urban">🌆 都市流行 (Urban)</option>
             </select>
             
             <select id="langSelect" class="bg-gray-800 text-sm p-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500">
-                <!-- 語言選項將由 main.js 動態生成 -->
+                <!-- 語言選項將由 JS 動態生成 -->
             </select>
         </div>
     </nav>
@@ -153,6 +154,8 @@
                 <select id="vfxSelector" class="w-full bg-gray-900 text-white p-2.5 rounded-lg border border-gray-600 focus:border-blue-500 outline-none font-bold text-sm mb-4">
                     <option value="aurora" data-i18n="vfx_opt_aurora">🌌 3D 極光水晶柱 (3D WebGL)</option>
                     <option value="nebula" data-i18n="vfx_opt_nebula">🧬 異星流體星雲 (GPU GLSL Shader)</option>
+                    <option value="ink" data-i18n="vfx_opt_ink">🖌️ 墨暈流光</option>
+                    <option value="bokeh" data-i18n="vfx_opt_bokeh">🎇 幻夜光斑</option>
                     <option value="particle" data-i18n="vfx_opt_particle">☄️ 粒子與星雲流體 (2D 深空軌跡)</option>
                     <option value="circular" data-i18n="vfx_opt_circular">💿 對稱環形光譜 (2D 廣播級美學引擎)</option>
                     <option value="eq" data-i18n="vfx_opt_eq">🎚️ 柱狀均衡器 (2D 廣播級美學引擎)</option>
@@ -282,7 +285,7 @@
         </div>
     </div>
 
-    <!-- 將龐大的 JavaScript 替換為 Module 引入 -->
+    <!-- 🌟 全新升級：載入模組化 (ESM) 的系統啟動器 -->
     <script type="module" src="./js/main.js"></script>
   
 </body>
