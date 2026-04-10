@@ -9,6 +9,7 @@ import { translations } from './i18n.js';
 import { VideoRecorder } from './modules/VideoRecorder.js';
 import { LyricsManager } from './modules/LyricsManager.js';
 import { BackgroundManager } from './modules/BackgroundManager.js';
+import { State, stateManager } from './modules/StateManager.js'; // 🌟 引入全新的模組化狀態管理器
 
 // ==========================================
 // 🌐 全域翻譯引擎
@@ -19,98 +20,15 @@ window.t = function(key) {
 };
 
 // ==========================================
-// 🧠 核心狀態管理與自動存檔 (Auto-Save)
+// 🧠 核心狀態橋接與 UI 綁定 (大幅瘦身)
 // ==========================================
-let State = {
-    activeVFX: ['waveform'], 
-    vfx: {
-        aurora: { rotSpeed: 0.2, transmission: 0.9, showAurora: true, showSun: true },
-        particle: { amountMult: 1.0, speedMult: 1.0 },
-        circular: { count: 360, ampMult: 1.0, colorMult: 1.0, spinMult: 1.0 },
-        eq: { count: 128, ampMult: 1.0, colorMult: 1.0, gravityMult: 1.0 },
-        waveform: { ampMult: 1.0, colorMult: 1.0, glowMult: 1.0, thick: 5 },
-        nebula: { viscosity: 0.2, colorFlow: 1.0 },
-        ink: { spreadMult: 1.0, colorFlow: 1.0, persistence: 0.9 },
-        bokeh: { count: 30, speedMult: 1.0, glowMult: 1.0 }
-    },
-    ui: {
-        channelName: "", topicTitle: "", speakerInfo: "", 
-        logoScale: 1.0, isA11y: false,
-        volBGM: 1.0, volMic: 1.0,
-        cameraShake: true, 
-        obsMode: false,    
-        bgDim: 0.85,
-        autoVJ: false 
-    },
-    layoutOffsets: {
-        channel: { px: 0.04, py: 0.06 }, titles: { px: 0.50, py: 0.16 },  
-        logo: { px: 0.96, py: 0.06 }, lyrics: { px: 0.50, py: 0.90 },
-        vfx: { px: 0.50, py: 0.50 } 
-    },
-    cache: {
-        cNameLines: [], cNameMaxWidth: 0, topicWidth: 0, speakerWidth: 0, lastScale: 0
-    }
-};
-
-let _saveTimeout = null;
-
-// 🛡️ 狀態同步機制
+// 為了不影響其他程式運作，保留輕量化的存檔封裝
 function saveState(force = false) {
-    const executeSave = () => {
-        try {
-            localStorage.setItem('CS_State_VFX', JSON.stringify(State.vfx));
-            localStorage.setItem('CS_State_UI', JSON.stringify(State.ui));
-            localStorage.setItem('CS_State_Layout', JSON.stringify(State.layoutOffsets));
-            localStorage.setItem('CS_ActiveVFX', JSON.stringify(State.activeVFX));
-        } catch (e) {
-            console.error("[CyberSentinel] 儲存狀態至 LocalStorage 失敗", e);
-        }
-    };
-
-    if (force) {
-        clearTimeout(_saveTimeout);
-        executeSave();
-    } else {
-        clearTimeout(_saveTimeout);
-        _saveTimeout = setTimeout(executeSave, 500); 
-    }
+    stateManager.save(force);
 }
 
-// 🛡️ 生命週期終點守護
-window.addEventListener('beforeunload', () => saveState(true));
-
-function loadState() {
-    try {
-        const savedVfx = localStorage.getItem('CS_State_VFX');
-        const savedUi = localStorage.getItem('CS_State_UI');
-        const savedLayout = localStorage.getItem('CS_State_Layout');
-        const savedActive = localStorage.getItem('CS_ActiveVFX');
-        
-        if (savedVfx) State.vfx = { ...State.vfx, ...JSON.parse(savedVfx) };
-        if (savedUi) State.ui = { ...State.ui, ...JSON.parse(savedUi) };
-        
-        // 🛡️ 預設值保護機制
-        if (savedLayout) {
-            const parsedLayout = JSON.parse(savedLayout);
-            const safeFloat = (val, fallback) => (isNaN(parseFloat(val)) ? fallback : parseFloat(val));
-            for (let key in parsedLayout) {
-                if (State.layoutOffsets[key]) {
-                    State.layoutOffsets[key].px = safeFloat(parsedLayout[key].px, State.layoutOffsets[key].px);
-                    State.layoutOffsets[key].py = safeFloat(parsedLayout[key].py, State.layoutOffsets[key].py);
-                }
-            }
-            userHasDragged = true; 
-        }
-
-        if (savedActive) {
-            let parsed = JSON.parse(savedActive);
-            State.activeVFX = Array.isArray(parsed) ? parsed : [savedActive]; 
-        }
-    } catch (e) {
-        console.warn("[CyberSentinel] 讀取本機狀態失敗，使用系統預設值", e);
-    }
-
-    // 安全綁定 UI 數值
+// 將原本 loadState() 中的 UI 介面綁定獨立為純顯示函數
+function syncUIToState() {
     const bindVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     const bindText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     const bindChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
@@ -138,6 +56,7 @@ function loadState() {
     bindChk('chkAutoVJ', State.ui.autoVJ);
 }
 
+// 🛡️ 原生 Style 覆蓋，徹底根除 Tailwind 編譯打包後遺失 Class 的 Bug
 function updateButtonVisualState(labelId, isLoaded) {
     const labelSpan = document.getElementById(labelId);
     if (!labelSpan) return;
@@ -165,10 +84,15 @@ function isUnsupportedFormat(file) {
 // 🎨 一鍵大師風格庫
 // ==========================================
 const ThemePresets = {
-    acoustic: { // 🌟 新增：不插電民謠專屬配置
+    acoustic: { 
         activeVFX: ['ink', 'particle'], 
         vfxState: { ink: { spreadMult: 1.2, colorFlow: 0.8, persistence: 0.95 }, particle: { amountMult: 0.3, speedMult: 0.5 } }, 
         layout: { titles: { px: 0.50, py: 0.40 }, lyrics: { px: 0.50, py: 0.80 }, vfx: { px: 0.50, py: 0.50 } } 
+    },
+    urban: { 
+        activeVFX: ['waveform', 'bokeh'], 
+        vfxState: { waveform: { ampMult: 1.2, colorMult: 1.5, glowMult: 1.8, thick: 6 }, bokeh: { count: 40, speedMult: 0.8, glowMult: 1.2 } }, 
+        layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.90 }, vfx: { px: 0.50, py: 0.50 } } 
     },
     lofi: { 
         activeVFX: ['circular', 'particle'], 
@@ -189,11 +113,6 @@ const ThemePresets = {
         activeVFX: ['particle'],
         vfxState: { particle: { amountMult: 0.5, speedMult: 0.8 } },
         layout: { titles: { px: 0.50, py: 0.40 }, lyrics: { px: 0.50, py: 0.80 }, vfx: { px: 0.50, py: 0.50 } }
-    },
-    urban: {
-        activeVFX: ['waveform', 'bokeh'], 
-        vfxState: { waveform: { ampMult: 1.2, colorMult: 1.5, glowMult: 1.8, thick: 6 }, bokeh: { count: 40, speedMult: 0.8, glowMult: 1.2 } }, 
-        layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.90 }, vfx: { px: 0.50, py: 0.50 } } 
     }
 };
 
@@ -251,7 +170,7 @@ const VFXRegistry = {
             { id: 'colorFlow', type: 'range', label: 'vfx_n_color', min: 0, max: 3.0, step: 0.1 }
         ]
     },
-    ink: { // 🌟 新增：墨暈流光模組註冊
+    ink: { 
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
             const cfg = { ...State.vfx.ink };
             if (window.ESG_ECO_MODE) {
@@ -266,7 +185,7 @@ const VFXRegistry = {
             { id: 'persistence', type: 'range', label: 'vfx_i_persist', min: 0.1, max: 0.99, step: 0.01 }
         ]
     },
-    bokeh: {
+    bokeh: { 
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
             const cfg = { ...State.vfx.bokeh };
             if (window.ESG_ECO_MODE) cfg.count = Math.min(cfg.count, 15);
@@ -333,8 +252,8 @@ const VFXRegistry = {
 const vfxOptionsList = [
     { id: 'aurora', icon: '🌌', label: 'vfx_opt_aurora' },
     { id: 'nebula', icon: '🧬', label: 'vfx_opt_nebula' },
-    { id: 'ink', icon: '🖌️', label: 'vfx_opt_ink' },
-    { id: 'bokeh', icon: '🎇', label: 'vfx_opt_bokeh' },
+    { id: 'ink', icon: '🖌️', label: 'vfx_opt_ink' }, 
+    { id: 'bokeh', icon: '🎇', label: 'vfx_opt_bokeh' }, 
     { id: 'particle', icon: '☄️', label: 'vfx_opt_particle' },
     { id: 'circular', icon: '💿', label: 'vfx_opt_circular' },
     { id: 'eq', icon: '🎚️', label: 'vfx_opt_eq' },
@@ -634,6 +553,7 @@ function renderCore(dataArray, safePulse) {
             }
         });
 
+        // 🌟 將 ink 與 bokeh 模組加入 2D 畫布繪製序列
         ['particle', 'ink', 'bokeh', 'circular', 'eq', 'waveform'].forEach(id => {
             if (State.activeVFX.includes(id) && VFXRegistry[id]) {
                 VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
@@ -685,7 +605,7 @@ function renderCore(dataArray, safePulse) {
         if (!State.ui.obsMode) drawInteractions(); 
     } catch (e) {
         console.error("[CyberSentinel] Render Core 崩潰:", e);
-        throw e;
+        throw e; 
     }
 }
 
@@ -1022,7 +942,7 @@ document.getElementById('btnMarkTime').addEventListener('click', () => {
 });
 
 // ==========================================
-// 🌟 OBS 廣播模式切換
+// 🌟 鍵盤防呆快速鍵 (Shift+F) 與 OBS 廣播模式切換
 // ==========================================
 window.addEventListener('keydown', (e) => { 
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -1503,7 +1423,12 @@ function initSystem() {
     initLanguageSelect(); 
     injectOBSButton(); 
     updateLanguage(localStorage.getItem('preferredLang') || 'zh-TW');
-    loadState(); 
+    
+    // 🌟 改由模組載入狀態，並橋接拖曳判定
+    stateManager.load(); 
+    if (State.cache.userHasDragged) userHasDragged = true; 
+    syncUIToState();     
+
     initVfxToggles();
     buildDynamicUI(); 
     setTimeout(() => applyResolution(1920, 1080), 500);
