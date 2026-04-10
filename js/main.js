@@ -3,7 +3,8 @@ import { initAurora3D, renderAurora3D } from './vfx/Aurora3D.js';
 import { renderParticles } from './vfx/Particles.js';
 import { renderCircular, renderEq, renderWaveform } from './vfx/AudioSpectrums.js';
 import { initNebulaShader, renderNebulaShader } from './vfx/NebulaShader.js';
-import { renderInkGlow } from './vfx/InkGlow.js'; // 🌟 新增：墨暈流光特效
+import { renderInkGlow } from './vfx/InkGlow.js';
+import { renderBokeh } from './vfx/Bokeh.js';
 import { translations } from './i18n.js';
 import { VideoRecorder } from './modules/VideoRecorder.js';
 import { LyricsManager } from './modules/LyricsManager.js';
@@ -29,7 +30,8 @@ let State = {
         eq: { count: 128, ampMult: 1.0, colorMult: 1.0, gravityMult: 1.0 },
         waveform: { ampMult: 1.0, colorMult: 1.0, glowMult: 1.0, thick: 5 },
         nebula: { viscosity: 0.2, colorFlow: 1.0 },
-        ink: { spreadMult: 1.0, colorFlow: 1.0, persistence: 0.9 } // 🌟 新增：墨暈流光狀態
+        ink: { spreadMult: 1.0, colorFlow: 1.0, persistence: 0.9 },
+        bokeh: { count: 30, speedMult: 1.0, glowMult: 1.0 }
     },
     ui: {
         channelName: "", topicTitle: "", speakerInfo: "", 
@@ -187,6 +189,11 @@ const ThemePresets = {
         activeVFX: ['particle'],
         vfxState: { particle: { amountMult: 0.5, speedMult: 0.8 } },
         layout: { titles: { px: 0.50, py: 0.40 }, lyrics: { px: 0.50, py: 0.80 }, vfx: { px: 0.50, py: 0.50 } }
+    },
+    urban: {
+        activeVFX: ['waveform', 'bokeh'], 
+        vfxState: { waveform: { ampMult: 1.2, colorMult: 1.5, glowMult: 1.8, thick: 6 }, bokeh: { count: 40, speedMult: 0.8, glowMult: 1.2 } }, 
+        layout: { titles: { px: 0.50, py: 0.16 }, lyrics: { px: 0.50, py: 0.90 }, vfx: { px: 0.50, py: 0.50 } } 
     }
 };
 
@@ -259,6 +266,18 @@ const VFXRegistry = {
             { id: 'persistence', type: 'range', label: 'vfx_i_persist', min: 0.1, max: 0.99, step: 0.01 }
         ]
     },
+    bokeh: {
+        render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
+            const cfg = { ...State.vfx.bokeh };
+            if (window.ESG_ECO_MODE) cfg.count = Math.min(cfg.count, 15);
+            renderBokeh(ctx, canvas2D, dataArray, scale, safePulse, State.ui.isA11y, cfg);
+        },
+        schema: [
+            { id: 'count', type: 'range', label: 'vfx_b_count', min: 10, max: 100, step: 1, isInt: true },
+            { id: 'speedMult', type: 'range', label: 'vfx_b_speed', min: 0.1, max: 3.0, step: 0.1 },
+            { id: 'glowMult', type: 'range', label: 'vfx_b_glow', min: 0.1, max: 3.0, step: 0.1 }
+        ]
+    },
     particle: {
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
             const cfg = { ...State.vfx.particle };
@@ -314,7 +333,8 @@ const VFXRegistry = {
 const vfxOptionsList = [
     { id: 'aurora', icon: '🌌', label: 'vfx_opt_aurora' },
     { id: 'nebula', icon: '🧬', label: 'vfx_opt_nebula' },
-    { id: 'ink', icon: '🖌️', label: 'vfx_opt_ink' }, // 🌟 新增選項
+    { id: 'ink', icon: '🖌️', label: 'vfx_opt_ink' },
+    { id: 'bokeh', icon: '🎇', label: 'vfx_opt_bokeh' },
     { id: 'particle', icon: '☄️', label: 'vfx_opt_particle' },
     { id: 'circular', icon: '💿', label: 'vfx_opt_circular' },
     { id: 'eq', icon: '🎚️', label: 'vfx_opt_eq' },
@@ -614,8 +634,7 @@ function renderCore(dataArray, safePulse) {
             }
         });
 
-        // 🌟 核心更新：將 ink 模組加入 2D 畫布繪製序列
-        ['particle', 'ink', 'circular', 'eq', 'waveform'].forEach(id => {
+        ['particle', 'ink', 'bokeh', 'circular', 'eq', 'waveform'].forEach(id => {
             if (State.activeVFX.includes(id) && VFXRegistry[id]) {
                 VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
             }

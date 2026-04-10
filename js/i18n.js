@@ -116,9 +116,14 @@ export const translations = {
         "preset_cyberpunk": "🌆 賽博龐克之夜",
         "preset_podcast": "🎙️ 專業 Podcast",
         "preset_minimal": "⚪ 極簡純粹",
+        "preset_urban": "🌆 都市流行 (Urban)",
         "msg_obs_mode_on": "🎥 OBS 直播模式已開啟 (按 Shift+F 退出)",
         "msg_obs_mode_off": "🔙 已退出 OBS 模式",
-        "btn_obs_mode": "OBS 模式"
+        "btn_obs_mode": "OBS 模式",
+        "vfx_opt_bokeh": "🎇 幻夜光斑",
+        "vfx_b_count": "🎇 光斑數量 (Count)",
+        "vfx_b_speed": "🚀 漂浮速度 (Speed)",
+        "vfx_b_glow": "✨ 霓虹發光 (Glow)"
     },
     "zh-CN": {
         "nav_brand": "CyberSentinel 黑核核心",
@@ -234,9 +239,14 @@ export const translations = {
         "preset_cyberpunk": "🌆 赛博朋克之夜",
         "preset_podcast": "🎙️ 专业 Podcast",
         "preset_minimal": "⚪ 极简纯粹",
+        "preset_urban": "🌆 都市流行 (Urban)",
         "msg_obs_mode_on": "🎥 OBS 直播模式已开启 (按 Shift+F 退出)",
         "msg_obs_mode_off": "🔙 已退出 OBS 模式",
-        "btn_obs_mode": "OBS 模式"
+        "btn_obs_mode": "OBS 模式",
+        "vfx_opt_bokeh": "🎇 幻夜光斑",
+        "vfx_b_count": "🎇 光斑数量 (Count)",
+        "vfx_b_speed": "🚀 漂浮速度 (Speed)",
+        "vfx_b_glow": "✨ 霓虹发光 (Glow)"
     },
     "en-US": {
         "nav_brand": "CyberSentinel Core",
@@ -352,9 +362,14 @@ export const translations = {
         "preset_cyberpunk": "🌆 Cyberpunk Night",
         "preset_podcast": "🎙️ Pro Podcast",
         "preset_minimal": "⚪ Pure Minimal",
+        "preset_urban": "🌆 Urban Pop",
         "msg_obs_mode_on": "🎥 OBS Studio Mode ON (Press Shift+F to exit)",
         "msg_obs_mode_off": "🔙 Exited OBS Mode",
-        "btn_obs_mode": "OBS Mode"
+        "btn_obs_mode": "OBS Mode",
+        "vfx_opt_bokeh": "🎇 Cinematic Bokeh",
+        "vfx_b_count": "🎇 Bokeh Count",
+        "vfx_b_speed": "🚀 Float Speed",
+        "vfx_b_glow": "✨ Neon Glow"
     },
     "es-ES": {
         "nav_brand": "CyberSentinel Core",
@@ -470,9 +485,14 @@ export const translations = {
         "preset_cyberpunk": "🌆 Noche Cyberpunk",
         "preset_podcast": "🎙️ Podcast Pro",
         "preset_minimal": "⚪ Minimalista puro",
+        "preset_urban": "🌆 Pop Urbano",
         "msg_obs_mode_on": "🎥 Modo OBS Activado (Presiona Shift+F para salir)",
         "msg_obs_mode_off": "🔙 Modo OBS Desactivado",
-        "btn_obs_mode": "Modo OBS"
+        "btn_obs_mode": "Modo OBS",
+        "vfx_opt_bokeh": "🎇 Bokeh Cinemático",
+        "vfx_b_count": "🎇 Cantidad de Bokeh",
+        "vfx_b_speed": "🚀 Velocidad",
+        "vfx_b_glow": "✨ Brillo Neón"
     },
     "ja-JP": {
         "nav_brand": "CyberSentinel コア",
@@ -588,9 +608,14 @@ export const translations = {
         "preset_cyberpunk": "🌆 サイバーパンクの夜",
         "preset_podcast": "🎙️ プロポッドキャスト",
         "preset_minimal": "⚪ ミニマル",
+        "preset_urban": "🌆 アーバンポップ",
         "msg_obs_mode_on": "🎥 OBSモードがオンになりました (Shift+F で終了)",
         "msg_obs_mode_off": "🔙 OBSモードを終了しました",
-        "btn_obs_mode": "OBS モード"
+        "btn_obs_mode": "OBS モード",
+        "vfx_opt_bokeh": "🎇 シネマティックボケ",
+        "vfx_b_count": "🎇 ボケの数",
+        "vfx_b_speed": "🚀 浮遊速度",
+        "vfx_b_glow": "✨ ネオングロー"
     },
     "de-DE": {
         "nav_brand": "CyberSentinel Core",
@@ -706,9 +731,14 @@ export const translations = {
         "preset_cyberpunk": "🌆 Cyberpunk-Nacht",
         "preset_podcast": "🎙️ Pro-Podcast",
         "preset_minimal": "⚪ Minimalistisch",
+        "preset_urban": "🌆 Urban Pop",
         "msg_obs_mode_on": "🎥 OBS-Modus EIN (Shift+F zum Beenden drücken)",
         "msg_obs_mode_off": "🔙 OBS-Modus beendet",
-        "btn_obs_mode": "OBS-Modus"
+        "btn_obs_mode": "OBS-Modus",
+        "vfx_opt_bokeh": "🎇 Cinematic Bokeh",
+        "vfx_b_count": "🎇 Bokeh-Anzahl",
+        "vfx_b_speed": "🚀 Fluggeschwindigkeit",
+        "vfx_b_glow": "✨ Neon-Glanz"
     },
     "fr-FR": {
         "nav_brand": "CyberSentinel Core",
@@ -824,9 +854,14 @@ export const translations = {
         "preset_cyberpunk": "🌆 Nuit Cyberpunk",
         "preset_podcast": "🎙️ Podcast Pro",
         "preset_minimal": "⚪ Pur Minimalisme",
+        "preset_urban": "🌆 Pop Urbaine",
         "msg_obs_mode_on": "🎥 Mode OBS Activé (Appuyez sur Shift+F pour quitter)",
         "msg_obs_mode_off": "🔙 Mode OBS Désactivé",
-        "btn_obs_mode": "Mode OBS"
+        "btn_obs_mode": "Mode OBS",
+        "vfx_opt_bokeh": "🎇 Bokeh Cinématique",
+        "vfx_b_count": "🎇 Nombre de Bokeh",
+        "vfx_b_speed": "🚀 Vitesse de Flottaison",
+        "vfx_b_glow": "✨ Éclat Néon"
     },
     "ko-KR": {
         "nav_brand": "CyberSentinel 코어",
@@ -942,8 +977,13 @@ export const translations = {
         "preset_cyberpunk": "🌆 사이버펑크 나이트",
         "preset_podcast": "🎙️ 프로 팟캐스트",
         "preset_minimal": "⚪ 미니멀",
+        "preset_urban": "🌆 어반 팝 (Urban)",
         "msg_obs_mode_on": "🎥 OBS 모드 켜짐 (종료하려면 Shift+F 누름)",
         "msg_obs_mode_off": "🔙 OBS 모드 종료됨",
-        "btn_obs_mode": "OBS 모드"
+        "btn_obs_mode": "OBS 모드",
+        "vfx_opt_bokeh": "🎇 시네마틱 보케",
+        "vfx_b_count": "🎇 보케 개수",
+        "vfx_b_speed": "🚀 부유 속도",
+        "vfx_b_glow": "✨ 네온 글로우"
     }
 };
