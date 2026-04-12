@@ -1,5 +1,5 @@
-/*
- * CyberSentinel - Render Pipeline Engine
+/**
+ * Black Core Sentinel - Render Pipeline Engine
  * 負責所有 Canvas 2D/3D 的渲染疊加、效能迴圈 (RequestAnimationFrame)、以及畫布拖曳互動。
  */
 import { initAurora3D, renderAurora3D } from '../vfx/Aurora3D.js';
@@ -11,9 +11,11 @@ import { renderBokeh } from '../vfx/Bokeh.js';
 import { renderRetroGrid } from '../vfx/RetroGrid.js'; /* 🌟 引入復古網格特效 */
 import { State } from './StateManager.js';
 
+/* 依賴注入環境變數 */
 let audio, audioPlayer, bgManager, lyricsManager, getLogoImg, getCurrentMode, uiManager;
 let onLayoutChangeCallback = null;
 
+/* 畫布與 Context 初始化 */
 export const canvas2D = document.getElementById('visualizer2D');
 export const ctx2D = canvas2D.getContext('2d');
 const canvas3D = document.getElementById('visualizer3D'); 
@@ -33,6 +35,7 @@ let animationFrameId = null;
 let sharedDataArray = null; 
 let renderPending = false;
 
+/* 狀態控制外部介面 */
 export function getIsDrawing() { return isDrawing; }
 export function setIsDrawing(val) { isDrawing = val; }
 export function setUserHasDragged(val) { userHasDragged = val; }
@@ -51,6 +54,7 @@ export function initRenderPipeline(context) {
     initCanvasInteractions();
 }
 
+/* 🌟 特效分派中心 */
 const VFXRegistry = {
     aurora: {
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
@@ -70,7 +74,7 @@ const VFXRegistry = {
             ctx.drawImage(canvas3D, 0, 0, canvas2D.width, canvas2D.height);
         }
     },
-    retrogrid: { /* 🌟 註冊網格路由 */
+    retrogrid: { /* 🌟 註冊復古網格路由 */
         render: (ctx, canvas2D, canvas3D, dataArray, safePulse, scale) => {
             const cfg = { ...State.vfx.retrogrid };
             renderRetroGrid(ctx, canvas2D, dataArray, scale, safePulse, State.ui.isA11y, cfg);
@@ -159,6 +163,9 @@ export function recalculateLayoutCache() {
     if (State.ui.speakerInfo) { ctx2D.font = `${26 * scale}px ${font}`; State.cache.speakerWidth = ctx2D.measureText(State.ui.speakerInfo).width; } else State.cache.speakerWidth = 0;
 }
 
+/* ========================================== */
+/* 🎨 完美渲染管線核心                          */
+/* ========================================== */
 function renderCore(dataArray, safePulse) {
     try {
         ctx2D.globalCompositeOperation = 'source-over';
@@ -194,11 +201,12 @@ function renderCore(dataArray, safePulse) {
 
         vfxCtx.clearRect(0, 0, vfxCanvas.width, vfxCanvas.height);
         
+        /* 1. 繪製 3D 底層 */
         ['aurora', 'nebula'].forEach(id => {
             if (State.activeVFX.includes(id) && VFXRegistry[id]) VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
         });
 
-        /* 🌟 將 retrogrid 放入繪圖陣列 (會從底部往上畫) */
+        /* 2. 繪製 2D 疊加層 (包含全新 RetroGrid) */
         ['retrogrid', 'particle', 'ink', 'bokeh', 'circular', 'eq', 'waveform'].forEach(id => {
             if (State.activeVFX.includes(id) && VFXRegistry[id]) VFXRegistry[id].render(vfxCtx, vfxCanvas, canvas3D, dataArray, vfxPulse, getScale());
         });
@@ -219,6 +227,7 @@ function renderCore(dataArray, safePulse) {
         const dx = (State.layoutOffsets.vfx.px - 0.5) * canvas2D.width + camOffsetX;
         const dy = (State.layoutOffsets.vfx.py - 0.5) * canvas2D.height + camOffsetY;
         
+        /* 電影級色散後處理 */
         if (chromaticOffset > 2) {
             ctx2D.globalCompositeOperation = hasBg ? 'screen' : 'lighter';
             ctx2D.save(); ctx2D.globalAlpha = 0.6; ctx2D.drawImage(vfxCanvas, dx - chromaticOffset, dy); ctx2D.restore();
@@ -234,14 +243,14 @@ function renderCore(dataArray, safePulse) {
         drawLyrics(); 
         if (!State.ui.obsMode) drawInteractions(); 
     } catch (e) {
-        console.error("[CyberSentinel] Render Core 崩潰:", e);
+        console.error("[Black Core Sentinel] Render Core 崩潰:", e);
         throw e; 
     }
 }
 
 function extractAudioPulse() {
     let safePulse = 0;
-    if (audio.analyser) {
+    if (audio && audio.analyser) {
         if (!sharedDataArray || sharedDataArray.length !== audio.analyser.frequencyBinCount) sharedDataArray = new Uint8Array(audio.analyser.frequencyBinCount);
         audio.analyser.getByteFrequencyData(sharedDataArray);
         const bassSum = sharedDataArray[0] + sharedDataArray[1] + sharedDataArray[2] + sharedDataArray[3] + sharedDataArray[4] + sharedDataArray[5];
@@ -269,7 +278,7 @@ export function drawMasterLoop() {
         renderCore(sharedDataArray || new Uint8Array(256), extractAudioPulse());
         animationFrameId = requestAnimationFrame(drawMasterLoop);
     } catch (error) {
-        console.error("[CyberSentinel] Master Loop 嚴重崩潰，安全停機", error);
+        console.error("[Black Core Sentinel] Master Loop 嚴重崩潰，安全停機", error);
         isDrawing = false;
         if(uiManager) uiManager.showToast("⚠️ 渲染引擎發生異常，已啟動安全保護機制停機", "red");
     }
@@ -397,6 +406,7 @@ function drawLyrics() {
     }
 }
 
+/* 👆 滑鼠與觸控事件互動處理 */
 function getMousePos(canvas, evt) {
     const rect = canvas.getBoundingClientRect();
     let cx = evt.touches?.length ? evt.touches[0].clientX : evt.clientX;

@@ -1,6 +1,7 @@
-/*
- * CyberSentinel - State Manager Module
- * 負責全域狀態 (State) 的儲存、讀取，以及防呆保護機制。
+/**
+ * Black Core Sentinel - State Manager Module
+ * 負責全域狀態 (State) 的持久化儲存、讀取，以及數據損毀保護機制。
+ * 採用的 LocalStorage 鍵值前綴保留為 CS_ 以確保使用者設定在品牌升級後無縫承接。
  */
 
 export const State = {
@@ -44,10 +45,14 @@ class StateManager {
     }
 
     initListeners() {
-        /* 生命週期終點守護：關閉視窗前強制存檔 */
+        /* 生命週期守護：當瀏覽器視窗即將關閉或重新整理時，執行最後一次強制存檔 */
         window.addEventListener('beforeunload', () => this.save(true));
     }
 
+    /**
+     * 執行狀態存檔
+     * @param {boolean} force - 是否跳過防抖機制立即寫入
+     */
     save(force = false) {
         const executeSave = () => {
             try {
@@ -56,7 +61,7 @@ class StateManager {
                 localStorage.setItem('CS_State_Layout', JSON.stringify(State.layoutOffsets));
                 localStorage.setItem('CS_ActiveVFX', JSON.stringify(State.activeVFX));
             } catch (e) {
-                console.error("[CyberSentinel] 儲存狀態至 LocalStorage 失敗", e);
+                console.error("[Black Core Sentinel] 儲存狀態至 LocalStorage 失敗", e);
             }
         };
 
@@ -65,11 +70,14 @@ class StateManager {
             executeSave();
         } else {
             clearTimeout(this._saveTimeout);
-            /* 500ms 防抖動 (Debounce) 自動存檔 */
+            /* 採用 500ms 防抖 (Debounce) 機制，避免使用者頻繁拉動滑桿時造成效能負擔 */
             this._saveTimeout = setTimeout(executeSave, 500); 
         }
     }
 
+    /**
+     * 載入本地儲存的狀態
+     */
     load() {
         try {
             const savedVfx = localStorage.getItem('CS_State_VFX');
@@ -80,7 +88,7 @@ class StateManager {
             if (savedVfx) State.vfx = { ...State.vfx, ...JSON.parse(savedVfx) };
             if (savedUi) State.ui = { ...State.ui, ...JSON.parse(savedUi) };
             
-            /* 安全解析佈局座標，防止 NaN 白屏死機 */
+            /* 安全解析佈局座標：若讀取到損毀資料 (NaN)，則自動回退至系統預設值 */
             if (savedLayout) {
                 const parsedLayout = JSON.parse(savedLayout);
                 const safeFloat = (val, fallback) => (isNaN(parseFloat(val)) ? fallback : parseFloat(val));
@@ -98,7 +106,7 @@ class StateManager {
                 State.activeVFX = Array.isArray(parsed) ? parsed : [savedActive]; 
             }
         } catch (e) {
-            console.warn("[CyberSentinel] 讀取本機狀態失敗，使用系統預設值", e);
+            console.warn("[Black Core Sentinel] 讀取本機狀態失敗，使用系統預設值", e);
         }
     }
 }

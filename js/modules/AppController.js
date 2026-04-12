@@ -1,6 +1,6 @@
 /**
- * CyberSentinel - Application Controller
- * 負責系統所有的事件綁定 (Events)、檔案處理 (Media Import)、錄影控制與歌詞打軸邏輯。
+ * Black Core Sentinel - Application Controller
+ * 負責系統所有的事件綁定 (Events)、媒體處理 (Media Import)、錄影控制與歌詞打軸邏輯。
  * 徹底實現 MVC 架構中的 C (Controller) 職責。
  */
 import { State, stateManager } from './StateManager.js'; 
@@ -22,7 +22,7 @@ export class AppController {
         this.currentLogoUrl = null;
     }
 
-    // 啟動所有事件監聽
+    /* 啟動所有事件監聽 */
     init() {
         this.bindLyricsEvents();
         this.bindRecordingEvents();
@@ -38,9 +38,9 @@ export class AppController {
         return `${m}:${s}`;
     }
 
-    // ==========================================
-    // 🎵 歌詞打軸與時間軸同步事件
-    // ==========================================
+    /* ========================================== */
+    /* 🎵 歌詞打軸與時間軸同步事件                  */
+    /* ========================================== */
     bindLyricsEvents() {
         const lyricsInput = document.getElementById('lyricsInput');
         const btnStartSync = document.getElementById('btnStartSync');
@@ -127,12 +127,13 @@ export class AppController {
         });
 
         document.getElementById('btnExportLRC')?.addEventListener('click', () => {
-            const success = this.lyricsManager.exportLRC(lyricsInput.value.trim(), document.getElementById('topicTitle').value.trim() || 'CyberSentinel_Lyrics');
+            /* 🌟 品牌升級：匯出檔名改為 BlackCoreSentinel */
+            const success = this.lyricsManager.exportLRC(lyricsInput.value.trim(), document.getElementById('topicTitle').value.trim() || 'BlackCoreSentinel_Lyrics');
             if (!success) alert(window.t('alert_no_lyrics'));
         });
 
         document.getElementById('btnExportSRT')?.addEventListener('click', () => {
-            const success = this.lyricsManager.exportSRT(lyricsInput.value.trim(), document.getElementById('topicTitle').value.trim() || 'CyberSentinel_Subtitle');
+            const success = this.lyricsManager.exportSRT(lyricsInput.value.trim(), document.getElementById('topicTitle').value.trim() || 'BlackCoreSentinel_Subtitle');
             if (!success) alert(window.t('alert_no_lyrics'));
         });
     }
@@ -155,9 +156,9 @@ export class AppController {
         });
     }
 
-    // ==========================================
-    // 🎥 錄影引擎事件
-    // ==========================================
+    /* ========================================== */
+    /* 🎥 錄影引擎事件                              */
+    /* ========================================== */
     bindRecordingEvents() {
         const btnRecord = document.getElementById('btnRecord');
         const btnStopRecord = document.getElementById('btnStopRecord');
@@ -168,7 +169,11 @@ export class AppController {
             const success = this.videoRecorder.start(this.audio.streamDestination, (videoUrl) => {
                 document.getElementById('recordedVideo').src = videoUrl;
                 const dlLink = document.getElementById('downloadLink');
-                if(dlLink) { dlLink.href = videoUrl; dlLink.download = `CyberSentinel_Record_${Date.now()}.webm`; }
+                if(dlLink) { 
+                    dlLink.href = videoUrl; 
+                    /* 🌟 品牌升級：錄製檔名改為 BlackCoreSentinel */
+                    dlLink.download = `BlackCoreSentinel_Record_${Date.now()}.webm`; 
+                }
                 document.getElementById('resultModal')?.classList.replace('hidden', 'flex'); 
                 document.getElementById('recordingStatus')?.classList.add('hidden');
                 btnRecord.disabled = false; btnStopRecord.disabled = true;
@@ -193,9 +198,9 @@ export class AppController {
         });
     }
 
-    // ==========================================
-    // 🎚️ 檔案匯入與雙軌混音事件
-    // ==========================================
+    /* ========================================== */
+    /* 🎚️ 檔案匯入與雙軌混音事件                      */
+    /* ========================================== */
     bindMediaEvents() {
         document.getElementById('audioUpload')?.addEventListener('change', (e) => { 
             if(e.target.files.length) this.handleFileImport(e.target.files[0]); 
@@ -292,7 +297,7 @@ export class AppController {
             if(btnRecord) { btnRecord.disabled = false; btnRecord.classList.replace('bg-gray-700', 'bg-red-600'); btnRecord.classList.replace('text-gray-400', 'text-white'); }
             applyResolution(1920, 1080); 
         } catch (e) { 
-            console.error("載入失敗詳細錯誤:", e); alert(window.t('alert_load_fail') + "\\n" + (e.message || "請確認檔案格式是否受支援")); 
+            console.error("載入失敗詳細錯誤:", e); alert(window.t('alert_load_fail') + "\n" + (e.message || "請確認檔案格式是否受支援")); 
         }
     }
 
@@ -316,9 +321,9 @@ export class AppController {
         });
     }
 
-    // ==========================================
-    // 👆 拖放與 UI 基礎操作事件
-    // ==========================================
+    /* ========================================== */
+    /* 👆 拖放與 UI 基礎操作事件                    */
+    /* ========================================== */
     bindDragAndDrop() {
         window.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('bg-blue-900/20'); });
         window.addEventListener('dragleave', () => document.body.classList.remove('bg-blue-900/20'));
