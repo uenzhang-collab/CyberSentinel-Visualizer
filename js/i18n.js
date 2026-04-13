@@ -1,10 +1,10 @@
-/**
- * Black Core Sentinel - 多國語系字典模組 (i18n)
+/*
+ * Black Core Sentinel - SVR - 多國語系字典模組 (i18n)
  * 全域 100% 翻譯覆蓋，支援 8 國語言。
  */
 export const translations = {
     "zh-TW": {
-        "nav_brand": "Black Core Sentinel 黑核核心",
+        "nav_brand": "Black Core Sentinel - SVR",
         "creator_label": "BCS-Founder 2026.04.06",
         "step1_title": "1️⃣ 匯入素材 (音源與排版)",
         "btn_mic": "🎙️ 啟用麥克風",
@@ -132,7 +132,7 @@ export const translations = {
         "btn_obs_mode": "OBS 模式"
     },
     "zh-CN": {
-        "nav_brand": "Black Core Sentinel 黑核核心",
+        "nav_brand": "Black Core Sentinel - SVR",
         "creator_label": "BCS-Founder 2026.04.06",
         "step1_title": "1️⃣ 导入素材 (音源与排版)",
         "btn_mic": "🎙️ 启用麦克风",
@@ -260,7 +260,7 @@ export const translations = {
         "btn_obs_mode": "OBS 模式"
     },
     "en-US": {
-        "nav_brand": "Black Core Sentinel Core",
+        "nav_brand": "Black Core Sentinel - SVR",
         "creator_label": "BCS-Founder 2026.04.06",
         "step1_title": "1️⃣ Import Materials",
         "btn_mic": "🎙️ Enable Mic",
@@ -388,8 +388,8 @@ export const translations = {
         "btn_obs_mode": "OBS Mode"
     },
     "es-ES": {
-        "nav_brand": "Black Core Sentinel Core",
-        "creator_label": "BCS-Founder 2026.04.06",
+        "nav_brand": "Black Core Sentinel - SVR",
+        "creator_label": "CS-Founder 2026.04.06",
         "step1_title": "1️⃣ Importar Materiales",
         "btn_mic": "🎙️ Habilitar Micrófono",
         "btn_upload": "🎵 Subir Audio/Video",
@@ -516,7 +516,7 @@ export const translations = {
         "btn_obs_mode": "Modo OBS"
     },
     "ja-JP": {
-        "nav_brand": "Black Core Sentinel コア",
+        "nav_brand": "Black Core Sentinel - SVR",
         "creator_label": "BCS-Founder 2026.04.06",
         "step1_title": "1️⃣ 素材のインポート (音声とレイアウト)",
         "btn_mic": "🎙️ マイクを有効にする",
@@ -623,7 +623,7 @@ export const translations = {
         "alert_no_audio": "最初に音声ファイルをアップロードしてください！",
         "alert_no_lyrics": "プレーンテキストの歌詞を貼り付けてください！",
         "alert_no_record": "お使いのブラウザはこの形式の録画をサポートしていません。",
-        "alert_mic_fail": "マイクへのアクセスに失敗しました。權限を確認してください。",
+        "alert_mic_fail": "マイクへのアクセスに失敗しました。権限を確認してください。",
         "alert_heic_unsupported": "⚠️ システム警告: ブラウザはAppleのHEIC形式をネイティブにサポートしていません。アップロードする前に画像をJPGまたはPNGに変換してください！",
         "btn_export_lrc": "⬇️ .LRC ダウンロード",
         "btn_export_srt": "⬇️ .SRT ダウンロード",
@@ -641,13 +641,10 @@ export const translations = {
         "preset_urban": "🌆 アーバンポップ",
         "msg_obs_mode_on": "🎥 OBSモードがオンになりました (Shift+F で終了)",
         "msg_obs_mode_off": "🔙 OBSモードを終了しました",
-        "btn_obs_mode": "OBS モード",
-        "vfx_b_count": "🎇 ボケの数",
-        "vfx_b_speed": "🚀 浮遊速度",
-        "vfx_b_glow": "✨ ネオングロー"
+        "btn_obs_mode": "OBS モード"
     },
     "de-DE": {
-        "nav_brand": "Black Core Sentinel Core",
+        "nav_brand": "Black Core Sentinel - SVR",
         "creator_label": "BCS-Founder 2026.04.06",
         "step1_title": "1️⃣ Materialien importieren",
         "btn_mic": "🎙️ Mikrofon aktivieren",
@@ -775,7 +772,7 @@ export const translations = {
         "btn_obs_mode": "OBS-Modus"
     },
     "fr-FR": {
-        "nav_brand": "Black Core Sentinel Core",
+        "nav_brand": "Black Core Sentinel - SVR",
         "creator_label": "BCS-Founder 2026.04.06",
         "step1_title": "1️⃣ Importer des Médias",
         "btn_mic": "🎙️ Activer le Micro",
@@ -898,15 +895,12 @@ export const translations = {
         "preset_podcast": "🎙️ Podcast Pro",
         "preset_minimal": "⚪ Pur Minimalisme",
         "preset_urban": "🌆 Pop Urbaine",
-        "msg_obs_mode_on": "🎥 Mode OBS Activé (Appuyez sur Shift+F pour quitter)",
+        "msg_obs_mode_on": "🎥 Mode OBS Activado (Appuyez sur Shift+F pour quitter)",
         "msg_obs_mode_off": "🔙 Mode OBS Désactivé",
-        "btn_obs_mode": "Mode OBS",
-        "vfx_b_count": "🎇 Nombre de Bokeh",
-        "vfx_b_speed": "🚀 Vitesse de Flottaison",
-        "vfx_b_glow": "✨ Éclat Néon"
+        "btn_obs_mode": "Mode OBS"
     },
     "ko-KR": {
-        "nav_brand": "Black Core Sentinel 코어",
+        "nav_brand": "Black Core Sentinel - SVR",
         "creator_label": "BCS-Founder 2026.04.06",
         "step1_title": "1️⃣ 미디어 가져오기 (오디오 및 레이아웃)",
         "btn_mic": "🎙️ 마이크 켜기",
@@ -992,9 +986,9 @@ export const translations = {
         "vfx_opt_waveform": "네온 파형",
         "lbl_quality": "녹화 화질:",
         "opt_720p": "720p (표준)",
-        "opt_1080p": "1080p (고화質)",
-        "opt_2k": "2K (초고화質)",
-        "opt_4k": "4K (최고화質)",
+        "opt_1080p": "1080p (고화질)",
+        "opt_2k": "2K (초고화질)",
+        "opt_4k": "4K (최고화질)",
         "lbl_waveform_preview": "📍 글로벌 파형 <span class=\"hidden sm:inline\">(클릭하여 탐색)</span>",
         "msg_drag_audio": "MP3 또는 화면 녹화 비디오를 여기에 드래그 앤 드롭하세요!",
         "msg_wait_audio": "오디오 입력 대기 중...",

@@ -1,5 +1,5 @@
-/**
- * Black Core Sentinel - Application Controller
+/*
+ * Black Core Sentinel - SVR - Application Controller
  * 負責系統所有的事件綁定 (Events)、媒體處理 (Media Import)、錄影控制與歌詞打軸邏輯。
  * 徹底實現 MVC 架構中的 C (Controller) 職責。
  */
@@ -127,13 +127,14 @@ export class AppController {
         });
 
         document.getElementById('btnExportLRC')?.addEventListener('click', () => {
-            /* 🌟 品牌升級：匯出檔名改為 BlackCoreSentinel */
-            const success = this.lyricsManager.exportLRC(lyricsInput.value.trim(), document.getElementById('topicTitle').value.trim() || 'BlackCoreSentinel_Lyrics');
+            /* 🌟 品牌升級：匯出檔名改為 BlackCoreSentinel_SVR */
+            const success = this.lyricsManager.exportLRC(lyricsInput.value.trim(), document.getElementById('topicTitle').value.trim() || 'BlackCoreSentinel_SVR_Lyrics');
             if (!success) alert(window.t('alert_no_lyrics'));
         });
 
         document.getElementById('btnExportSRT')?.addEventListener('click', () => {
-            const success = this.lyricsManager.exportSRT(lyricsInput.value.trim(), document.getElementById('topicTitle').value.trim() || 'BlackCoreSentinel_Subtitle');
+            /* 🌟 品牌升級：匯出檔名改為 BlackCoreSentinel_SVR */
+            const success = this.lyricsManager.exportSRT(lyricsInput.value.trim(), document.getElementById('topicTitle').value.trim() || 'BlackCoreSentinel_SVR_Subtitle');
             if (!success) alert(window.t('alert_no_lyrics'));
         });
     }
@@ -171,8 +172,8 @@ export class AppController {
                 const dlLink = document.getElementById('downloadLink');
                 if(dlLink) { 
                     dlLink.href = videoUrl; 
-                    /* 🌟 品牌升級：錄製檔名改為 BlackCoreSentinel */
-                    dlLink.download = `BlackCoreSentinel_Record_${Date.now()}.webm`; 
+                    /* 🌟 品牌升級：錄製檔名改為 BlackCoreSentinel_SVR */
+                    dlLink.download = `BlackCoreSentinel_SVR_Record_${Date.now()}.webm`; 
                 }
                 document.getElementById('resultModal')?.classList.replace('hidden', 'flex'); 
                 document.getElementById('recordingStatus')?.classList.add('hidden');

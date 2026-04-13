@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="author" content="張承偉">
-    <meta name="copyright" content="© 2026 張承偉 (Black Core Sentinel)">
-    <title>Black Core Sentinel 3D Audio Visualizer Studio</title>
+    <meta name="author" content="C.W. Chang">
+    <meta name="copyright" content="© 2026 C.W. Chang (Black Core Sentinel - SVR)">
+    <title>Black Core Sentinel - SVR (Sound Visualization Recorder)</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#3b82f6">
@@ -28,17 +28,20 @@
 </head>
 <body class="text-gray-100 min-h-screen flex flex-col font-sans overflow-x-hidden">
 
-    <!-- 導航欄 -->
-    <nav class="p-4 border-b border-gray-800 flex justify-between items-center glass-panel sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">BCS</div>
-            <span class="text-xl font-bold tracking-tight text-blue-400" data-i18n="nav_brand">Black Core Sentinel 黑核核心</span>
+    <!-- 導航欄 (已修復 RWD 溢出切邊問題) -->
+    <nav class="p-3 md:p-4 border-b border-gray-800 flex justify-between items-center glass-panel sticky top-0 z-50 w-full gap-2">
+        <!-- 左側：品牌 Logo (具備自適應縮放截斷彈性) -->
+        <div class="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+            <div class="w-7 h-7 md:w-8 md:h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shrink-0 text-xs md:text-base">BCS</div>
+            <span class="text-base md:text-xl font-bold tracking-tight text-blue-400 truncate" data-i18n="nav_brand">Black Core Sentinel - SVR</span>
         </div>
-        <div class="flex items-center gap-4">
-            <span class="text-sm text-gray-500 hidden md:block" data-i18n="creator_label">BCS-Founder 2026.04.06</span>
+
+        <!-- 右側：控制選項 -->
+        <div class="flex items-center gap-2 md:gap-4 shrink-0">
+            <span class="text-sm text-gray-500 hidden lg:block" data-i18n="creator_label">Sound Visualization Recorder | 2026.04.06</span>
             
             <!-- 一鍵大師風格庫 (Presets) -->
-            <select id="presetSelector" class="bg-indigo-900/60 text-indigo-300 font-bold text-sm p-1.5 rounded border border-indigo-700 focus:outline-none focus:border-indigo-500 shadow-md transition-colors hover:bg-indigo-800/60">
+            <select id="presetSelector" class="bg-indigo-900/60 text-indigo-300 font-bold text-xs md:text-sm p-1.5 md:p-2 rounded border border-indigo-700 focus:outline-none focus:border-indigo-500 shadow-md transition-colors hover:bg-indigo-800/60 w-[115px] sm:w-[160px] md:w-auto truncate cursor-pointer">
                 <option value="custom" data-i18n="preset_custom">🔧 自訂 (Custom)</option>
                 <option value="citypop" data-i18n="preset_citypop">🌃 復古城市流行 (City Pop)</option>
                 <option value="acoustic" data-i18n="preset_acoustic">🎸 不插電民謠 (Acoustic)</option>
@@ -49,7 +52,8 @@
                 <option value="minimal" data-i18n="preset_minimal">⚪ 極簡純粹</option>
             </select>
             
-            <select id="langSelect" class="bg-gray-800 text-sm p-1.5 rounded border border-gray-700 focus:outline-none focus:border-blue-500">
+            <!-- 語系切換 -->
+            <select id="langSelect" class="bg-gray-800 text-xs md:text-sm p-1.5 md:p-2 rounded border border-gray-700 focus:outline-none focus:border-blue-500 w-[75px] sm:w-[90px] md:w-auto cursor-pointer truncate">
                 <!-- 語言選項將由 JS 動態生成 -->
             </select>
         </div>
